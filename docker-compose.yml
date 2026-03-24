@@ -1,0 +1,80 @@
+services:
+  # ---- MySQL 8 ----
+  mysql:
+    image: mysql:8.0
+    container_name: scaneval-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ScanEval@2026}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-ScanEval@2026}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+
+  # ---- API (Node.js Express) ----
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: scaneval-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      # Expose Swagger UI at /api/docs (NODE_ENV=production hides it unless this is set)
+      ENABLE_SWAGGER: "true"
+      CLIENT_URL: http://localhost:8080,http://localhost:5173,http://localhost
+      SCAN_DB_HOST: mysql
+      SCAN_DB_PORT: 3306
+      SCAN_DB_USER: root
+      SCAN_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ScanEval@2026}
+      SCAN_DB_NAME: ScanningDB
+      EVAL_DB_HOST: mysql
+      EVAL_DB_PORT: 3306
+      EVAL_DB_USER: root
+      EVAL_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ScanEval@2026}
+      EVAL_DB_NAME: EvaluationDB
+      JWT_SECRET: ${JWT_SECRET:-scan-eval-jwt-secret-change-in-prod-2026}
+      JWT_EXPIRES_IN: 8h
+      STORAGE_MODE: local
+      SCAN_OUTPUT_PATH: /data/scan-output
+    volumes:
+      # Shared storage: scanned pages, profile photos, captured snapshots
+      - scan-output:/data/scan-output
+      # API logs mounted to host so upload failures can be inspected without
+      # entering the container.  Read with: Get-Content .\logs\upload-*.log
+      - ./logs:/app/logs
+
+  # ---- Web (React + Nginx) ----
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: scaneval-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  mysql-data:
+    driver: local
+  scan-output:
+    driver: local

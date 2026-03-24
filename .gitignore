@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.vs
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+.txt
+
+# Build output (web + .NET)
+dist/
+build/
+**/bin/
+**/obj/
+docs
+
+# IDE / OS
+.idea/
+.vscode/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+coverage/
+.nyc_output/
+.env.example

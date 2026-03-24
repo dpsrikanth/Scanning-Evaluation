@@ -1,0 +1,160 @@
+.head-eval-page {
+  display: flex; flex-direction: column;
+  height: calc(100vh - var(--header-h));
+  background: var(--color-bg);
+}
+
+/* Toolbar */
+.head-eval-toolbar {
+  background: var(--color-surface);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+}
+
+.toolbar-top {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 14px;
+}
+.toolbar-icon-wrap {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, #3730a3, #6366f1);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.toolbar-title { margin: 0; font-size: 18px; font-weight: 800; color: var(--color-text); }
+.toolbar-subtitle { margin: 2px 0 0; font-size: 12px; color: var(--color-text-muted); }
+
+.filter-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+.filter-field { display: flex; flex-direction: column; gap: 5px; }
+.filter-label { font-size: 11px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.filter-select {
+  padding: 8px 12px; border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm); font-size: 13px;
+  background: var(--color-surface); min-width: 160px;
+  transition: border-color 0.15s; cursor: pointer;
+  font-family: var(--font-sans);
+}
+.filter-select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.10); }
+
+.assign-message {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: var(--color-success-light);
+  color: var(--color-success); border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; margin-top: 10px;
+}
+
+/* Body */
+.head-eval-body { display: flex; flex: 1; overflow: hidden; }
+
+/* Panels */
+.lot-panel, .eval-panel {
+  display: flex; flex-direction: column;
+  background: var(--color-surface);
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+}
+.lot-panel  { flex: 1.2; }
+.eval-panel { flex: 1; border-right: none; }
+
+/* Panel header */
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--color-border);
+  background: #f8fafc; flex-shrink: 0;
+}
+.panel-header-left { display: flex; align-items: center; gap: 8px; }
+.panel-header-icon { color: var(--color-primary); }
+.panel-title { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.selected-count {
+  background: var(--color-primary-light); color: var(--color-primary);
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+}
+.panel-header .btn-ghost { font-size: 11px; padding: 4px 8px; }
+
+/* Lists */
+.lot-list, .eval-list { flex: 1; overflow-y: auto; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; height: 200px;
+  color: var(--color-text-muted); font-size: 13px; text-align: center;
+  padding: 20px;
+}
+.empty-state-icon { opacity: 0.3; }
+
+/* Lot items */
+.lot-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; cursor: pointer;
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.1s;
+}
+.lot-item:hover { background: var(--color-primary-light); }
+.lot-item.selected { background: var(--color-primary-light); border-left: 3px solid var(--color-primary); }
+.lot-item input[type="checkbox"] {
+  flex-shrink: 0; width: 15px; height: 15px;
+  cursor: pointer; accent-color: var(--color-primary);
+}
+.lot-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.lot-id { font-size: 13px; font-weight: 700; color: var(--color-text); font-family: var(--font-mono); }
+.lot-meta { font-size: 11px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lot-view-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; font-size: 12px; color: var(--color-primary);
+  border-radius: 6px; text-decoration: none; flex-shrink: 0;
+}
+.lot-view-link:hover { background: rgba(13, 110, 74, 0.08); color: var(--color-primary); }
+.lot-status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-warning); flex-shrink: 0; margin-left: auto;
+}
+
+/* Evaluator items */
+.eval-item {
+  padding: 12px 16px; border-bottom: 1px solid #f8fafc;
+  cursor: pointer; transition: all 0.1s;
+}
+.eval-item:hover { background: #f8fafc; }
+.eval-item.selected {
+  background: #eef2ff;
+  border-left: 3px solid #6366f1;
+}
+.eval-item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.eval-avatar {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #a78bfa);
+  color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.eval-name { font-size: 14px; font-weight: 600; color: var(--color-text); flex: 1; }
+.eval-radio {
+  width: 16px; height: 16px; cursor: pointer; accent-color: #6366f1;
+}
+.eval-stats { display: flex; gap: 8px; }
+
+/* Assign action area */
+.assign-action {
+  padding: 12px 16px; border-top: 1px solid var(--color-border);
+  flex-shrink: 0; background: #f8fafc;
+}
+
+/* Summary */
+.assign-summary-section {
+  padding: 14px 16px; border-top: 1px solid var(--color-border); overflow-y: auto;
+}
+.summary-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;
+}
+.assign-summary-section table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.assign-summary-section th {
+  background: var(--color-surface-2); padding: 6px 10px; text-align: left;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted);
+}
+.assign-summary-section td { padding: 7px 10px; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); }
+.assign-summary-section tr:hover td { background: var(--color-primary-light); }

@@ -1,0 +1,278 @@
+namespace ScannerApp.Models
+{
+    /// <summary>Scan source selection — mirrors the three options in the WIA common dialog.</summary>
+    public enum ScanSource
+    {
+        FeederDuplex,   // Feeder (Scan both sides)  — WIA: FEEDER|DUPLEX = 6
+        FeederSimplex,  // Feeder (Scan one side)    — WIA: FEEDER = 2
+        Flatbed,        // Flatbed Glass             — WIA: FLATBED = 1
+    }
+
+    public class LoginRequest
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string Source { get; set; } = "scan";
+    }
+
+    public class LoginResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = "";
+        public LoginData? Data { get; set; }
+    }
+
+    public class LoginData
+    {
+        public string Token { get; set; } = "";
+        public UserInfo? User { get; set; }
+    }
+
+    public class UserInfo
+    {
+        public int UserId { get; set; }
+        public string Username { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string RoleName { get; set; } = "";
+        public int? LocationId { get; set; }
+    }
+
+    public class ApiResponse<T>
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = "";
+        public T? Data { get; set; }
+    }
+
+    /// <summary>Rows from GET /api/scan/rejected-booklets (vendor or customer QC rejected).</summary>
+    public class QcRejectedRow
+    {
+        public string BookletID { get; set; } = "";
+        public int PaperID { get; set; }
+        public string PaperCode { get; set; } = "";
+        public string PaperName { get; set; } = "";
+        public string ScanDate { get; set; } = "";
+        public string VendorQcStatus { get; set; } = "";
+        public string VendorQcReason { get; set; } = "";
+        public string CustomerQcStatus { get; set; } = "";
+        public string CustomerQcReason { get; set; } = "";
+    }
+
+    public class ScanSettings
+    {
+        public LocationInfo? Location { get; set; }
+        public List<ExamInfo> Exams { get; set; } = new();
+        public List<PaperInfo> Papers { get; set; } = new();
+        public List<WorkstationInfo> Workstations { get; set; } = new();
+        public List<ScanTemplate> Templates { get; set; } = new();
+        public List<PrinterProfile> PrinterProfiles { get; set; } = new();
+        public ScanDefaults? Defaults { get; set; }
+    }
+
+    public class LocationInfo
+    {
+        public int LocationID { get; set; }
+        public string LocationCode { get; set; } = "";
+        public string LocationName { get; set; } = "";
+    }
+
+    public class ExamInfo
+    {
+        public int ExamID { get; set; }
+        public string ExamCode { get; set; } = "";
+        public string ExamName { get; set; } = "";
+        public int ExamYear { get; set; }
+
+        public override string ToString() =>
+            string.IsNullOrWhiteSpace(ExamName)
+                ? ExamCode
+                : $"{ExamCode}  —  {ExamName}";
+    }
+
+    public class PaperInfo
+    {
+        public int PaperID { get; set; }
+        public int ExamID { get; set; }
+        public string PaperCode { get; set; } = "";
+        public string PaperName { get; set; } = "";
+        public int TotalPages { get; set; }
+        public string? BookletPageCounts { get; set; }
+
+        public override string ToString() =>
+            string.IsNullOrWhiteSpace(PaperName)
+                ? PaperCode
+                : $"{PaperCode}  —  {PaperName}";
+    }
+
+    public class WorkstationInfo
+    {
+        public int WorkstationID { get; set; }
+        public string WorkstationCode { get; set; } = "";
+        public string WorkstationName { get; set; } = "";
+        public string? AssignedUsername { get; set; }
+        public int? PrinterProfileID { get; set; }
+        public string? PrinterProfileName { get; set; }
+        public string? PrinterBrand { get; set; }
+        public string? DriverType { get; set; }
+        public string? TwainCapabilities { get; set; }
+        public int? LocationID { get; set; }
+        public string? LocationCode { get; set; }
+        public string? LocationName { get; set; }
+
+        public override string ToString() => $"{WorkstationCode} — {WorkstationName}";
+    }
+
+    public class ScanDefaults
+    {
+        public int Dpi { get; set; } = 300;
+        public string ColorMode { get; set; } = "Grayscale";
+        public string PageSize { get; set; } = "A4";
+        public string DuplexMode { get; set; } = "Simplex";
+        public string ImageFormat { get; set; } = "jpeg";
+        public int JpegQuality { get; set; } = 85;
+        /// <summary>When true, a confirmation popup is shown after each scan. Disabled by default.</summary>
+        public bool ShowBookletDetailsPopup { get; set; } = false;
+    }
+
+    public class ScanTemplate
+    {
+        public int TemplateID { get; set; }
+        public string TemplateName { get; set; } = "";
+        public string Description { get; set; } = "";
+        public int PageCount { get; set; } = 24;
+        public int DPI { get; set; } = 300;
+        public string ColorMode { get; set; } = "Grayscale";
+        public string PageSize { get; set; } = "A4";
+        public string DuplexMode { get; set; } = "Simplex";
+        public int JpegQuality { get; set; } = 85;
+        public int BrightnessAdj { get; set; } = 0;
+        public int ContrastAdj { get; set; } = 0;
+        public bool SkipBlankPages { get; set; } = false;
+        public bool DeSkew { get; set; } = true;
+
+        /// <summary>0-255 greyscale threshold for BlackWhite pixel mode (WIA_IPS_THRESHOLD).</summary>
+        public int Threshold { get; set; } = 128;
+        /// <summary>JPEG quality (1-100) used when embedding scanned images in the booklet PDF.</summary>
+        public int PdfJpegQuality { get; set; } = 85;
+        /// <summary>Maximum DPI for images in the booklet PDF; 0 = no downscale (preserve scan DPI).</summary>
+        public int PdfMaxDpi { get; set; } = 0;
+
+        public override string ToString() => $"{TemplateName} ({PageCount}pp)";
+    }
+
+    public class PrinterProfile
+    {
+        public int ProfileID { get; set; }
+        public string ProfileName { get; set; } = "";
+        public string Brand { get; set; } = "Generic";
+        public string DriverType { get; set; } = "WIA";
+        /// <summary>JSON object mapping TWAIN CAP names to values.</summary>
+        public string? TwainCapabilities { get; set; }
+
+        public Dictionary<string, object> GetCapabilities()
+        {
+            if (string.IsNullOrWhiteSpace(TwainCapabilities))
+                return new Dictionary<string, object>();
+            try
+            {
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(TwainCapabilities)
+                       ?? new Dictionary<string, object>();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        public override string ToString() => $"{ProfileName} [{DriverType}]";
+    }
+
+    public class BarcodeDetails
+    {
+        public string RawValue { get; set; } = "";
+        public string ExamCode { get; set; } = "";
+        public string PaperCode { get; set; } = "";
+        public string RollNo { get; set; } = "";
+        public string Serial { get; set; } = "";
+
+        /// <summary>Parses EXAM_PAPER_ROLLNO_SERIAL barcode format.</summary>
+        public static BarcodeDetails Parse(string raw)
+        {
+            var parts = raw.Split('_');
+            return new BarcodeDetails
+            {
+                RawValue  = raw,
+                ExamCode  = parts.Length > 0 ? parts[0] : raw,
+                PaperCode = parts.Length > 1 ? parts[1] : "",
+                RollNo    = parts.Length > 2 ? parts[2] : "",
+                Serial    = parts.Length > 3 ? parts[3] : "",
+            };
+        }
+
+        public string ToFilename() =>
+            string.IsNullOrWhiteSpace(ExamCode)
+                ? $"UNKNOWN_{DateTime.Now:yyyyMMdd_HHmmss}"
+                : $"{ExamCode}_{PaperCode}_{RollNo}_{Serial}".Trim('_');
+    }
+
+    public class LocalBookletRecord
+    {
+        public string BookletId { get; set; } = "";
+        public int    ExamId    { get; set; }
+        public int    PaperId   { get; set; }
+        public string ExamCode { get; set; } = "";
+        public string PaperCode { get; set; } = "";
+        public string RollNo { get; set; } = "";
+        public string Serial { get; set; } = "";
+        public string FolderPath { get; set; } = "";
+        public string PagesJson { get; set; } = "[]";
+        public string Status { get; set; } = "Pending";
+        public string? ErrorReason { get; set; }
+        public int AttemptCount { get; set; } = 0;
+        public DateTime? LastAttempt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public int TotalPagesExpected { get; set; }
+        public int TotalPagesScanned { get; set; }
+        public int WorkstationId { get; set; }
+        public int LocationId { get; set; }
+    }
+
+    public class BarcodeLookupResult
+    {
+        public string BookletId { get; set; } = "";
+        public bool AlreadyExists { get; set; }
+        public int? ExpectedPages { get; set; }
+        public string? ValidationStatus { get; set; }
+    }
+
+    public class SaveBookletRequest
+    {
+        public BookletData? Booklet { get; set; }
+        public List<PageData> Pages { get; set; } = new();
+    }
+
+    public class BookletData
+    {
+        public string BookletId { get; set; } = "";
+        public int ExamId { get; set; }
+        public int PaperId { get; set; }
+        /// <summary>Sent when IDs are 0 so the API can resolve exam/paper (queue retry + current UI selection).</summary>
+        public string? ExamCode { get; set; }
+        public string? PaperCode { get; set; }
+        public int LocationId { get; set; }
+        public string CentreCode { get; set; } = "";
+        public int WorkstationId { get; set; }
+        public int TotalPagesExpected { get; set; }
+        public int TotalPagesScanned { get; set; }
+        public string? FileHash { get; set; }
+        public string FilePath { get; set; } = "";
+        public string ScanDate { get; set; } = "";
+    }
+
+    public class PageData
+    {
+        public int PageNumber { get; set; }
+        public string ImagePath { get; set; } = "";
+        public string? PageHash { get; set; }
+        public string? BarcodeData { get; set; }
+        public string ValidationStatus { get; set; } = "Valid";
+        public int IsRoughPage { get; set; }
+    }
+}

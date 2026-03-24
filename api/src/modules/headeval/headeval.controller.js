@@ -1,0 +1,61 @@
+import { ok, created } from '../../utils/response.js';
+
+export default class HeadEvalController {
+  constructor(service) {
+    this.service = service;
+  }
+
+  getLot = async (req, res, next) => {
+    try {
+      const { paperId, examId, limit, offset } = req.query;
+      const result = await this.service.getLot({ paperId, examId, limit, offset });
+      return ok(res, result);
+    } catch (err) { next(err); }
+  };
+
+  getEvaluators = async (req, res, next) => {
+    try {
+      const { paperId } = req.query;
+      const result = await this.service.getEvaluators({ paperId });
+      return ok(res, result);
+    } catch (err) { next(err); }
+  };
+
+  assign = async (req, res, next) => {
+    try {
+      const { bookletIds, toUserId, allocationType } = req.body;
+      const result = await this.service.assignBooklets(
+        { bookletIds, toUserId, allocationType },
+        req.user.username
+      );
+      return created(res, result, 'Booklets assigned');
+    } catch (err) { next(err); }
+  };
+
+  unassign = async (req, res, next) => {
+    try {
+      const result = await this.service.unassign(
+        parseInt(req.params.allocationId),
+        req.user.username
+      );
+      return ok(res, result, 'Allocation removed');
+    } catch (err) { next(err); }
+  };
+
+  summary = async (req, res, next) => {
+    try {
+      const result = await this.service.getAllocationSummary(req.params.paperId);
+      return ok(res, result);
+    } catch (err) { next(err); }
+  };
+
+  getExams = async (req, res, next) => {
+    try { return ok(res, await this.service.getExams()); } catch (err) { next(err); }
+  };
+
+  getPapers = async (req, res, next) => {
+    try {
+      return ok(res, await this.service.getPapers(req.params.examId));
+    } catch (err) { next(err); }
+  };
+}

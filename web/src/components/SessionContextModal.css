@@ -1,0 +1,193 @@
+/* ── Overlay & Modal ───────────────────────────────────────────────────────── */
+.sc-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.78);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2000; backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease;
+}
+
+.sc-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  width: 520px; max-width: 96vw;
+  max-height: 92vh; overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.2s ease;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.sc-header {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 22px 24px 18px;
+  background: linear-gradient(135deg, #0f172a 0%, #0d4a28 100%);
+  color: #fff;
+  position: sticky; top: 0; z-index: 1;
+}
+.sc-header-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sc-title    { margin: 0; font-size: 17px; font-weight: 700; }
+.sc-subtitle { margin: 3px 0 0; font-size: 12px; opacity: 0.7; }
+
+.sc-steps { display: flex; align-items: center; gap: 0; margin-left: auto; }
+.sc-step-group { display: flex; align-items: center; }
+.sc-step {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.6);
+  transition: all 0.2s;
+}
+.sc-step.active { background: #4ade80; color: #0f172a; }
+.sc-step-line { width: 20px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 1px; }
+
+/* ── Error ─────────────────────────────────────────────────────────────────── */
+.sc-error {
+  background: var(--color-danger-light); color: var(--color-danger);
+  border: 1px solid #fca5a5; border-radius: var(--radius-md);
+  padding: 10px 14px; font-size: 13px; margin: 12px 20px 0;
+}
+
+/* ── Body ──────────────────────────────────────────────────────────────────── */
+.sc-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+.field-readonly {
+  padding: 10px 12px; border-radius: 8px;
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  font-size: 13px; color: var(--color-text);
+}
+.field-hint { display: block; margin-top: 4px; font-size: 11px; color: var(--color-text-muted); }
+
+.sc-section-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--color-primary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding-bottom: 8px; border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Period grid ───────────────────────────────────────────────────────────── */
+.sc-period-grid { display: flex; flex-direction: column; gap: 6px; }
+.sc-period-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1.5px solid var(--color-border);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: all 0.15s; color: var(--color-text-secondary);
+  font-family: var(--font-sans); text-align: left;
+}
+.sc-period-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.sc-period-btn.active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary); font-weight: 700;
+}
+
+/* ── Actions ───────────────────────────────────────────────────────────────── */
+.sc-actions { display: flex; gap: 10px; padding-top: 6px; justify-content: flex-end; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* ── Step 0: Permission Cards ──────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.sc-perm-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 480px) {
+  .sc-perm-grid { grid-template-columns: 1fr; }
+}
+
+.sc-perm-card {
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.sc-perm-card.perm-granted { border-color: #22c55e; background: #f0fdf4; }
+.sc-perm-card.perm-denied  { border-color: #f87171; background: #fff5f5; }
+
+.sc-perm-header {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 12px;
+  font-size: 12px; font-weight: 700; color: var(--color-text);
+  background: rgba(0,0,0,0.03);
+  border-bottom: 1px solid var(--color-border);
+}
+.sc-perm-badge { margin-left: auto; color: var(--color-primary); }
+.sc-perm-card.perm-granted .sc-perm-badge { color: #16a34a; }
+.sc-perm-card.perm-denied  .sc-perm-badge { color: #dc2626; }
+
+/* Camera area */
+.sc-cam-area {
+  background: #000; position: relative;
+  height: 150px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.sc-video {
+  width: 100%; height: 150px; object-fit: cover; display: block;
+  transform: scaleX(-1); /* mirror effect */
+}
+.sc-cam-placeholder {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: #9ca3af; font-size: 12px; padding: 12px;
+}
+.sc-cam-placeholder.denied { color: #f87171; }
+
+.sc-cam-footer {
+  padding: 8px 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  min-height: 40px;
+}
+.sc-cam-hint { font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 5px; }
+.sc-cam-captured-bar {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;
+}
+.sc-ok      { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #16a34a; }
+.sc-uploading { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-secondary); }
+
+/* Geo body */
+.sc-geo-body {
+  padding: 12px;
+  min-height: 120px;
+  display: flex; align-items: center; justify-content: center;
+}
+.sc-geo-placeholder {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--color-text-secondary); font-size: 12px; text-align: center;
+}
+.sc-geo-placeholder.denied { color: #f59e0b; }
+.sc-geo-placeholder small { font-size: 11px; opacity: 0.7; }
+.sc-geo-coords { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.sc-geo-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--color-border);
+}
+.sc-geo-label { color: var(--color-text-secondary); }
+.sc-geo-row strong { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.sc-geo-ok {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #16a34a; padding-top: 4px;
+}
+
+/* Hint below grid */
+.sc-perm-hint {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #f59e0b;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────────── */
+.btn-sm { padding: 5px 10px; font-size: 12px; gap: 4px; }
+
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
