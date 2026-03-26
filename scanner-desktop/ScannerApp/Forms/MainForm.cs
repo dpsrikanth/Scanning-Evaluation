@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using Newtonsoft.Json;
 using ScannerApp.Models;
 using ScannerApp.Services;
@@ -34,6 +35,7 @@ namespace ScannerApp.Forms
         private Button     _btnSetDefaultScanner = null!;
         private Button     _btnViewLog           = null!;
         private CheckBox   _chkDeskewTrim   = null!;
+        private CheckBox   _chkBottomPageBarcodeCheck = null!;
         private Label      _lblQcRescan     = null!;
         private TextBox    _txtQcRescanId   = null!;
         private Label      _lblTemplateInfo = null!;
@@ -329,6 +331,22 @@ namespace ScannerApp.Forms
                 "The booklet PDF uses these saved JPEGs.");
             y += 28;
 
+            _chkBottomPageBarcodeCheck = new CheckBox
+            {
+                Text      = "Check bottom page # barcodes (order)",
+                Location  = new Point(14, y),
+                Width     = 228,
+                AutoSize  = true,
+                Checked   = true,
+                ForeColor = ColorText,
+            };
+            _chkBottomPageBarcodeCheck.CheckedChanged += (_, _) => UpdateTemplateInfoExtras();
+            var ttPageBar = new ToolTip();
+            ttPageBar.SetToolTip(_chkBottomPageBarcodeCheck,
+                "Reads page-index barcodes from the bottom of each sheet after the first 2–3 cover pages. " +
+                "Numbers must increase by 1 with no gaps. If anything is wrong, you must scan the full booklet again in order.");
+            y += 28;
+
             _lblQcRescan = new Label
             {
                 Text     = "Server BookletID (QC rescan)",
@@ -394,7 +412,7 @@ namespace ScannerApp.Forms
             {
                 _lblWorkstation, _lblDriverMode,
                 _cboExam, _cboPaper, _cboTemplate, _lblTemplateInfo,
-                scannerRow, _chkDeskewTrim, _lblQcRescan, _txtQcRescanId, _btnScan, _progressBar, _lblStatus,
+                scannerRow, _chkDeskewTrim, _chkBottomPageBarcodeCheck, _lblQcRescan, _txtQcRescanId, _btnScan, _progressBar, _lblStatus,
             });
 
             // Add all section labels manually
@@ -723,6 +741,7 @@ namespace ScannerApp.Forms
             var flags = new List<string>();
             if (t.DeSkew) flags.Add("Template: scanner de-skew");
             if (_chkDeskewTrim.Checked) flags.Add("App: deskew & trim");
+            if (_chkBottomPageBarcodeCheck.Checked) flags.Add("Bottom page # check");
             var line5 = flags.Count > 0 ? string.Join("  •  ", flags) : "No extras";
 
             _lblTemplateInfo.Text = $"{line1}\r\n{line2}\r\n{line3}\r\n{line4}\r\n{line5}";
@@ -882,7 +901,7 @@ namespace ScannerApp.Forms
                 {
                     processed = _chkDeskewTrim.Checked
                         ? ImageHelper.AutoTrimAndDeskew(bmp, deskew: true)
-                        : bmp; // unchecked: no software deskew or auto-trim (PDF uses same files)
+                        : ImageHelper.TrimBottomWhiteMargin(bmp); // still strip scanner bed below footer
                     ImageHelper.SaveAsJpeg(processed, imagePath, effectiveTemplate.JpegQuality);
                 }
                 catch (Exception ex)
@@ -967,17 +986,34 @@ namespace ScannerApp.Forms
                 AppLogger.Info($"Scan complete: {bitmaps.Count} pages received for {effectiveTemplate.TemplateName}");
                 SetStatus($"Scan complete — {bitmaps.Count} pages received. Processing…", true);
 
-                // Validate page-number barcode series (pages 3+ are content pages)
-                var seriesWarning = ValidatePageSeries(bitmaps);
-                if (seriesWarning != null)
-                    MessageBox.Show(seriesWarning, "Page Series Warning",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                var orderedPagePaths = _currentPages.OrderBy(p => p.PageNumber).Select(p => p.FilePath).ToList();
 
-                // Decode barcode from page 1 to build the final booklet ID
+                // Bottom page-number barcodes: consecutive after 2–3 leading sheets (optional); uses saved JPEGs (trimmed).
+                if (_chkBottomPageBarcodeCheck.Checked)
+                {
+                    var seriesError = ValidateBottomPageNumberSeriesFromPaths(orderedPagePaths, effectiveTemplate.PageCount);
+                    if (seriesError != null)
+                    {
+                        MessageBox.Show(
+                            seriesError + "\r\n\r\nScan the complete booklet again, in order, with no missing or duplicated sheets.",
+                            "Page order / barcode check failed",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        CleanupScanWorkInProgress(pendingFolder);
+                        SetStatus("Scan cancelled — fix page order and scan again", false);
+                        return;
+                    }
+                }
+
+                // Decode barcode from page 1 to build the final booklet ID (prefer trimmed file on disk)
                 var barcodeDetails = BarcodeDetails.Parse("");
                 try
                 {
-                    var rawBarcode = _barcode.ReadBarcode(bitmaps[0]);
+                    string? rawBarcode = null;
+                    if (orderedPagePaths.Count > 0 && File.Exists(orderedPagePaths[0]))
+                        rawBarcode = _barcode.ReadBarcodeFromFile(orderedPagePaths[0]);
+                    if (rawBarcode == null && bitmaps.Count > 0)
+                        rawBarcode = _barcode.ReadBarcode(bitmaps[0]);
                     barcodeDetails = BarcodeDetails.Parse(rawBarcode ?? "");
                 }
                 catch { /* barcode decode failure is non-fatal */ }
@@ -1213,48 +1249,114 @@ namespace ScannerApp.Forms
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Skips the first two cover pages, reads page-number barcodes from every
-        /// subsequent page, and returns a warning string if any page numbers are
-        /// missing from the series.  Returns null when the series is complete or
-        /// when there is insufficient barcode data to validate.
-        /// </summary>
-        private string? ValidatePageSeries(IList<System.Drawing.Bitmap> bitmaps)
+        /// <summary>Removes pending folder and clears in-memory page list after a failed scan.</summary>
+        private void CleanupScanWorkInProgress(string pendingFolder)
         {
-            if (bitmaps.Count <= 2) return null;
+            try { if (Directory.Exists(pendingFolder)) Directory.Delete(pendingFolder, true); } catch { /* ignore */ }
+            _currentPages.Clear();
+            _lvPages.Items.Clear();
+            _pageImages.Images.Clear();
+            _picPreview.Image = null;
+        }
 
-            var found = new List<int>();
-
-            for (int i = 2; i < bitmaps.Count; i++)
+        /// <summary>
+        /// Parses a page-index value from a barcode (plain integer or last numeric segment of a delimited string).
+        /// </summary>
+        private static bool TryParsePageNumberBarcode(string? raw, out int pageNum)
+        {
+            pageNum = 0;
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            raw = raw.Trim();
+            if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d > 0)
             {
-                try
-                {
-                    var raw = _barcode.ReadBarcode(bitmaps[i]);
-                    if (raw == null) continue;
-
-                    // Accept either a pure integer barcode or the last numeric segment
-                    // of a delimited barcode such as "EXAM_PAPER_ROLL_003"
-                    string? numStr = int.TryParse(raw, out int directPg)
-                        ? raw
-                        : raw.Split('_').LastOrDefault(s => int.TryParse(s, out _));
-
-                    if (numStr != null && int.TryParse(numStr, out int pg) && pg > 0)
-                        found.Add(pg);
-                }
-                catch { /* skip unreadable barcodes */ }
+                pageNum = d;
+                return true;
             }
 
-            if (found.Count < 2) return null; // not enough data to assess a series
+            string[] parts = raw.Split('_', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = parts.Length - 1; i >= 0; i--)
+            {
+                if (int.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int p) && p > 0)
+                {
+                    pageNum = p;
+                    return true;
+                }
+            }
 
-            found.Sort();
-            var missing = Enumerable.Range(found[0], found[^1] - found[0] + 1)
-                                    .Except(found)
-                                    .ToList();
+            return false;
+        }
 
-            if (missing.Count == 0) return null;
+        /// <summary>
+        /// Reads page-number barcodes from the <strong>bottom</strong> of each saved JPEG (after deskew/trim).
+        /// The series starts on sheet 3 or 4 (0-based index 2 or 3) after cover pages, then must increase by 1
+        /// with no gaps through the last sheet. Returns an error message or null if OK.
+        /// </summary>
+        private string? ValidateBottomPageNumberSeriesFromPaths(IReadOnlyList<string> imagePaths, int templatePageCount)
+        {
+            const int minStartIndex = 2;
+            const int maxStartIndex = 3;
 
-            return $"Page series is incomplete.\nMissing page number(s): {string.Join(", ", missing)}\n\n" +
-                   $"Detected pages: {string.Join(", ", found)}";
+            if (imagePaths == null || imagePaths.Count <= minStartIndex)
+                return null;
+
+            if (imagePaths.Count != templatePageCount)
+            {
+                return
+                    $"Sheet count mismatch: scanned {imagePaths.Count} sheet(s), template expects {templatePageCount}. " +
+                    "Scan the full booklet with the correct page count.";
+            }
+
+            for (int i = 0; i < imagePaths.Count; i++)
+            {
+                if (!File.Exists(imagePaths[i]))
+                    return $"Missing saved image for sheet {i + 1}. Scan again.";
+            }
+
+            int startIdx = -1;
+            int p0 = 0;
+
+            for (int candidate = minStartIndex; candidate <= maxStartIndex && candidate < imagePaths.Count; candidate++)
+            {
+                string? raw;
+                using (var bmp = new Bitmap(imagePaths[candidate]))
+                    raw = _barcode.ReadBarcodeFromBottom(bmp);
+                if (TryParsePageNumberBarcode(raw, out int first) && first > 0)
+                {
+                    startIdx = candidate;
+                    p0 = first;
+                    break;
+                }
+            }
+
+            if (startIdx < 0)
+            {
+                return
+                    "Could not read a page-number barcode at the bottom of sheet 3 or 4. " +
+                    "Ensure barcodes are visible on the bottom of the first numbered page after the covers.";
+            }
+
+            var errors = new List<string>();
+            for (int i = startIdx; i < imagePaths.Count; i++)
+            {
+                int expected = p0 + (i - startIdx);
+                string? raw;
+                using (var bmp = new Bitmap(imagePaths[i]))
+                    raw = _barcode.ReadBarcodeFromBottom(bmp);
+                if (!TryParsePageNumberBarcode(raw, out int actual))
+                    errors.Add($"Sheet {i + 1}: no readable bottom barcode (expected number {expected}).");
+                else if (actual != expected)
+                    errors.Add($"Sheet {i + 1}: bottom barcode is {actual}, expected {expected} (pages out of order or a sheet is missing).");
+            }
+
+            if (errors.Count > 0)
+                return string.Join("\r\n", errors);
+
+            int contentSheets = imagePaths.Count - startIdx;
+            int expectedSpan = p0 + contentSheets - 1;
+            AppLogger.Info(
+                $"Bottom page barcode check OK: start sheet {startIdx + 1}, first number {p0}, last {expectedSpan}, {contentSheets} content sheet(s).");
+
+            return null;
         }
 
         private string BuildBookletFolder(string id, ScanTemplate template) =>

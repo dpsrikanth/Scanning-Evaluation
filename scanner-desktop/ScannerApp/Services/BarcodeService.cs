@@ -35,6 +35,30 @@ namespace ScannerApp.Services
             return result?.Text;
         }
 
+        /// <summary>
+        /// Decodes a barcode from the bottom strip of the page (OMR page numbers are often printed there).
+        /// <paramref name="bottomHeightFraction"/> is the share of total height taken from the bottom (e.g. 0.22 = bottom 22%).
+        /// </summary>
+        public string? ReadBarcodeFromBottom(Bitmap image, double bottomHeightFraction = 0.22)
+        {
+            if (image == null || image.Width < 16 || image.Height < 16)
+                return null;
+
+            double f = Math.Clamp(bottomHeightFraction, 0.08, 0.5);
+            int stripH = Math.Max(12, (int)(image.Height * f));
+            int y0 = image.Height - stripH;
+            var rect = new Rectangle(0, y0, image.Width, stripH);
+            try
+            {
+                using Bitmap strip = image.Clone(rect, image.PixelFormat);
+                return ReadBarcode(strip);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public string? ReadBarcodeFromFile(string imagePath)
         {
             using var bitmap = new Bitmap(imagePath);

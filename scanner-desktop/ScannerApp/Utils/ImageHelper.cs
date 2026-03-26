@@ -75,7 +75,130 @@ namespace ScannerApp.Utils
 
             Bitmap cropped = CropToContent(rgb);
             if (!ReferenceEquals(rgb, src)) rgb.Dispose();
-            return cropped;
+
+            Bitmap trimmed = TrimBottomWhiteMargin(cropped);
+            if (!ReferenceEquals(trimmed, cropped)) cropped.Dispose();
+            return trimmed;
+        }
+
+        /// <summary>
+        /// Removes trailing scanner-bed white below the page footer (e.g. margin under the barcode row)
+        /// by stripping rows from the bottom that are almost entirely white, allowing light noise/speckle.
+        /// </summary>
+        public static Bitmap TrimBottomWhiteMargin(Bitmap src)
+        {
+            const int PadBottomPx = 4;
+
+            bool ownRgb = false;
+            Bitmap rgb = src;
+            if (src.PixelFormat != PixelFormat.Format24bppRgb)
+            {
+                rgb = new Bitmap(src.Width, src.Height, PixelFormat.Format24bppRgb);
+                using (var g = Graphics.FromImage(rgb))
+                    g.DrawImage(src, 0, 0, src.Width, src.Height);
+                ownRgb = true;
+            }
+
+            try
+            {
+                int w = rgb.Width;
+                int h = rgb.Height;
+                if (w < 8 || h < 8)
+                {
+                    if (ownRgb) return rgb;
+                    return src;
+                }
+
+                var data = rgb.LockBits(
+                    new Rectangle(0, 0, w, h),
+                    ImageLockMode.ReadOnly,
+                    PixelFormat.Format24bppRgb);
+                int stride = data.Stride;
+                int bottom = -1;
+
+                unsafe
+                {
+                    byte* ptr = (byte*)data.Scan0;
+                    for (int y = h - 1; y >= 0; y--)
+                    {
+                        if (!IsEmptyScannerBedRow(ptr + y * stride, w))
+                        {
+                            bottom = y;
+                            break;
+                        }
+                    }
+                }
+
+                rgb.UnlockBits(data);
+
+                if (bottom < 0)
+                {
+                    if (ownRgb) return rgb;
+                    return src;
+                }
+
+                int newH = Math.Min(h, bottom + 1 + PadBottomPx);
+                if (newH >= h - 2)
+                {
+                    if (ownRgb) return rgb;
+                    return src;
+                }
+
+                var rect = new Rectangle(0, 0, w, newH);
+                var result = rgb.Clone(rect, PixelFormat.Format24bppRgb);
+                if (ownRgb) rgb.Dispose();
+
+                // Second pass: noise can leave a thin band after the first crop (do not use `using` — we return `second`).
+                Bitmap second = TrimBottomWhiteMarginOnce(result, PadBottomPx);
+                if (!ReferenceEquals(second, result))
+                {
+                    result.Dispose();
+                    return second;
+                }
+
+                return result;
+            }
+            catch
+            {
+                if (ownRgb) rgb.Dispose();
+                return src;
+            }
+        }
+
+        /// <summary>Single trim pass (used internally; avoids recursion on second pass).</summary>
+        private static Bitmap TrimBottomWhiteMarginOnce(Bitmap rgb, int padBottomPx)
+        {
+            int w = rgb.Width;
+            int h = rgb.Height;
+            var data = rgb.LockBits(
+                new Rectangle(0, 0, w, h),
+                ImageLockMode.ReadOnly,
+                PixelFormat.Format24bppRgb);
+            int stride = data.Stride;
+            int bottom = -1;
+            unsafe
+            {
+                byte* ptr = (byte*)data.Scan0;
+                for (int y = h - 1; y >= 0; y--)
+                {
+                    if (!IsEmptyScannerBedRow(ptr + y * stride, w))
+                    {
+                        bottom = y;
+                        break;
+                    }
+                }
+            }
+
+            rgb.UnlockBits(data);
+
+            if (bottom < 0)
+                return rgb;
+
+            int newH = Math.Min(h, bottom + 1 + padBottomPx);
+            if (newH >= h - 2)
+                return rgb;
+
+            return rgb.Clone(new Rectangle(0, 0, w, newH), PixelFormat.Format24bppRgb);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -212,6 +335,32 @@ namespace ScannerApp.Utils
                     return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Scanner bed / appended white below the footer: very high mean brightness with only noise-level dark pixels.
+        /// Per-pixel "near white" counts fail on JPEG (many channels 245–247); mean + ink count is robust.
+        /// </summary>
+        private static unsafe bool IsEmptyScannerBedRow(byte* rowPtr, int width)
+        {
+            long sumLum = 0;
+            int ink = 0;
+            for (int x = 0; x < width; x++)
+            {
+                byte b = rowPtr[x * 3];
+                byte g = rowPtr[x * 3 + 1];
+                byte r = rowPtr[x * 3 + 2];
+                int lum = (r + g + b) / 3;
+                int m = r < g ? (r < b ? r : b) : (g < b ? g : b);
+                sumLum += lum;
+                if (m < 175)
+                    ink++;
+            }
+
+            double meanLum = (double)sumLum / width;
+            // Footer/barcode/text rows: lower mean and/or many dark modules.
+            int maxInkNoise = Math.Max(96, width / 22);
+            return meanLum >= 246.5 && ink <= maxInkNoise;
         }
 
         private static ImageCodecInfo? GetEncoder(ImageFormat format)
