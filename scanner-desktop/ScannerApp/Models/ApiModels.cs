@@ -140,6 +140,7 @@ namespace ScannerApp.Models
         public string TemplateName { get; set; } = "";
         public string Description { get; set; } = "";
         public int PageCount { get; set; } = 24;
+        /// <summary>Scanner resolution (DPI). 200 is often sufficient for barcodes and text; 300+ increases file size and CPU load.</summary>
         public int DPI { get; set; } = 300;
         public string ColorMode { get; set; } = "Grayscale";
         public string PageSize { get; set; } = "A4";
