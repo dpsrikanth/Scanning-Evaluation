@@ -66,6 +66,14 @@
 .sidebar-link.active .sidebar-chevron,
 .sidebar-link:hover .sidebar-chevron { opacity: 0.7; }
 
+/* Indented items under “Scan settings” */
+.sidebar-sublink {
+  padding-left: 18px;
+  font-size: 12.5px;
+  font-weight: 450;
+}
+.sidebar-sublink .sidebar-chevron { width: 10px; height: 10px; }
+
 /* ── Sidebar bottom ───────────────────────────────────────────────────────── */
 .sidebar-bottom {
   margin-top: auto;

@@ -54,8 +54,8 @@ namespace ScannerApp.Utils
                         double angle = checker.GetSkewAngle(gray);
                         gray.Dispose();
 
-                        // Only rotate when the detected angle is significant
-                        if (Math.Abs(angle) > 0.3 && Math.Abs(angle) < 45.0)
+                        // Only rotate when the detected angle is significant but not wildly off
+                        if (Math.Abs(angle) > 0.1 && Math.Abs(angle) < 10.0)
                         {
                             var rotateFilter = new RotateBilinear(-angle, keepSize: false)
                             {
@@ -87,7 +87,7 @@ namespace ScannerApp.Utils
         /// </summary>
         public static Bitmap TrimBottomWhiteMargin(Bitmap src)
         {
-            const int PadBottomPx = 4;
+            const int PadBottomPx = 10;
 
             bool ownRgb = false;
             Bitmap rgb = src;
@@ -239,15 +239,13 @@ namespace ScannerApp.Utils
         /// </summary>
         private static Bitmap CropToContent(Bitmap src)
         {
-            const int WhiteThreshold = 240; // pixel channel value considered "white"
-            const int MarginPx       = 4;   // leave a few pixels of padding
+            const int MarginPx = 10;
 
             try
             {
                 int w = src.Width;
                 int h = src.Height;
 
-                // Lock bits for fast pixel access
                 var data = src.LockBits(
                     new Rectangle(0, 0, w, h),
                     ImageLockMode.ReadOnly,
@@ -260,31 +258,31 @@ namespace ScannerApp.Utils
                 {
                     byte* ptr = (byte*)data.Scan0;
 
-                    // Scan top edge down
+                    // Scan top edge down — stop at first row that has ink content
                     for (int y = 0; y < h; y++)
                     {
-                        if (!IsWhiteRow(ptr + y * stride, w, WhiteThreshold))
+                        if (!IsBackgroundRow(ptr + y * stride, w))
                         { top = y; break; }
                     }
 
                     // Scan bottom edge up
                     for (int y = h - 1; y >= top; y--)
                     {
-                        if (!IsWhiteRow(ptr + y * stride, w, WhiteThreshold))
+                        if (!IsBackgroundRow(ptr + y * stride, w))
                         { bottom = y; break; }
                     }
 
                     // Scan left edge right
                     for (int x = 0; x < w; x++)
                     {
-                        if (!IsWhiteCol(ptr, x, h, stride, WhiteThreshold))
+                        if (!IsBackgroundCol(ptr, x, h, stride))
                         { left = x; break; }
                     }
 
                     // Scan right edge left
                     for (int x = w - 1; x >= left; x--)
                     {
-                        if (!IsWhiteCol(ptr, x, h, stride, WhiteThreshold))
+                        if (!IsBackgroundCol(ptr, x, h, stride))
                         { right = x; break; }
                     }
                 }
@@ -300,8 +298,14 @@ namespace ScannerApp.Utils
                 int cropW = right  - left + 1;
                 int cropH = bottom - top  + 1;
 
-                // If the crop removes less than 1% in every direction, don't bother
                 if (cropW >= w * 0.99 && cropH >= h * 0.99)
+                    return src;
+
+                // Safety guard: if the detected content region is less than half the
+                // original dimension the ink detector likely failed (e.g. all document
+                // borders are light-gray and below threshold on one side) — return the
+                // original rather than producing a tiny sliver.
+                if (cropW < w / 2 || cropH < h / 2)
                     return src;
 
                 var rect = new Rectangle(left, top, cropW, cropH);
@@ -313,54 +317,63 @@ namespace ScannerApp.Utils
             }
         }
 
-        private static unsafe bool IsWhiteRow(byte* rowPtr, int width, int threshold)
+        // Luminance threshold for "ink" pixels.
+        // TGPSC document elements (borders, registration marks) are printed in light-to-medium
+        // gray and scan at approximately 130–175 lum.  The scanner-bed background scans at
+        // ~185–210 lum.  Using 180 as the cut-off reliably captures document content while
+        // excluding the scanner bed.  (The previous value of 160 missed light-gray borders
+        // at 160–179, causing the right-side content to be undetected and the image to be
+        // cropped to a narrow left-margin strip.)
+        private const int InkLumThreshold = 180;
+
+        /// <summary>
+        /// A row is "background" (no printed content) when fewer than ~0.5% of its pixels
+        /// have luminance below <see cref="InkLumThreshold"/>.  Handles white paper rows
+        /// AND uniform gray scanner-bed rows correctly.
+        /// </summary>
+        private static unsafe bool IsBackgroundRow(byte* rowPtr, int width)
         {
+            int inkThreshold = Math.Max(3, width / 200);
+            int ink = 0;
             for (int x = 0; x < width; x++)
             {
-                byte b = rowPtr[x * 3];
-                byte g = rowPtr[x * 3 + 1];
-                byte r = rowPtr[x * 3 + 2];
-                if (r < threshold || g < threshold || b < threshold)
+                int lum = (rowPtr[x * 3] + rowPtr[x * 3 + 1] + rowPtr[x * 3 + 2]) / 3;
+                if (lum < InkLumThreshold && ++ink >= inkThreshold)
                     return false;
             }
             return true;
         }
 
-        private static unsafe bool IsWhiteCol(byte* basePtr, int col, int height, int stride, int threshold)
+        private static unsafe bool IsBackgroundCol(byte* basePtr, int col, int height, int stride)
         {
+            int inkThreshold = Math.Max(3, height / 200);
+            int ink = 0;
             for (int y = 0; y < height; y++)
             {
                 byte* px = basePtr + y * stride + col * 3;
-                if (px[0] < threshold || px[1] < threshold || px[2] < threshold)
+                int lum = (px[0] + px[1] + px[2]) / 3;
+                if (lum < InkLumThreshold && ++ink >= inkThreshold)
                     return false;
             }
             return true;
         }
 
         /// <summary>
-        /// Scanner bed / appended white below the footer: very high mean brightness with only noise-level dark pixels.
-        /// Per-pixel "near white" counts fail on JPEG (many channels 245–247); mean + ink count is robust.
+        /// A row is trimmable (no printed content) when it contains fewer than ~0.5% ink pixels
+        /// (luminance &lt; <see cref="InkLumThreshold"/>).  Handles both white paper rows and
+        /// gray scanner-bed rows.
         /// </summary>
         private static unsafe bool IsEmptyScannerBedRow(byte* rowPtr, int width)
         {
-            long sumLum = 0;
+            int inkThreshold = Math.Max(3, width / 200);
             int ink = 0;
             for (int x = 0; x < width; x++)
             {
-                byte b = rowPtr[x * 3];
-                byte g = rowPtr[x * 3 + 1];
-                byte r = rowPtr[x * 3 + 2];
-                int lum = (r + g + b) / 3;
-                int m = r < g ? (r < b ? r : b) : (g < b ? g : b);
-                sumLum += lum;
-                if (m < 175)
-                    ink++;
+                int lum = (rowPtr[x * 3] + rowPtr[x * 3 + 1] + rowPtr[x * 3 + 2]) / 3;
+                if (lum < InkLumThreshold && ++ink >= inkThreshold)
+                    return false;
             }
-
-            double meanLum = (double)sumLum / width;
-            // Footer/barcode/text rows: lower mean and/or many dark modules.
-            int maxInkNoise = Math.Max(96, width / 22);
-            return meanLum >= 246.5 && ink <= maxInkNoise;
+            return true;
         }
 
         private static ImageCodecInfo? GetEncoder(ImageFormat format)

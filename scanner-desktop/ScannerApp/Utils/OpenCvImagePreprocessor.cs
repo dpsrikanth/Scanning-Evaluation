@@ -40,7 +40,7 @@ namespace ScannerApp.Utils
                 CvInvoke.Threshold(blur, bin, 0, 255, ThresholdType.Binary | ThresholdType.Otsu);
 
                 double skewDeg = EstimateSkewDegFromBinary(bin);
-                if (Math.Abs(skewDeg) > 0.35 && Math.Abs(skewDeg) < 45)
+                if (Math.Abs(skewDeg) > 0.1 && Math.Abs(skewDeg) < 10)
                 {
                     PointF center = new PointF(bgr.Cols / 2f, bgr.Rows / 2f);
                     mRot = new Mat();
@@ -61,11 +61,17 @@ namespace ScannerApp.Utils
                     rotated = bgr.Clone();
                 }
 
+                // Convert rotated image to grayscale for document boundary detection.
+                // Use a fixed threshold of 160 to isolate actual dark ink/borders only.
+                // BinaryInv+Otsu was unreliable: gray scanner-bed pixels (~180-210) fell
+                // below the Otsu threshold and were classified as foreground together with
+                // real ink, causing the largest contour to span the entire image with no
+                // useful crop boundary.
                 gray2 = new Mat();
                 CvInvoke.CvtColor(rotated, gray2, ColorConversion.Bgr2Gray);
-                CvInvoke.GaussianBlur(gray2, gray2, new Size(5, 5), 0);
+                CvInvoke.GaussianBlur(gray2, gray2, new Size(3, 3), 0);
                 bw = new Mat();
-                CvInvoke.Threshold(gray2, bw, 0, 255, ThresholdType.BinaryInv | ThresholdType.Otsu);
+                CvInvoke.Threshold(gray2, bw, 160, 255, ThresholdType.BinaryInv);
 
                 hi = new Mat();
                 using var contours = new VectorOfVectorOfPoint();
@@ -73,7 +79,7 @@ namespace ScannerApp.Utils
 
                 double maxArea = 0;
                 Rectangle best = Rectangle.Empty;
-                double minArea = bw.Width * (double)bw.Height * 0.15;
+                double minArea = bw.Width * (double)bw.Height * 0.05;
                 for (int i = 0; i < contours.Size; i++)
                 {
                     Rectangle r = CvInvoke.BoundingRectangle(contours[i]);
@@ -132,9 +138,9 @@ namespace ScannerApp.Utils
                 edges,
                 1,
                 Math.PI / 180,
-                60,
-                40,
-                12);
+                40,   // vote threshold
+                40,   // min line length — filters out short segments from registration-mark edges
+                10);
 
             List<double> angles = new List<double>();
             foreach (var seg in segs)
@@ -146,11 +152,13 @@ namespace ScannerApp.Utils
                 double deg = Math.Atan2(dy, dx) * 180.0 / Math.PI;
                 while (deg <= -90) deg += 180;
                 while (deg > 90) deg -= 180;
-                if (Math.Abs(deg) <= 45)
+                // Only near-horizontal lines are relevant for document skew.
+                // Registration marks produce diagonal ~45° segments — exclude them.
+                if (Math.Abs(deg) <= 5.0)
                     angles.Add(deg);
             }
 
-            if (angles.Count < 3)
+            if (angles.Count < 2)
                 return 0;
 
             angles.Sort();

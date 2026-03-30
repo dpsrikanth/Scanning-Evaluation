@@ -62,8 +62,11 @@ const TABS = [
   { id: 'templates',  label: 'Email Templates',  icon: FileText },
   { id: 'monitoring', label: 'Monitoring',        icon: Camera },
   { id: 'audit',      label: 'Audit Log',         icon: Activity },
-  { id: 'scanner',    label: 'Scanner Admin',     icon: ScanLine },
+  { id: 'scanner',    label: 'Scan settings',     icon: ScanLine },
 ];
+
+/** Sub-tab ids must match URL ?subtab= and sidebar links. */
+const VALID_SCAN_SUBTABS = ['exams', 'papers', 'workstations', 'scanUsers', 'templates', 'printers', 'booklets', 'outputPaths', 'scanQc'];
 
 const SCAN_SUB_TABS = [
   { id: 'exams',      label: 'Exams',            icon: BookOpen },
@@ -90,9 +93,10 @@ const PDF_PRESETS = [
   { label: 'Small — 150 DPI / 60 % quality (≈2 MB / 42 pages)',  pdfJpegQuality: 60, pdfMaxDpi: 150 },
 ];
 const SCANNER_BLANK_PP = { profileName: '', brand: 'Generic', driverType: 'WIA', twainCapabilities: '', isActive: 1 };
+const SCANNER_BLANK_SCAN_USER = { username: '', fullName: '', password: '', roleId: '', locationId: '' };
 
 export default function AdminSettings() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab]         = useState('users');
   const [users, setUsers]                 = useState([]);
   const [usersTotal, setUsersTotal]       = useState(0);
@@ -178,14 +182,16 @@ export default function AdminSettings() {
     return () => { cancelled = true; };
   }, [newUser.photoPreview]);
 
-  // Open Scanner Admin → Scanned booklets when URL has ?tab=scanner&subtab=booklets
+  // Deep-link: ?tab=scanner&subtab=exams|papers|… or ?tab=users|smtp|…
   useEffect(() => {
     const tab = searchParams.get('tab');
     const subtab = searchParams.get('subtab');
-    if (tab === 'scanner' && subtab === 'booklets') {
+    if (tab === 'scanner') {
       setActiveTab('scanner');
-      setScanSubTab('booklets');
+      if (subtab && VALID_SCAN_SUBTABS.includes(subtab)) setScanSubTab(subtab);
+      return;
     }
+    if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
   }, [searchParams]);
 
   // Audit log state
@@ -588,7 +594,7 @@ export default function AdminSettings() {
         <div className="admin-page-icon"><Settings size={24} /></div>
         <div>
           <h1 className="admin-page-title">Admin Settings</h1>
-          <p className="admin-page-subtitle">Manage users, SMTP configuration, and email templates</p>
+          <p className="admin-page-subtitle">Evaluation users, SMTP, templates, monitoring — plus Scan settings (exams, papers, operators, QC)</p>
         </div>
       </div>
 
@@ -602,8 +608,19 @@ export default function AdminSettings() {
       {/* Tabs */}
       <div className="admin-tabs">
         {TABS.map(({ id, label, icon: Icon }) => (
-          <button key={id} className={`tab-btn ${activeTab === id ? 'active' : ''}`}
-            onClick={() => setActiveTab(id)}>
+          <button
+            key={id}
+            className={`tab-btn ${activeTab === id ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab(id);
+              if (id === 'scanner') {
+                const sub = VALID_SCAN_SUBTABS.includes(scanSubTab) ? scanSubTab : 'exams';
+                setSearchParams({ tab: 'scanner', subtab: sub });
+              } else {
+                setSearchParams({ tab: id });
+              }
+            }}
+          >
             <Icon size={15} /> {label}
           </button>
         ))}
@@ -1307,15 +1324,21 @@ export default function AdminSettings() {
           </div>
         </div>
       )}
-      {/* ── Scanner Admin ──────────────────────────────────────── */}
+      {/* ── Scan settings (scanner DB: exams, papers, …) ─────────────────────── */}
       {activeTab === 'scanner' && (
         <div className="scanner-admin-wrap">
           {/* Sub-tab bar */}
           <div className="scan-subtabs">
             {SCAN_SUB_TABS.map(({ id, label, icon: Icon }) => (
-              <button key={id}
+              <button
+                key={id}
                 className={`scan-subtab-btn ${scanSubTab === id ? 'active' : ''}`}
-                onClick={() => { setScanSubTab(id); setScanForm(null); }}>
+                onClick={() => {
+                  setScanSubTab(id);
+                  setScanForm(null);
+                  setSearchParams({ tab: 'scanner', subtab: id });
+                }}
+              >
                 <Icon size={14} /> {label}
               </button>
             ))}
@@ -1642,7 +1665,20 @@ export default function AdminSettings() {
             <div className="scan-section">
               <div className="scan-section-header">
                 <h3><Users size={15} /> Scan users ({scanUsers.length})</h3>
-                <button className="btn btn-primary btn-sm" onClick={() => openScanForm('scanUsers', { ...SCANNER_BLANK_SCAN_USER, roleId: scanRoleOptions[0]?.RoleID ?? '' })}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    if (scanRoleOptions.length === 0) {
+                      api.scanadmin.listScanRolesForUserManagement().then((r) => {
+                        const list = Array.isArray(r) ? r : (r?.data ?? []);
+                        setScanRoleOptions(list);
+                        openScanForm('scanUsers', { ...SCANNER_BLANK_SCAN_USER, roleId: list[0]?.RoleID ?? '' });
+                      }).catch((err) => flash(err.message || 'Could not load roles', 'error'));
+                    } else {
+                      openScanForm('scanUsers', { ...SCANNER_BLANK_SCAN_USER, roleId: scanRoleOptions[0]?.RoleID ?? '' });
+                    }
+                  }}
+                >
                   <Plus size={13} /> Add scan user
                 </button>
               </div>
