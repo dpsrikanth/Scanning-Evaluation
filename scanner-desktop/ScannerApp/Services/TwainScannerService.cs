@@ -35,6 +35,19 @@ namespace ScannerApp.Services
 
         // ── IScannerService: enumerate ────────────────────────────────────────
 
+        public bool IsConnected()
+        {
+            TwainSession? session = null;
+            try
+            {
+                session = CreateSession();
+                session.Open();
+                return session.Any();
+            }
+            catch { return false; }
+            finally { TryClose(session); }
+        }
+
         public IList<string> GetAvailableScanners()
         {
             var names = new List<string>();

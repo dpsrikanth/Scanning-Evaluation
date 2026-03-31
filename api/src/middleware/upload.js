@@ -84,6 +84,26 @@ export const uploadQuestionPaper = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 }).single('questionPaper');
 
+// ── Scan template sample page image ─────────────────────────────────────────
+const templateImageStorage = multer.diskStorage({
+  destination: (req, _file, cb) => {
+    const templateId = req.params.templateId || 'unknown';
+    const dir = path.join(getCommonBase(), 'scan-templates', String(templateId));
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `sample${ext}`);
+  },
+});
+
+export const uploadTemplateSampleImage = multer({
+  storage: templateImageStorage,
+  fileFilter: imageFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+}).single('sampleImage');
+
 // ── Booklet PDF upload (scanned document; saved to active scan output path in controller)
 const bookletPdfStorage = multer.memoryStorage();
 const pdfFilter = (_req, file, cb) => {

@@ -59,6 +59,12 @@ namespace ScannerApp.Services
             return names;
         }
 
+        public bool IsConnected()
+        {
+            try { return GetScannerDevices().Any(); }
+            catch { return false; }
+        }
+
         // ── IScannerService: scan booklet ─────────────────────────────────────
 
         public async Task<IList<Bitmap>> ScanBookletAsync(

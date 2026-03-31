@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { ok, created } from '../../utils/response.js';
 
 export default class ScanAdminController {
@@ -148,6 +150,29 @@ export default class ScanAdminController {
     try {
       await this.service.deleteTemplate(req.params.templateId, req.user.username);
       return ok(res, null, 'Template deleted');
+    } catch (err) { next(err); }
+  };
+
+  uploadSampleImage = async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return next(Object.assign(new Error('No image file uploaded'), { statusCode: 400 }));
+      }
+      await this.service.saveTemplateImage(req.params.templateId, req.file.path);
+      return ok(res, { filePath: req.file.path }, 'Sample image saved');
+    } catch (err) { next(err); }
+  };
+
+  getSampleImage = async (req, res, next) => {
+    try {
+      const img = await this.service.getTemplateImage(req.params.templateId);
+      if (!img || !fs.existsSync(img.FilePath)) {
+        return next(Object.assign(new Error('Sample image not found'), { statusCode: 404 }));
+      }
+      const ext = path.extname(img.FilePath).toLowerCase();
+      const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
+      res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+      res.sendFile(path.resolve(img.FilePath));
     } catch (err) { next(err); }
   };
 

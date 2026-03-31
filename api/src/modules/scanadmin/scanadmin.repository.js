@@ -179,50 +179,79 @@ export default class ScanAdminRepository {
     const [rows] = await this.db.execute(
       `SELECT TemplateID, TemplateName, Description, PageCount, DPI, ColorMode, PageSize,
               DuplexMode, JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-              Threshold, PdfJpegQuality, PdfMaxDpi, IsActive
+              Threshold, PdfJpegQuality, PdfMaxDpi,
+              BarcodeZones, PageBarcodeStartPage, PdfFilenameFormat,
+              UploadScheduleMode, UploadIntervalHours,
+              IsActive
        FROM Scan_ScanTemplates WHERE IsDeleted = 0 ORDER BY TemplateName`
     );
-    return rows;
+    return rows.map(r => ({
+      ...r,
+      BarcodeZones: r.BarcodeZones ? (typeof r.BarcodeZones === 'string' ? JSON.parse(r.BarcodeZones) : r.BarcodeZones) : [],
+    }));
   }
 
   async getTemplate(templateId) {
     const [rows] = await this.db.execute(
       `SELECT TemplateID, TemplateName, Description, PageCount, DPI, ColorMode, PageSize,
               DuplexMode, JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-              Threshold, PdfJpegQuality, PdfMaxDpi, IsActive
+              Threshold, PdfJpegQuality, PdfMaxDpi,
+              BarcodeZones, PageBarcodeStartPage, PdfFilenameFormat,
+              UploadScheduleMode, UploadIntervalHours,
+              IsActive
        FROM Scan_ScanTemplates WHERE TemplateID = ? AND IsDeleted = 0`,
       [templateId]
     );
-    return rows[0] || null;
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      ...r,
+      BarcodeZones: r.BarcodeZones ? (typeof r.BarcodeZones === 'string' ? JSON.parse(r.BarcodeZones) : r.BarcodeZones) : [],
+    };
   }
 
   async createTemplate(data) {
+    const barcodeZonesJson = data.barcodeZones != null
+      ? JSON.stringify(data.barcodeZones)
+      : null;
     const [result] = await this.db.execute(
       `INSERT INTO Scan_ScanTemplates
         (TemplateName, Description, PageCount, DPI, ColorMode, PageSize, DuplexMode,
          JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-         Threshold, PdfJpegQuality, PdfMaxDpi, IsActive,
-         CreatedBy, CreatedFromIP, CreatedFromSystem)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+         Threshold, PdfJpegQuality, PdfMaxDpi,
+         BarcodeZones, PageBarcodeStartPage, PdfFilenameFormat,
+         UploadScheduleMode, UploadIntervalHours,
+         IsActive, CreatedBy, CreatedFromIP, CreatedFromSystem)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
       [data.templateName, data.description || null, data.pageCount,
        data.dpi || 300, data.colorMode || 'Grayscale', data.pageSize || 'A4',
        data.duplexMode || 'Simplex', data.jpegQuality ?? 85,
        data.brightnessAdj ?? 128, data.contrastAdj ?? 128,
        data.skipBlankPages ? 1 : 0, data.deSkew !== false ? 1 : 0,
        data.threshold ?? 128, data.pdfJpegQuality ?? 70, data.pdfMaxDpi ?? 150,
+       barcodeZonesJson,
+       data.pageBarcodeStartPage ?? 2,
+       data.pdfFilenameFormat || '{BookletId}',
+       data.uploadScheduleMode || 'Immediate',
+       data.uploadIntervalHours ?? 0,
        data.createdBy, data.createdFromIP, data.createdFromSystem]
     );
     return result.insertId;
   }
 
   async updateTemplate(templateId, data) {
+    const barcodeZonesJson = data.barcodeZones != null
+      ? JSON.stringify(data.barcodeZones)
+      : null;
     await this.db.execute(
       `UPDATE Scan_ScanTemplates SET
         TemplateName = ?, Description = ?, PageCount = ?, DPI = ?, ColorMode = ?,
         PageSize = ?, DuplexMode = ?, JpegQuality = ?, BrightnessAdj = ?,
         ContrastAdj = ?, SkipBlankPages = ?, DeSkew = ?,
-        Threshold = ?, PdfJpegQuality = ?, PdfMaxDpi = ?, IsActive = ?,
-        ModifiedBy = ?, ModifiedFromIP = ?, ModifiedFromSystem = ?
+        Threshold = ?, PdfJpegQuality = ?, PdfMaxDpi = ?,
+        BarcodeZones = ?, PageBarcodeStartPage = ?, PdfFilenameFormat = ?,
+        UploadScheduleMode = ?, UploadIntervalHours = ?,
+        IsActive = ?, ModifiedBy = ?, ModifiedFromIP = ?, ModifiedFromSystem = ?
        WHERE TemplateID = ? AND IsDeleted = 0`,
       [data.templateName, data.description || null, data.pageCount,
        data.dpi || 300, data.colorMode || 'Grayscale', data.pageSize || 'A4',
@@ -230,6 +259,11 @@ export default class ScanAdminRepository {
        data.brightnessAdj ?? 128, data.contrastAdj ?? 128,
        data.skipBlankPages ? 1 : 0, data.deSkew !== false ? 1 : 0,
        data.threshold ?? 128, data.pdfJpegQuality ?? 70, data.pdfMaxDpi ?? 150,
+       barcodeZonesJson,
+       data.pageBarcodeStartPage ?? 2,
+       data.pdfFilenameFormat || '{BookletId}',
+       data.uploadScheduleMode || 'Immediate',
+       data.uploadIntervalHours ?? 0,
        data.isActive ?? 1,
        data.modifiedBy, data.modifiedFromIP, data.modifiedFromSystem, templateId]
     );
@@ -241,6 +275,29 @@ export default class ScanAdminRepository {
        WHERE TemplateID = ?`,
       [deletedBy, templateId]
     );
+  }
+
+  // ── Template Sample Images ────────────────────────────────────────────────
+
+  async saveTemplateImage(templateId, filePath, imageType = 'SamplePage') {
+    // Upsert: delete existing then insert
+    await this.db.execute(
+      `DELETE FROM Scan_TemplateImages WHERE TemplateID = ? AND ImageType = ?`,
+      [templateId, imageType]
+    );
+    await this.db.execute(
+      `INSERT INTO Scan_TemplateImages (TemplateID, ImageType, FilePath) VALUES (?, ?, ?)`,
+      [templateId, imageType, filePath]
+    );
+  }
+
+  async getTemplateImage(templateId, imageType = 'SamplePage') {
+    const [rows] = await this.db.execute(
+      `SELECT FilePath FROM Scan_TemplateImages
+       WHERE TemplateID = ? AND ImageType = ? ORDER BY UploadedAt DESC LIMIT 1`,
+      [templateId, imageType]
+    );
+    return rows[0] || null;
   }
 
   // ── Printer Profiles ──────────────────────────────────────────────────────

@@ -62,7 +62,9 @@ namespace ScannerApp.Services
                     TotalPagesExpected INTEGER DEFAULT 0,
                     TotalPagesScanned  INTEGER DEFAULT 0,
                     WorkstationId      INTEGER DEFAULT 0,
-                    LocationId         INTEGER DEFAULT 0
+                    LocationId         INTEGER DEFAULT 0,
+                    ResumeState        TEXT,
+                    NextUploadAttempt  TEXT
                 )";
             cmd.ExecuteNonQuery();
 
@@ -71,11 +73,18 @@ namespace ScannerApp.Services
                 "ALTER TABLE LocalQueue ADD COLUMN ErrorReason TEXT",
                 "ALTER TABLE LocalQueue ADD COLUMN ExamId INTEGER DEFAULT 0",
                 "ALTER TABLE LocalQueue ADD COLUMN PaperId INTEGER DEFAULT 0",
+                "ALTER TABLE LocalQueue ADD COLUMN ResumeState TEXT",
+                "ALTER TABLE LocalQueue ADD COLUMN NextUploadAttempt TEXT",
             })
             {
                 try { using var a = conn.CreateCommand(); a.CommandText = migration; a.ExecuteNonQuery(); }
                 catch { /* column already exists — ignore */ }
             }
+
+            // Any record left in 'Scanning' state means the app crashed mid-scan → mark Interrupted
+            using var fix = conn.CreateCommand();
+            fix.CommandText = "UPDATE LocalQueue SET Status = 'Interrupted' WHERE Status = 'Scanning'";
+            fix.ExecuteNonQuery();
         }
 
         // ── Queue operations ──────────────────────────────────────────────────
@@ -147,7 +156,13 @@ namespace ScannerApp.Services
         {
             using var conn = OpenConnection();
             using var cmd  = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM LocalQueue WHERE Status IN ('Pending','Failed') ORDER BY CreatedAt ASC";
+            // Only include scheduled items whose NextUploadAttempt has passed (or is null = immediate)
+            cmd.CommandText = @"
+                SELECT * FROM LocalQueue
+                WHERE Status IN ('Pending','Failed')
+                  AND (NextUploadAttempt IS NULL OR NextUploadAttempt <= @now)
+                ORDER BY CreatedAt ASC";
+            cmd.Parameters.AddWithValue("@now", DateTime.Now.ToString("o"));
             using var reader = cmd.ExecuteReader();
             var results = new List<LocalBookletRecord>();
             while (reader.Read())
@@ -222,6 +237,84 @@ namespace ScannerApp.Services
             cmd.CommandText = "DELETE FROM LocalQueue WHERE BookletId = @id";
             cmd.Parameters.AddWithValue("@id", bookletId);
             cmd.ExecuteNonQuery();
+        }
+
+        // ── Resume support ────────────────────────────────────────────────────
+
+        public void MarkScanning(string bookletId, string resumeStateJson)
+        {
+            using var conn = OpenConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE LocalQueue
+                SET Status = 'Scanning', ResumeState = @state, LastAttempt = @now
+                WHERE BookletId = @id";
+            cmd.Parameters.AddWithValue("@state", resumeStateJson);
+            cmd.Parameters.AddWithValue("@now",   DateTime.Now.ToString("o"));
+            cmd.Parameters.AddWithValue("@id",    bookletId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void MarkInterrupted(string bookletId)
+        {
+            using var conn = OpenConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "UPDATE LocalQueue SET Status = 'Interrupted' WHERE BookletId = @id";
+            cmd.Parameters.AddWithValue("@id", bookletId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void UpdateResumeState(string bookletId, string resumeStateJson)
+        {
+            using var conn = OpenConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "UPDATE LocalQueue SET ResumeState = @state WHERE BookletId = @id";
+            cmd.Parameters.AddWithValue("@state", resumeStateJson);
+            cmd.Parameters.AddWithValue("@id",    bookletId);
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>Returns the first Interrupted record, or null if none.</summary>
+        public LocalBookletRecord? GetInterruptedRecord()
+        {
+            using var conn   = OpenConnection();
+            using var cmd    = conn.CreateCommand();
+            cmd.CommandText  = "SELECT * FROM LocalQueue WHERE Status = 'Interrupted' LIMIT 1";
+            using var reader = cmd.ExecuteReader();
+            return reader.Read() ? ReadRecord(reader) : null;
+        }
+
+        // ── Schedule-aware upload trigger ─────────────────────────────────────
+
+        /// <summary>
+        /// Called after a booklet is queued. If UploadScheduleMode is Immediate, uploads now.
+        /// Otherwise schedules a NextUploadAttempt time and lets the background loop handle it.
+        /// </summary>
+        public void TriggerUpload(string bookletId, string uploadScheduleMode, double uploadIntervalHours)
+        {
+            if (uploadScheduleMode == "Immediate")
+            {
+                _ = TryUploadPendingAsync();
+                return;
+            }
+
+            DateTime next = uploadScheduleMode switch
+            {
+                "Every4h"  => DateTime.Now.AddHours(4),
+                "Every8h"  => DateTime.Now.AddHours(8),
+                "Every12h" => DateTime.Now.AddHours(12),
+                "Custom"   => DateTime.Now.AddHours(Math.Max(0.5, uploadIntervalHours)),
+                "EndOfDay" => DateTime.Today.AddHours(23),
+                _          => DateTime.Now,
+            };
+
+            using var conn = OpenConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "UPDATE LocalQueue SET NextUploadAttempt = @next WHERE BookletId = @id";
+            cmd.Parameters.AddWithValue("@next", next.ToString("o"));
+            cmd.Parameters.AddWithValue("@id",   bookletId);
+            cmd.ExecuteNonQuery();
+            AppLogger.Info($"TriggerUpload: {bookletId} scheduled for {next:HH:mm} ({uploadScheduleMode})");
         }
 
         // ── Background upload ─────────────────────────────────────────────────
@@ -330,6 +423,7 @@ namespace ScannerApp.Services
                 TotalPagesScanned  = r["TotalPagesScanned"]  is DBNull ? 0 : Convert.ToInt32(r["TotalPagesScanned"]),
                 WorkstationId      = r["WorkstationId"] is DBNull ? 0 : Convert.ToInt32(r["WorkstationId"]),
                 LocationId         = r["LocationId"]    is DBNull ? 0 : Convert.ToInt32(r["LocationId"]),
+                ResumeState        = r["ResumeState"] is DBNull ? null : r["ResumeState"]?.ToString(),
             };
         }
 

@@ -7,6 +7,7 @@ import { syncBookletToEval } from '../scan/syncScanToEval.js';
 import { getScanDb, getEvalDb } from '../../config/database.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import auditLog from '../../middleware/auditLog.js';
+import { uploadTemplateSampleImage } from '../../middleware/upload.js';
 
 const router = Router();
 
@@ -608,6 +609,9 @@ router.put('/templates/:templateId', controller.updateTemplate);
  *         description: Template not found
  */
 router.delete('/templates/:templateId', controller.deleteTemplate);
+
+router.post('/templates/:templateId/sample-image', uploadTemplateSampleImage, controller.uploadSampleImage);
+router.get('/templates/:templateId/sample-image', controller.getSampleImage);
 
 // ── Printer Profiles ───────────────────────────────────────────────────────────
 

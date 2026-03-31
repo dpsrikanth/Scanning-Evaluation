@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Linq;
+using ScannerApp.Models;
 using ZXing;
 using ZXing.Common;
 using ZXing.Windows.Compatibility;
@@ -81,6 +82,45 @@ namespace ScannerApp.Services
             using var scaled = DownscaleForBarcodeDecode(image);
             return _reader.Decode(scaled)?.Text;
         }
+
+        /// <summary>
+        /// Crops the zone rectangle from the full page bitmap and decodes a barcode/QR within it.
+        /// Returns null if the zone is too small or no barcode is found.
+        /// </summary>
+        public string? ReadBarcodeFromZone(Bitmap fullPage, BarcodeZone zone)
+        {
+            if (fullPage == null || fullPage.Width < 16 || fullPage.Height < 16) return null;
+            var crop = zone.CropRect(fullPage.Width, fullPage.Height);
+            // Clamp to image bounds
+            crop = System.Drawing.Rectangle.Intersect(crop,
+                new System.Drawing.Rectangle(0, 0, fullPage.Width, fullPage.Height));
+            if (crop.Width < 8 || crop.Height < 8) return null;
+            using var zoneBmp = fullPage.Clone(crop, fullPage.PixelFormat);
+            // Select hint-specific reader
+            var reader = zone.BarcodeHint switch
+            {
+                "QR"      => BuildHintReader(BarcodeFormat.QR_CODE),
+                "CODE128" => BuildHintReader(BarcodeFormat.CODE_128),
+                "CODE39"  => BuildHintReader(BarcodeFormat.CODE_39),
+                _         => _reader,
+            };
+            if (!NeedsDownscaleForDecode(zoneBmp))
+                return reader.Decode(zoneBmp)?.Text;
+            using var scaled = DownscaleForBarcodeDecode(zoneBmp);
+            return reader.Decode(scaled)?.Text;
+        }
+
+        private static BarcodeReader BuildHintReader(BarcodeFormat format) =>
+            new BarcodeReader
+            {
+                AutoRotate = true,
+                Options = new DecodingOptions
+                {
+                    TryHarder = true,
+                    TryInverted = true,
+                    PossibleFormats = new List<BarcodeFormat> { format },
+                }
+            };
 
         /// <summary>
         /// Decodes the page-order barcode. Input is downscaled internally so large scans (e.g. 2550×4200)

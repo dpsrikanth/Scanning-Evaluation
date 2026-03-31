@@ -30,5 +30,11 @@ namespace ScannerApp.Services
             ScanSource source = ScanSource.FeederDuplex,
             CancellationToken cancellationToken = default,
             IProgress<Bitmap>? progress = null);
+
+        /// <summary>
+        /// Returns true if at least one scanner is visible/reachable on this machine.
+        /// Should be fast and non-blocking (no driver session opened if avoidable).
+        /// </summary>
+        bool IsConnected();
     }
 }

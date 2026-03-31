@@ -41,6 +41,19 @@ namespace ScannerApp.Services
             AppLogger.Info("Auth token applied to HttpClient.");
         }
 
+        // ── Health ────────────────────────────────────────────────────────────
+
+        public async Task<bool> PingAsync()
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var resp = await _client.GetAsync($"{BaseUrl}/api/health", cts.Token);
+                return resp.IsSuccessStatusCode;
+            }
+            catch { return false; }
+        }
+
         // ── Auth ──────────────────────────────────────────────────────────────
 
         public async Task<LoginData?> LoginAsync(string username, string password)

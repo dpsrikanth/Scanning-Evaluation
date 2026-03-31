@@ -268,6 +268,9 @@ export const api = {
     createTemplate: (data) => request('/scanadmin/templates', { method: 'POST', body: JSON.stringify(data) }),
     updateTemplate: (id, data) => request(`/scanadmin/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteTemplate: (id) => request(`/scanadmin/templates/${id}`, { method: 'DELETE' }),
+    uploadTemplateSampleImage: (id, formData) =>
+      request(`/scanadmin/templates/${id}/sample-image`, { method: 'POST', body: formData }),
+    getTemplateSampleImageUrl: (id) => `${API_BASE}/scanadmin/templates/${id}/sample-image`,
 
     // Printer Profiles
     listPrinterProfiles: () => request('/scanadmin/printer-profiles'),

@@ -56,14 +56,23 @@ namespace ScannerApp.Forms
 
         private void BuildForm()
         {
+            // DPI-aware sizing: scale the fixed 420×460 base by the system DPI factor
+            float dpiScale;
+            using (var g = CreateGraphics())
+                dpiScale = g.DpiX / 96f;
+            dpiScale = Math.Max(1f, dpiScale); // never shrink below 100 %
+
+            int w = (int)(FormWidthCollapsed  * dpiScale);
+            int h = (int)(FormHeightCollapsed * dpiScale);
+
             Text            = "Scanning Station — Login";
-            Size            = new Size(FormWidthCollapsed, FormHeightCollapsed);
-            MinimumSize     = new Size(FormWidthCollapsed, FormHeightCollapsed);
+            Size            = new Size(w, h);
+            MinimumSize     = new Size(w, h);
             StartPosition   = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox     = false;
             BackColor       = C_CardBg;
-            Font            = new Font("Segoe UI", 9.5f);
+            Font            = new Font("Segoe UI", 9.5f * dpiScale);
 
             // ── Brand strip ───────────────────────────────────────────────────
             var brandPanel = new Panel

@@ -143,6 +143,16 @@ export default class ScanAdminService {
     await this.repo.deleteTemplate(templateId, deletedBy);
   }
 
+  async saveTemplateImage(templateId, filePath) {
+    await this.getTemplate(templateId); // ensures template exists
+    await this.repo.saveTemplateImage(templateId, filePath);
+  }
+
+  async getTemplateImage(templateId) {
+    await this.getTemplate(templateId);
+    return this.repo.getTemplateImage(templateId);
+  }
+
   // ── Printer Profiles ──────────────────────────────────────────────────────
 
   async listPrinterProfiles() {

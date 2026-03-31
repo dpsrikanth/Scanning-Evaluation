@@ -65,6 +65,13 @@ namespace ScannerApp.Forms
         private Button     _btnLogout       = null!;
         private Button     _btnChangePath   = null!;
 
+        // ── Status bar (bottom-right) ─────────────────────────────────────────
+        private Panel      _statusBar       = null!;
+        private Label      _lblServerStatus  = null!;
+        private Label      _lblScannerStatus = null!;
+        private System.Windows.Forms.Timer _timerServerPing   = null!;
+        private System.Windows.Forms.Timer _timerScannerCheck = null!;
+
         // ── Colors ────────────────────────────────────────────────────────────
         private static readonly Color ColorPrimary    = Color.FromArgb(13, 110, 74);
         private static readonly Color ColorSurface    = Color.FromArgb(245, 247, 250);
@@ -89,15 +96,21 @@ namespace ScannerApp.Forms
         private void InitializeComponent()
         {
             Text            = "Scanner — Scanning Station";
-            Size            = new Size(1280, 820);
             MinimumSize     = new Size(1024, 700);
             StartPosition   = FormStartPosition.CenterScreen;
             BackColor       = ColorSurface;
             Font            = new Font("Segoe UI", 9);
             FormBorderStyle = FormBorderStyle.Sizable;
 
+            // Screen-adaptive: fill 85% of the work area, but never less than the minimum
+            var screen = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 800);
+            int w = Math.Max(1024, (int)(screen.Width  * 0.85));
+            int h = Math.Max(700,  (int)(screen.Height * 0.85));
+            ClientSize = new Size(w, h);
+
             BuildHeader();
             BuildMainLayout();
+            BuildStatusBar();
         }
 
         private void BuildHeader()
@@ -231,6 +244,74 @@ namespace ScannerApp.Forms
             mainTable.SetColumnSpan(mainTable.GetControlFromPosition(0, 1)!, 2);
 
             Controls.Add(mainTable);
+        }
+
+        private void BuildStatusBar()
+        {
+            // Floating status bar anchored to bottom-right over other controls
+            _lblServerStatus = new Label
+            {
+                AutoSize  = false,
+                Text      = "⬤ Server",
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = Color.Gray,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Width     = 90,
+                Height    = 28,
+            };
+            _lblScannerStatus = new Label
+            {
+                AutoSize  = false,
+                Text      = "⬤ Scanner",
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = Color.Gray,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Width     = 100,
+                Height    = 28,
+            };
+
+            _statusBar = new Panel
+            {
+                Size      = new Size(210, 32),
+                Anchor    = AnchorStyles.Bottom | AnchorStyles.Right,
+                BackColor = Color.FromArgb(22, 30, 46),
+                Padding   = new Padding(6, 2, 6, 2),
+            };
+            _statusBar.Controls.Add(_lblServerStatus);
+            _statusBar.Controls.Add(_lblScannerStatus);
+            _lblServerStatus.Location  = new Point(6, 2);
+            _lblScannerStatus.Location = new Point(106, 2);
+
+            // Position bottom-right — will be adjusted on Resize too
+            _statusBar.Location = new Point(ClientSize.Width - _statusBar.Width - 4,
+                                            ClientSize.Height - _statusBar.Height - 4);
+            Controls.Add(_statusBar);
+            _statusBar.BringToFront();
+            Resize += (_, _) =>
+            {
+                _statusBar.Location = new Point(ClientSize.Width - _statusBar.Width - 4,
+                                                ClientSize.Height - _statusBar.Height - 4);
+            };
+
+            // Server ping every 15 s
+            _timerServerPing = new System.Windows.Forms.Timer { Interval = 15_000 };
+            _timerServerPing.Tick += async (_, _) =>
+            {
+                bool ok = await _api.PingAsync();
+                _lblServerStatus.ForeColor = ok ? Color.LimeGreen : Color.Gray;
+                _lblServerStatus.Text      = ok ? "⬤ Server" : "◯ Server";
+            };
+            _timerServerPing.Start();
+
+            // Scanner check every 10 s
+            _timerScannerCheck = new System.Windows.Forms.Timer { Interval = 10_000 };
+            _timerScannerCheck.Tick += (_, _) =>
+            {
+                bool ok = _scanner.IsConnected();
+                _lblScannerStatus.ForeColor = ok ? Color.LimeGreen : Color.FromArgb(200, 60, 60);
+                _lblScannerStatus.Text      = ok ? "⬤ Scanner" : "⬤ Scanner";
+            };
+            _timerScannerCheck.Start();
         }
 
         private Panel BuildLeftPanel()
@@ -664,6 +745,9 @@ namespace ScannerApp.Forms
                 _queue.StartBackgroundUpload();
                 RefreshQueueView();
 
+                // 7. Resume check — offer to continue any scan interrupted mid-booklet
+                CheckForInterruptedScan();
+
                 SetStatus("Ready", false);
             }
             catch (Exception ex)
@@ -673,6 +757,44 @@ namespace ScannerApp.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 // Still allow the form to remain open — queue is initialized above
             }
+        }
+
+        private void CheckForInterruptedScan()
+        {
+            var interrupted = _queue?.GetInterruptedRecord();
+            if (interrupted == null) return;
+
+            var msg = $"A scan was interrupted before it could be completed:\n\n" +
+                      $"  Booklet:  {interrupted.BookletId}\n" +
+                      $"  Pages:    {interrupted.TotalPagesScanned} of {interrupted.TotalPagesExpected} scanned\n\n" +
+                      $"Choose Continue to resume from where it stopped, or Discard to delete the incomplete scan.";
+
+            var choice = MessageBox.Show(msg, "Resume Interrupted Scan",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
+
+            if (choice == DialogResult.Yes)
+            {
+                // Mark it back to Pending so the background uploader will try it
+                // (partial data is still in the folder — operator will re-scan from the ADF position they left off)
+                _queue?.UpdateStatus(interrupted.BookletId, "Pending");
+                SetStatus($"Resuming {interrupted.BookletId} — reload paper and press Scan Booklet to continue.", false);
+            }
+            else if (choice == DialogResult.No)
+            {
+                // Discard the interrupted scan and its folder
+                try
+                {
+                    if (Directory.Exists(interrupted.FolderPath))
+                        Directory.Delete(interrupted.FolderPath, true);
+                }
+                catch (Exception ex) { AppLogger.Warn($"Discard interrupted scan folder: {ex.Message}"); }
+                _queue?.DeleteRecord(interrupted.BookletId);
+                RefreshQueueView();
+                SetStatus("Interrupted scan discarded.", false);
+            }
+            // Cancel = dismiss, leave as Interrupted (will prompt again next startup)
         }
 
         private void LoadExams()
@@ -868,19 +990,24 @@ namespace ScannerApp.Forms
             // Build effective template with local overrides
             var effectiveTemplate = new ScanTemplate
             {
-                TemplateID    = template.TemplateID,
-                TemplateName  = template.TemplateName,
-                Description   = template.Description,
-                PageCount     = template.PageCount,
-                DPI           = template.DPI,
-                ColorMode     = template.ColorMode,
-                PageSize      = template.PageSize,
-                DuplexMode    = template.DuplexMode,
-                JpegQuality   = template.JpegQuality,
-                BrightnessAdj = template.BrightnessAdj,
-                ContrastAdj   = template.ContrastAdj,
-                SkipBlankPages = template.SkipBlankPages,
-                DeSkew        = template.DeSkew,
+                TemplateID           = template.TemplateID,
+                TemplateName         = template.TemplateName,
+                Description          = template.Description,
+                PageCount            = template.PageCount,
+                DPI                  = template.DPI,
+                ColorMode            = template.ColorMode,
+                PageSize             = template.PageSize,
+                DuplexMode           = template.DuplexMode,
+                JpegQuality          = template.JpegQuality,
+                BrightnessAdj        = template.BrightnessAdj,
+                ContrastAdj          = template.ContrastAdj,
+                SkipBlankPages       = template.SkipBlankPages,
+                DeSkew               = template.DeSkew,
+                BarcodeZones         = template.BarcodeZones,
+                PageBarcodeStartPage = template.PageBarcodeStartPage,
+                PdfFilenameFormat    = template.PdfFilenameFormat,
+                UploadScheduleMode   = template.UploadScheduleMode,
+                UploadIntervalHours  = template.UploadIntervalHours,
             };
 
             // Derive scan source from server-configured template (no local dropdown)
@@ -917,6 +1044,10 @@ namespace ScannerApp.Forms
             var pageBarcodeTasksLock = new object();
             Task<string?>? bookletBarcodePrefetchTask = null;
             var pageBarcodeConcurrency = new SemaphoreSlim(3, 3);
+
+            // Zone barcode results keyed by pageNum → { zoneName → value }
+            var zoneBarcodesPerPage = new Dictionary<int, Dictionary<string, string>>();
+            var zoneBarcodesLock    = new object();
 
             var progress = new Progress<Bitmap>(bmp =>
             {
@@ -982,6 +1113,38 @@ namespace ScannerApp.Forms
                 {
                     if (processed != null && !ReferenceEquals(processed, bmp))
                         processed.Dispose();
+                }
+
+                // Zone-based barcode reading: fire in background for each zone that applies to this page
+                var applicableZones = effectiveTemplate.BarcodeZones
+                    .Where(z => z.AppliesTo(pageNum))
+                    .ToList();
+                if (applicableZones.Count > 0)
+                {
+                    try
+                    {
+                        var zoneCopy = (Bitmap)bmp.Clone();
+                        int pnz = pageNum;
+                        _ = Task.Run(() =>
+                        {
+                            var results = new Dictionary<string, string>();
+                            foreach (var zone in applicableZones)
+                            {
+                                try
+                                {
+                                    var val = _barcode.ReadBarcodeFromZone(zoneCopy, zone);
+                                    if (!string.IsNullOrWhiteSpace(val))
+                                        results[zone.Name] = val;
+                                }
+                                catch (Exception ex) { AppLogger.Warn($"Zone barcode '{zone.Name}' page {pnz}: {ex.Message}"); }
+                            }
+                            try { zoneCopy.Dispose(); } catch { /* ignore */ }
+                            if (results.Count > 0)
+                                lock (zoneBarcodesLock)
+                                    zoneBarcodesPerPage[pnz] = results;
+                        });
+                    }
+                    catch (Exception ex) { AppLogger.Warn($"Zone barcode clone page {pageNum}: {ex.Message}"); }
                 }
 
                 if (bottomCheckCopy != null)
@@ -1169,10 +1332,24 @@ namespace ScannerApp.Forms
                 }
                 catch { /* barcode decode failure is non-fatal */ }
 
+                // Collect all zone barcodes from all pages (first non-null value per zone name wins)
+                var allZoneValues = new Dictionary<string, string>();
+                lock (zoneBarcodesLock)
+                {
+                    foreach (var pageZones in zoneBarcodesPerPage.OrderBy(kv => kv.Key))
+                        foreach (var kv in pageZones.Value)
+                            allZoneValues.TryAdd(kv.Key, kv.Value);
+                }
+
                 // Rename pending folder to final name (optional fixed ID for QC rescan / server upsert)
                 var qcOverride = _txtQcRescanId.Text?.Trim();
                 var bookletId = string.IsNullOrEmpty(qcOverride)
-                    ? barcodeDetails.ToFilename() + $"_{DateTime.Now:HHmmss}"
+                    ? BookletFilenameBuilder.Build(
+                        effectiveTemplate.PdfFilenameFormat,
+                        barcodeDetails.ToFilename() + $"_{DateTime.Now:HHmmss}",
+                        barcodeDetails.ExamCode, barcodeDetails.PaperCode,
+                        barcodeDetails.RollNo, barcodeDetails.Serial,
+                        allZoneValues, DateTime.Now.ToString("yyyyMMdd"), bitmaps.Count)
                     : qcOverride;
                 var finalFolder = Path.Combine(_storagePath, "booklets", bookletId);
                 Directory.CreateDirectory(Path.GetDirectoryName(finalFolder)!);
@@ -1196,14 +1373,19 @@ namespace ScannerApp.Forms
                 catch { /* PDF generation failure is non-fatal */ }
 
                 // Build queue record
-                var pagesJson = JsonConvert.SerializeObject(_currentPages.Select(p => new PageData
+                var pagesJson = JsonConvert.SerializeObject(_currentPages.Select(p =>
                 {
-                    PageNumber       = p.PageNumber,
-                    ImagePath        = p.FilePath,
-                    PageHash         = p.Hash,
-                    BarcodeData      = p.IsPage1 ? barcodeDetails.RawValue : null,
-                    ValidationStatus = "Valid",
-                    IsRoughPage      = 0,
+                    zoneBarcodesPerPage.TryGetValue(p.PageNumber, out var zv);
+                    return new PageData
+                    {
+                        PageNumber       = p.PageNumber,
+                        ImagePath        = p.FilePath,
+                        PageHash         = p.Hash,
+                        BarcodeData      = p.IsPage1 ? barcodeDetails.RawValue : null,
+                        ValidationStatus = "Valid",
+                        IsRoughPage      = 0,
+                        ZoneBarcodes     = zv ?? new Dictionary<string, string>(),
+                    };
                 }).ToList());
 
                 var record = new LocalBookletRecord
@@ -1233,8 +1415,10 @@ namespace ScannerApp.Forms
                 _queue?.SaveToQueue(record);
                 RefreshQueueView();
 
-                // Trigger background upload immediately (fire-and-forget)
-                _ = _queue?.TryUploadPendingAsync();
+                // Schedule-aware upload trigger
+                _queue?.TriggerUpload(bookletId,
+                    effectiveTemplate.UploadScheduleMode,
+                    effectiveTemplate.UploadIntervalHours);
 
                 if (!string.IsNullOrEmpty(qcOverride))
                     _txtQcRescanId.Clear();

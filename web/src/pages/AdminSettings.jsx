@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import { api } from '../services/api';
+import ZonePicker from '../components/ZonePicker';
 import './AdminSettings.css';
 
 const FACE_MODEL_URL = '/face-api-models';
@@ -83,7 +84,31 @@ const SCAN_SUB_TABS = [
 const SCANNER_BLANK_EXAM = { examCode: '', examName: '', examYear: new Date().getFullYear() };
 const SCANNER_BLANK_PAPER = { examId: '', paperCode: '', paperName: '', totalPages: 24, bookletPageCounts: '' };
 const SCANNER_BLANK_WS = { locationId: '', workstationCode: '', workstationName: '', assignedUsername: '', printerProfileId: '', isActive: 1 };
-const SCANNER_BLANK_TPL = { templateName: '', description: '', pageCount: 24, dpi: 300, colorMode: 'Grayscale', pageSize: 'A4', duplexMode: 'Simplex', jpegQuality: 85, brightnessAdj: 128, contrastAdj: 128, threshold: 128, pdfJpegQuality: 70, pdfMaxDpi: 150, skipBlankPages: false, deSkew: true, isActive: 1 };
+const SCANNER_BLANK_TPL = {
+  templateName: '', description: '', pageCount: 24, dpi: 300, colorMode: 'Grayscale',
+  pageSize: 'A4', duplexMode: 'Simplex', jpegQuality: 85, brightnessAdj: 128, contrastAdj: 128,
+  threshold: 128, pdfJpegQuality: 70, pdfMaxDpi: 150, skipBlankPages: false, deSkew: true,
+  barcodeZones: [], pageBarcodeStartPage: 2, pdfFilenameFormat: '{BookletId}',
+  uploadScheduleMode: 'Immediate', uploadIntervalHours: 0, isActive: 1,
+};
+
+const UPLOAD_SCHEDULE_OPTIONS = [
+  { value: 'Immediate', label: 'Immediate' },
+  { value: 'Every4h',   label: 'Every 4 hours' },
+  { value: 'Every8h',   label: 'Every 8 hours' },
+  { value: 'Every12h',  label: 'Every 12 hours' },
+  { value: 'Custom',    label: 'Custom interval' },
+  { value: 'EndOfDay',  label: 'End of day (23:00)' },
+];
+
+const BARCODE_PAGE_SCOPE_OPTIONS = [
+  { value: 'FirstPage',     label: 'First page only' },
+  { value: 'AllPages',      label: 'All pages' },
+  { value: 'FromPage',      label: 'From page N' },
+  { value: 'SpecificPages', label: 'Specific page' },
+];
+
+const BARCODE_HINT_OPTIONS = ['ANY', 'QR', 'CODE128', 'CODE39'];
 
 // PDF compression presets — (pdfJpegQuality, pdfMaxDpi, label, approx size for 42 colour A4 pages)
 const PDF_PRESETS = [
@@ -218,6 +243,23 @@ export default function AdminSettings() {
   const [bookletFilterPaperId, setBookletFilterPaperId] = useState('');
   const [scanOutputPaths, setScanOutputPaths] = useState([]);
   const [outputPathForm, setOutputPathForm] = useState({ pathLabel: '', pathValue: '', displayOrder: 0 });
+
+  // Zone picker state (for template sample image canvas)
+  const zoneCanvasRef = useRef(null);
+  const [zoneDrawing, setZoneDrawing] = useState(null); // {startX, startY, currentX, currentY}
+  const [zoneSampleImageUrl, setZoneSampleImageUrl] = useState(null);
+  const [zoneSampleUploading, setZoneSampleUploading] = useState(false);
+
+  // Auto-load sample image when opening a template for edit
+  useEffect(() => {
+    if (scanFormMode === 'edit' && scanForm.data?.TemplateID) {
+      setZoneSampleImageUrl(
+        api.scanadmin.getTemplateSampleImageUrl(scanForm.data.TemplateID) + '?t=' + Date.now()
+      );
+    } else {
+      setZoneSampleImageUrl(null);
+    }
+  }, [scanFormMode, scanForm.data?.TemplateID]);
 
   useEffect(() => {
     if (activeTab === 'users')      loadUsers();
@@ -1500,6 +1542,154 @@ export default function AdminSettings() {
                         Auto De-Skew
                       </label>
                     </div>
+
+                    {/* ── Upload Schedule ──────────────────────────────── */}
+                    <div style={{marginTop:'12px',paddingTop:'10px',borderTop:'1px solid var(--border-color)'}}>
+                      <div style={{fontWeight:600,fontSize:'0.75rem',color:'var(--text-muted)',letterSpacing:'0.06em',marginBottom:'8px'}}>UPLOAD SCHEDULE</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:'8px',marginBottom:'8px'}}>
+                        {UPLOAD_SCHEDULE_OPTIONS.map(opt => (
+                          <label key={opt.value} style={{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer',fontSize:'0.85rem'}}>
+                            <input type="radio" name="uploadScheduleMode"
+                              checked={(scanForm.data.uploadScheduleMode || 'Immediate') === opt.value}
+                              onChange={() => setScanForm(f => ({ ...f, data: { ...f.data, uploadScheduleMode: opt.value } }))} />
+                            {opt.label}
+                          </label>
+                        ))}
+                      </div>
+                      {(scanForm.data.uploadScheduleMode === 'Custom') && (
+                        <div className="field-group" style={{maxWidth:'200px'}}>
+                          <label className="field-label">Interval (hours)</label>
+                          <input className="field-input" type="number" min="1" max="24" step="0.5"
+                            value={scanForm.data.uploadIntervalHours || 1}
+                            onChange={e => setScanForm(f => ({ ...f, data: { ...f.data, uploadIntervalHours: parseFloat(e.target.value) } }))} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── PDF Filename Format ───────────────────────────── */}
+                    <div style={{marginTop:'12px',paddingTop:'10px',borderTop:'1px solid var(--border-color)'}}>
+                      <div style={{fontWeight:600,fontSize:'0.75rem',color:'var(--text-muted)',letterSpacing:'0.06em',marginBottom:'8px'}}>PDF FILENAME FORMAT</div>
+                      <div className="field-group">
+                        <label className="field-label">Format (use tokens in curly braces)</label>
+                        <input className="field-input"
+                          value={scanForm.data.pdfFilenameFormat || '{BookletId}'}
+                          onChange={e => setScanForm(f => ({ ...f, data: { ...f.data, pdfFilenameFormat: e.target.value } }))}
+                          placeholder="{BookletId}" />
+                        <div style={{fontSize:'0.72rem',color:'var(--text-muted)',marginTop:'4px',lineHeight:'1.6'}}>
+                          Available tokens: <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{BookletId}'}</code>{' '}
+                          <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{ExamCode}'}</code>{' '}
+                          <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{PaperCode}'}</code>{' '}
+                          <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{RollNo}'}</code>{' '}
+                          <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{Serial}'}</code>{' '}
+                          <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{ScanDate}'}</code>{' '}
+                          <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{PageCount}'}</code>
+                          {(scanForm.data.barcodeZones || []).map(z => z.name).filter(Boolean).map(n => (
+                            <span key={n}>{' '}<code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{`{${n}}`}</code></span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Barcode Zones ─────────────────────────────────── */}
+                    <div style={{marginTop:'12px',paddingTop:'10px',borderTop:'1px solid var(--border-color)'}}>
+                      <div style={{fontWeight:600,fontSize:'0.75rem',color:'var(--text-muted)',letterSpacing:'0.06em',marginBottom:'8px'}}>BARCODE / QR ZONES</div>
+                      <div className="scan-form-grid-3" style={{marginBottom:'8px'}}>
+                        <div className="field-group">
+                          <label className="field-label">Page barcode starts from page</label>
+                          <input className="field-input" type="number" min="1"
+                            value={scanForm.data.pageBarcodeStartPage ?? 2}
+                            onChange={e => setScanForm(f => ({ ...f, data: { ...f.data, pageBarcodeStartPage: parseInt(e.target.value) } }))} />
+                        </div>
+                      </div>
+
+                      {/* Zone rows table */}
+                      <div style={{overflowX:'auto'}}>
+                        <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.78rem'}}>
+                          <thead>
+                            <tr style={{background:'var(--bg-secondary)'}}>
+                              {['Zone Name','Page Scope','Page #','X %','Y %','W %','H %','Hint',''].map(h => (
+                                <th key={h} style={{padding:'4px 6px',textAlign:'left',fontWeight:600,borderBottom:'1px solid var(--border-color)',whiteSpace:'nowrap'}}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(scanForm.data.barcodeZones || []).map((zone, idx) => (
+                              <tr key={idx}>
+                                <td style={{padding:'3px 4px'}}>
+                                  <input style={{width:'90px'}} className="field-input" value={zone.name || ''}
+                                    onChange={e => setScanForm(f => { const z=[...f.data.barcodeZones]; z[idx]={...z[idx],name:e.target.value}; return {...f,data:{...f.data,barcodeZones:z}}; })} /></td>
+                                <td style={{padding:'3px 4px'}}>
+                                  <select className="field-input" value={zone.pageScope || 'FirstPage'}
+                                    onChange={e => setScanForm(f => { const z=[...f.data.barcodeZones]; z[idx]={...z[idx],pageScope:e.target.value}; return {...f,data:{...f.data,barcodeZones:z}}; })}>
+                                    {BARCODE_PAGE_SCOPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                  </select></td>
+                                <td style={{padding:'3px 4px'}}>
+                                  <input style={{width:'50px'}} className="field-input" type="number" min="1"
+                                    value={zone.pageScopeValue || 1}
+                                    disabled={zone.pageScope === 'FirstPage' || zone.pageScope === 'AllPages'}
+                                    onChange={e => setScanForm(f => { const z=[...f.data.barcodeZones]; z[idx]={...z[idx],pageScopeValue:parseInt(e.target.value)}; return {...f,data:{...f.data,barcodeZones:z}}; })} /></td>
+                                {['x','y','w','h'].map(field => (
+                                  <td key={field} style={{padding:'3px 4px'}}>
+                                    <input style={{width:'54px'}} className="field-input" type="number" min="0" max="100" step="1"
+                                      value={Math.round((zone[field] || 0) * 100)}
+                                      onChange={e => setScanForm(f => { const z=[...f.data.barcodeZones]; z[idx]={...z[idx],[field]:parseFloat(e.target.value)/100}; return {...f,data:{...f.data,barcodeZones:z}}; })} /></td>
+                                ))}
+                                <td style={{padding:'3px 4px'}}>
+                                  <select className="field-input" value={zone.hint || 'ANY'}
+                                    onChange={e => setScanForm(f => { const z=[...f.data.barcodeZones]; z[idx]={...z[idx],hint:e.target.value}; return {...f,data:{...f.data,barcodeZones:z}}; })}>
+                                    {BARCODE_HINT_OPTIONS.map(h => <option key={h}>{h}</option>)}
+                                  </select></td>
+                                <td style={{padding:'3px 4px'}}>
+                                  <button className="btn btn-ghost btn-sm" style={{color:'var(--danger)'}}
+                                    onClick={() => setScanForm(f => { const z=f.data.barcodeZones.filter((_,i)=>i!==idx); return {...f,data:{...f.data,barcodeZones:z}}; })}>
+                                    <X size={12} />
+                                  </button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <button className="btn btn-ghost btn-sm" style={{marginTop:'6px'}}
+                        onClick={() => setScanForm(f => ({ ...f, data: { ...f.data, barcodeZones: [...(f.data.barcodeZones||[]), {name:'',pageScope:'FirstPage',pageScopeValue:1,x:0,y:0,w:0.5,h:0.1,hint:'ANY'}] } }))}>
+                        + Add Zone
+                      </button>
+                    </div>
+
+                    {/* ── Sample Page / Zone Picker ─────────────────────── */}
+                    {scanFormMode === 'edit' && scanForm.data.TemplateID && (
+                      <div style={{marginTop:'12px',paddingTop:'10px',borderTop:'1px solid var(--border-color)'}}>
+                        <div style={{fontWeight:600,fontSize:'0.75rem',color:'var(--text-muted)',letterSpacing:'0.06em',marginBottom:'8px'}}>SAMPLE PAGE &amp; ZONE PICKER</div>
+                        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
+                          <label className="btn btn-ghost btn-sm" style={{cursor:'pointer',display:'flex',alignItems:'center',gap:'4px'}}>
+                            {zoneSampleUploading ? <Loader2 size={13} className="spin" /> : <Plus size={13} />}
+                            Upload Sample Image
+                            <input type="file" accept=".jpg,.jpeg,.png" style={{display:'none'}}
+                              onChange={async e => {
+                                const file = e.target.files?.[0]; if (!file) return;
+                                setZoneSampleUploading(true);
+                                try {
+                                  const fd = new FormData(); fd.append('sampleImage', file);
+                                  await api.scanadmin.uploadTemplateSampleImage(scanForm.data.TemplateID, fd);
+                                  const url = api.scanadmin.getTemplateSampleImageUrl(scanForm.data.TemplateID) + '?t=' + Date.now();
+                                  setZoneSampleImageUrl(url);
+                                } catch { /* ignore */ } finally { setZoneSampleUploading(false); }
+                              }} />
+                          </label>
+                          {zoneSampleImageUrl && (
+                            <button className="btn btn-ghost btn-sm" onClick={() => { setScanForm(f => ({...f, data: {...f.data, barcodeZones: []}})); }}>
+                              Clear Zones
+                            </button>
+                          )}
+                        </div>
+                        <ZonePicker
+                          templateId={scanForm.data.TemplateID}
+                          zones={scanForm.data.barcodeZones || []}
+                          onZonesChange={zones => setScanForm(f => ({ ...f, data: { ...f.data, barcodeZones: zones } }))}
+                          canvasRef={zoneCanvasRef}
+                          externalImageUrl={zoneSampleImageUrl}
+                        />
+                      </div>
+                    )}
                   </>)}
 
                   {/* Printer Profile fields */}

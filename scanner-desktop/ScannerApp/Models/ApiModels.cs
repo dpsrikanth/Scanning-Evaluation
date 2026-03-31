@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+
 namespace ScannerApp.Models
 {
     /// <summary>Scan source selection — mirrors the three options in the WIA common dialog.</summary>
@@ -134,6 +136,38 @@ namespace ScannerApp.Models
         public bool ShowBookletDetailsPopup { get; set; } = false;
     }
 
+    public enum BarcodePageScope { FirstPage, AllPages, FromPage, SpecificPages }
+
+    public class BarcodeZone
+    {
+        public string Name { get; set; } = "";
+        [JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public BarcodePageScope PageScope { get; set; } = BarcodePageScope.FirstPage;
+        public int PageScopeValue { get; set; } = 1;
+        /// <summary>0.0–1.0 fraction of page width/height.</summary>
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double W { get; set; }
+        public double H { get; set; }
+        /// <summary>ANY | QR | CODE128 | CODE39</summary>
+        [JsonProperty("hint")]
+        public string BarcodeHint { get; set; } = "ANY";
+
+        public bool AppliesTo(int pageNumber) => PageScope switch
+        {
+            BarcodePageScope.FirstPage     => pageNumber == 1,
+            BarcodePageScope.AllPages      => true,
+            BarcodePageScope.FromPage      => pageNumber >= PageScopeValue,
+            BarcodePageScope.SpecificPages => pageNumber == PageScopeValue,
+            _                              => false,
+        };
+
+        public System.Drawing.Rectangle CropRect(int imgW, int imgH) =>
+            new System.Drawing.Rectangle(
+                (int)(X * imgW), (int)(Y * imgH),
+                Math.Max(1, (int)(W * imgW)), Math.Max(1, (int)(H * imgH)));
+    }
+
     public class ScanTemplate
     {
         public int TemplateID { get; set; }
@@ -158,7 +192,43 @@ namespace ScannerApp.Models
         /// <summary>Maximum DPI for images in the booklet PDF; 0 = no downscale (preserve scan DPI).</summary>
         public int PdfMaxDpi { get; set; } = 0;
 
+        // ── Zone barcode settings ─────────────────────────────────────────────
+        public List<BarcodeZone> BarcodeZones { get; set; } = new();
+        /// <summary>Page number where per-page order barcodes begin (default 2).</summary>
+        public int PageBarcodeStartPage { get; set; } = 2;
+        /// <summary>Token-based filename template e.g. {BookletId}_{ScanDate}.</summary>
+        public string PdfFilenameFormat { get; set; } = "{BookletId}";
+
+        // ── Upload schedule ───────────────────────────────────────────────────
+        /// <summary>Immediate | Every4h | Every8h | Every12h | Custom | EndOfDay</summary>
+        public string UploadScheduleMode { get; set; } = "Immediate";
+        public double UploadIntervalHours { get; set; } = 0;
+
         public override string ToString() => $"{TemplateName} ({PageCount}pp)";
+    }
+
+    public static class BookletFilenameBuilder
+    {
+        public static string Build(string format, string bookletId,
+            string examCode, string paperCode, string rollNo, string serial,
+            Dictionary<string, string> zoneValues, string scanDate, int pageCount)
+        {
+            if (string.IsNullOrWhiteSpace(format)) return bookletId;
+            var result = format
+                .Replace("{BookletId}", bookletId)
+                .Replace("{ExamCode}",  examCode)
+                .Replace("{PaperCode}", paperCode)
+                .Replace("{RollNo}",    rollNo)
+                .Replace("{Serial}",    serial)
+                .Replace("{ScanDate}",  scanDate)
+                .Replace("{PageCount}", pageCount.ToString());
+            foreach (var kv in zoneValues)
+                result = result.Replace("{" + kv.Key + "}", kv.Value);
+            // Sanitise — remove characters illegal in Windows filenames
+            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
+                result = result.Replace(c, '_');
+            return string.IsNullOrWhiteSpace(result) ? bookletId : result;
+        }
     }
 
     public class PrinterProfile
@@ -233,6 +303,8 @@ namespace ScannerApp.Models
         public int TotalPagesScanned { get; set; }
         public int WorkstationId { get; set; }
         public int LocationId { get; set; }
+        /// <summary>JSON blob saved when a scan was interrupted mid-booklet.</summary>
+        public string? ResumeState { get; set; }
     }
 
     public class BarcodeLookupResult
@@ -275,5 +347,7 @@ namespace ScannerApp.Models
         public string? BarcodeData { get; set; }
         public string ValidationStatus { get; set; } = "Valid";
         public int IsRoughPage { get; set; }
+        /// <summary>Zone name → decoded barcode value for this page.</summary>
+        public Dictionary<string, string> ZoneBarcodes { get; set; } = new();
     }
 }
