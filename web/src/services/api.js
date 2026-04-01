@@ -19,7 +19,12 @@ async function request(url, options = {}) {
     ...options,
   });
 
-  const data = await res.json();
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
 
   if (res.status === 401) {
     localStorage.removeItem('token');
@@ -29,11 +34,20 @@ async function request(url, options = {}) {
     throw new Error('Session expired');
   }
 
-  if (!data.success) {
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Invalid response from server');
+  }
+
+  if (data.success === false) {
     throw new Error(data.message || 'Request failed');
   }
 
-  return data.data;
+  // Support both old-style ({success,data}) and direct payload returns
+  if (data.hasOwnProperty('data')) {
+    return data.data;
+  }
+
+  return data;
 }
 
 export const api = {

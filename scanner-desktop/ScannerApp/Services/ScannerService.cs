@@ -122,31 +122,56 @@ namespace ScannerApp.Services
                 SetWiaProperty(item.Properties, WIA_IPS_XRES, template.DPI);
                 SetWiaProperty(item.Properties, WIA_IPS_YRES, template.DPI);
 
-                int intent = ColorModeToIntent(template.ColorMode);
-                SetWiaProperty(item.Properties, WIA_IPS_CUR_INTENT, intent);
+                // Set color mode properties first
                 ApplyScanQuality(item.Properties, template);
+                if (template.ColorMode != "Color")
+                {
+                    int intent = ColorModeToIntent(template.ColorMode);
+                    SetWiaProperty(item.Properties, WIA_IPS_CUR_INTENT, intent);
+                }
 
                 for (int i = 0; i < template.PageCount; i++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    try
+                    bool pageScanned = false;
+                    int retryCount = 0;
+                    const int maxRetries = 3;
+
+                    while (!pageScanned && retryCount < maxRetries)
                     {
-                        dynamic imageFile = item.Transfer(WIA_FORMAT_BMP);
-                        byte[] bmpBytes = (byte[])imageFile.FileData.BinaryData;
-                        using var ms  = new MemoryStream(bmpBytes);
-                        using var tmp = new Bitmap(ms);
-                        var page = new Bitmap(tmp);
-                        pages.Add(page);
-                        progress?.Report(page);
+                        try
+                        {
+                            dynamic imageFile = item.Transfer(WIA_FORMAT_BMP);
+                            byte[] bmpBytes = (byte[])imageFile.FileData.BinaryData;
+                            using var ms  = new MemoryStream(bmpBytes);
+                            using var tmp = new Bitmap(ms);
+                            var page = new Bitmap(tmp);
+                            pages.Add(page);
+                            progress?.Report(page);
+                            pageScanned = true;
+                        }
+                        catch (COMException comEx) when ((uint)comEx.HResult == 0x80210003)
+                        {
+                            break; // ADF empty
+                        }
+                        catch (COMException comEx) when ((uint)comEx.HResult == 0x80210006)
+                        {
+                            retryCount++;
+                            if (retryCount < maxRetries)
+                            {
+                                // Wait for user to fix the issue
+                                System.Threading.Thread.Sleep(2000);
+                                continue;
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Scanner cover open or paper jam. Please check the scanner and try again.", comEx);
+                            }
+                        }
                     }
-                    catch (COMException comEx) when ((uint)comEx.HResult == 0x80210003)
-                    {
-                        break; // ADF empty
-                    }
-                    catch (COMException comEx) when ((uint)comEx.HResult == 0x80210006)
-                    {
-                        throw new InvalidOperationException("Scanner cover open or paper jam.", comEx);
-                    }
+
+                    if (!pageScanned)
+                        break; // Couldn't scan this page after retries
                 }
             }
             catch (OperationCanceledException) { throw; }

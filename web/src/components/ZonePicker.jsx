@@ -16,10 +16,11 @@ export default function ZonePicker({ zones = [], onZonesChange, canvasRef: exter
     if (imgRef.current) {
       ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
     }
-    zones.forEach((z, i) => {
+    (Array.isArray(zones) ? zones : []).forEach((z, i) => {
+      if (!z) return;
       const color = ZONE_COLORS[i % ZONE_COLORS.length];
-      const rx = z.x * canvas.width;
-      const ry = z.y * canvas.height;
+      const rx = (Number(z.x) || 0) * canvas.width;
+      const ry = (Number(z.y) || 0) * canvas.height;
       const rw = z.w * canvas.width;
       const rh = z.h * canvas.height;
       ctx.fillStyle = color + '33';

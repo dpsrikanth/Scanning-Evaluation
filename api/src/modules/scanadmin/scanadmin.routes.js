@@ -16,6 +16,10 @@ const service = new ScanAdminService(repo);
 const controller = new ScanAdminController(service);
 const scanRepo = new ScanRepository(getScanDb());
 
+// Allow public sample-image retrieval by URL (no bearer header required).
+// Upload still requires authentication through normal middleware below.
+router.get('/templates/:templateId/sample-image', controller.getSampleImage);
+
 router.use(authenticate);
 router.use(authorize('Admin', 'ScanAdmin'));
 router.use(auditLog('scanadmin'));
@@ -611,7 +615,6 @@ router.put('/templates/:templateId', controller.updateTemplate);
 router.delete('/templates/:templateId', controller.deleteTemplate);
 
 router.post('/templates/:templateId/sample-image', uploadTemplateSampleImage, controller.uploadSampleImage);
-router.get('/templates/:templateId/sample-image', controller.getSampleImage);
 
 // ── Printer Profiles ───────────────────────────────────────────────────────────
 

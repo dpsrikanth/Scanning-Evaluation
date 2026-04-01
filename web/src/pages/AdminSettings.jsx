@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
   Settings, Users, Mail, FileText, Plus, KeyRound, Trash2,
   CheckCircle2, AlertCircle, Plug, Loader2, Pencil, Eye,
@@ -121,6 +121,7 @@ const SCANNER_BLANK_PP = { profileName: '', brand: 'Generic', driverType: 'WIA',
 const SCANNER_BLANK_SCAN_USER = { username: '', fullName: '', password: '', roleId: '', locationId: '' };
 
 export default function AdminSettings() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab]         = useState('users');
   const [users, setUsers]                 = useState([]);
@@ -214,6 +215,7 @@ export default function AdminSettings() {
     if (tab === 'scanner') {
       setActiveTab('scanner');
       if (subtab && VALID_SCAN_SUBTABS.includes(subtab)) setScanSubTab(subtab);
+      else setScanSubTab('exams');
       return;
     }
     if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
@@ -252,14 +254,14 @@ export default function AdminSettings() {
 
   // Auto-load sample image when opening a template for edit
   useEffect(() => {
-    if (scanFormMode === 'edit' && scanForm.data?.TemplateID) {
+    if (scanFormMode === 'edit' && scanForm?.data?.TemplateID) {
       setZoneSampleImageUrl(
         api.scanadmin.getTemplateSampleImageUrl(scanForm.data.TemplateID) + '?t=' + Date.now()
       );
     } else {
       setZoneSampleImageUrl(null);
     }
-  }, [scanFormMode, scanForm.data?.TemplateID]);
+  }, [scanFormMode, scanForm?.data?.TemplateID]);
 
   useEffect(() => {
     if (activeTab === 'users')      loadUsers();
@@ -383,6 +385,30 @@ export default function AdminSettings() {
 
   const editScanForm = (entity, row) => {
     setScanFormMode('edit');
+
+    if (entity === 'templates') {
+      const sanitizedZones = Array.isArray(row.barcodeZones)
+        ? row.barcodeZones
+        : Array.isArray(row.BarcodeZones)
+          ? row.BarcodeZones
+          : [];
+
+      setScanForm({
+        entity,
+        data: {
+          ...SCANNER_BLANK_TPL,
+          ...row,
+          barcodeZones: sanitizedZones,
+          pageBarcodeStartPage: row.pageBarcodeStartPage ?? row.PageBarcodeStartPage ?? 2,
+          pdfFilenameFormat: row.pdfFilenameFormat ?? row.PdfFilenameFormat ?? '{BookletId}',
+          uploadScheduleMode: row.uploadScheduleMode ?? row.UploadScheduleMode ?? 'Immediate',
+          uploadIntervalHours: row.uploadIntervalHours ?? row.UploadIntervalHours ?? 0,
+          isActive: row.isActive ?? row.IsActive ?? 1,
+        },
+      });
+      return;
+    }
+
     setScanForm({ entity, data: { ...row } });
   };
 
@@ -1583,9 +1609,12 @@ export default function AdminSettings() {
                           <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{Serial}'}</code>{' '}
                           <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{ScanDate}'}</code>{' '}
                           <code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{'{PageCount}'}</code>
-                          {(scanForm.data.barcodeZones || []).map(z => z.name).filter(Boolean).map(n => (
-                            <span key={n}>{' '}<code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{`{${n}}`}</code></span>
-                          ))}
+                          {((Array.isArray(scanForm.data?.barcodeZones) ? scanForm.data.barcodeZones : [])
+                            .map(z => z?.name)
+                            .filter(Boolean)
+                            .map(n => (
+                              <span key={n}>{' '}<code style={{background:'var(--bg-secondary)',padding:'1px 4px',borderRadius:'3px'}}>{`{${n}}`}</code></span>
+                            )))}
                         </div>
                       </div>
                     </div>
@@ -1915,7 +1944,7 @@ export default function AdminSettings() {
             <div className="scan-section">
               <div className="scan-section-header">
                 <h3><Layers size={15} /> Scan Templates ({scanTemplates.length})</h3>
-                <button className="btn btn-primary btn-sm" onClick={() => openScanForm('templates', SCANNER_BLANK_TPL)}>
+                <button className="btn btn-primary btn-sm" onClick={() => navigate('/admin/settings/scanner/templates/new')}>
                   <Plus size={13} /> Add Template
                 </button>
               </div>
@@ -1933,7 +1962,7 @@ export default function AdminSettings() {
                       <td>{t.JpegQuality}%</td>
                       <td>{t.IsActive ? <span className="badge badge-green">Yes</span> : <span className="badge badge-red">No</span>}</td>
                       <td className="action-cell">
-                        <button className="btn btn-ghost btn-xs" onClick={() => editScanForm('templates', { templateName: t.TemplateName, description: t.Description, pageCount: t.PageCount, dpi: t.DPI, colorMode: t.ColorMode, pageSize: t.PageSize, duplexMode: t.DuplexMode, jpegQuality: t.JpegQuality, brightnessAdj: t.BrightnessAdj ?? 128, contrastAdj: t.ContrastAdj ?? 128, threshold: t.Threshold ?? 128, pdfJpegQuality: t.PdfJpegQuality ?? 70, pdfMaxDpi: t.PdfMaxDpi ?? 150, skipBlankPages: !!t.SkipBlankPages, deSkew: !!t.DeSkew, isActive: t.IsActive, TemplateID: t.TemplateID })}><Pencil size={12} /></button>
+                        <button className="btn btn-ghost btn-xs" onClick={() => navigate(`/admin/settings/scanner/templates/${t.TemplateID}`)}><Pencil size={12} /></button>
                         <button className="btn btn-ghost btn-xs btn-danger" onClick={() => handleScanDelete('templates', t.TemplateID)}><Trash2 size={12} /></button>
                       </td>
                     </tr>

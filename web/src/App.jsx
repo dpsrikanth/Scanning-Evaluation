@@ -16,6 +16,7 @@ import QuestionPaperConfig from './pages/QuestionPaperConfig';
 import AnswerSheetDesigner from './pages/AnswerSheetDesigner';
 import TimeReport from './pages/TimeReport';
 import ScanQcPortal from './pages/ScanQcPortal';
+import ScanTemplateForm from './pages/ScanTemplateForm';
 
 function ProtectedRoute({ children, requiredRole, allowedRoles }) {
   const token = localStorage.getItem('token');
@@ -100,6 +101,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
                 <AdminSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/settings/scanner/templates/new"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
+                <ScanTemplateForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/settings/scanner/templates/:templateId"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
+                <ScanTemplateForm />
               </ProtectedRoute>
             }
           />
