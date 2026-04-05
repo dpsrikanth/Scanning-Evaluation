@@ -20,6 +20,12 @@ const DB_LOG_ACTIONS = new Set([
   'POST /api/scan/booklet/upload',
   'POST /api/scan/booklet-upload',
 ]);
+/** Paths whose successful responses are not written to ActivityLogs (high volume, low audit value). */
+const AUDIT_SKIP_PATH_PREFIXES = [
+  '/api/auth/heartbeat',
+  '/api/auth/active-session',
+  '/api/auth/client-activity',
+];
 
 function routeKey(req) {
   // Normalise parameterised paths: /api/users/123 → /api/users
@@ -27,11 +33,27 @@ function routeKey(req) {
   return `${req.method} ${base}`;
 }
 
+function shouldPersistAudit(req, statusCode) {
+  const path = (req.originalUrl || '').split('?')[0];
+  if (AUDIT_SKIP_PATH_PREFIXES.some((p) => path.startsWith(p))) return false;
+  if (statusCode >= 400) return true;
+  const m = req.method;
+  if (m === 'POST' || m === 'PUT' || m === 'PATCH' || m === 'DELETE') return true;
+  if (req.user?.userId) return true;
+  return false;
+}
+
+export function clientIp(req) {
+  const xf = req.headers['x-forwarded-for'];
+  if (typeof xf === 'string' && xf.length) return xf.split(',')[0].trim().slice(0, 45);
+  return req.ip?.slice(0, 45) || null;
+}
+
 async function persistToDb(userId, moduleName, actionType, req, statusCode, durationMs) {
   try {
     const db = getEvalDb();
     const sessionId = req.sessionId || null;
-    const ipAddress = req.ip?.slice(0, 45) || null;
+    const ipAddress = clientIp(req);
     const deviceInfo = req.headers['user-agent']?.slice(0, 500) || null;
 
     await db.execute(
@@ -43,7 +65,16 @@ async function persistToDb(userId, moduleName, actionType, req, statusCode, dura
         moduleName,
         actionType,
         null,
-        JSON.stringify({ method: req.method, url: req.originalUrl, status: statusCode, durationMs }),
+        JSON.stringify({
+          method: req.method,
+          url: req.originalUrl,
+          status: statusCode,
+          durationMs,
+          referer: req.headers.referer?.slice(0, 500) || null,
+          forwardedFor: typeof req.headers['x-forwarded-for'] === 'string'
+            ? req.headers['x-forwarded-for'].slice(0, 200)
+            : null,
+        }),
         ipAddress,
         deviceInfo,
         sessionId,
@@ -52,6 +83,40 @@ async function persistToDb(userId, moduleName, actionType, req, statusCode, dura
   } catch {
     // DB logging must never crash the request
   }
+}
+
+/** Persist API errors (central error handler — not all routes use res.json). */
+export function persistAuditError(req, statusCode, message) {
+  (async () => {
+    try {
+      const db = getEvalDb();
+      const path = (req.originalUrl || '').split('?')[0];
+      const actionType = `${req.method} ${path}`.slice(0, 200);
+      await db.execute(
+        `INSERT INTO ActivityLogs
+           (UserID, ModuleName, ActionType, ReferenceID, NewValues, IPAddress, DeviceInfo, SessionID)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          req.user?.userId ?? null,
+          'api_error',
+          actionType,
+          null,
+          JSON.stringify({
+            status: statusCode,
+            message: String(message || '').slice(0, 2000),
+            method: req.method,
+            url: req.originalUrl,
+            referer: req.headers.referer?.slice(0, 500) || null,
+          }),
+          clientIp(req),
+          req.headers['user-agent']?.slice(0, 500) || null,
+          req.sessionId || null,
+        ]
+      );
+    } catch {
+      /* non-blocking */
+    }
+  })();
 }
 
 export default function auditLog(moduleName) {
@@ -75,8 +140,7 @@ export default function auditLog(moduleName) {
         duration: `${duration}ms`,
       });
 
-      // Persist key actions to DB (non-blocking)
-      if (DB_LOG_ACTIONS.has(action) || DB_LOG_ACTIONS.has(req.method + ' /api/' + moduleName)) {
+      if (shouldPersistAudit(req, res.statusCode)) {
         persistToDb(userId, moduleName, action, req, res.statusCode, duration).catch(() => {});
       }
 
@@ -101,7 +165,7 @@ export async function logActivity(req, { moduleName, actionType, referenceId, ol
         referenceId ?? null,
         oldValues ? JSON.stringify(oldValues) : null,
         newValues ? JSON.stringify(newValues) : null,
-        req.ip?.slice(0, 45) || null,
+        clientIp(req),
         req.headers['user-agent']?.slice(0, 500) || null,
         req.sessionId || null,
       ]

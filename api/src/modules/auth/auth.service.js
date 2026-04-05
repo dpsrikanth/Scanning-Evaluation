@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import env from '../../config/env.js';
 import { sendMail } from '../../services/mailer.js';
 import logger from '../../utils/logger.js';
+import { clientIp } from '../../middleware/auditLog.js';
 
 export default class AuthService {
   constructor(authRepository) {
@@ -215,6 +216,33 @@ export default class AuthService {
 
   async getActivityLogs(filters) {
     return this.repo.listActivityLogs(filters);
+  }
+
+  /** Browser / SPA context: navigation, errors, optional coarse geo (user-consented). */
+  async recordClientActivity(userId, body, req) {
+    const kind = String(body.kind || 'event').slice(0, 64);
+    const newValues = {
+      kind,
+      path: body.path != null ? String(body.path).slice(0, 500) : null,
+      message: body.message != null ? String(body.message).slice(0, 2000) : null,
+      stack: body.stack != null ? String(body.stack).slice(0, 4000) : null,
+      userAgent: body.userAgent != null ? String(body.userAgent).slice(0, 500) : null,
+      language: body.language != null ? String(body.language).slice(0, 64) : null,
+      timezone: body.timezone != null ? String(body.timezone).slice(0, 64) : null,
+      screen: body.screen && typeof body.screen === 'object' ? body.screen : null,
+      geo: body.geo && typeof body.geo === 'object' ? body.geo : null,
+      referrer: body.referrer != null ? String(body.referrer).slice(0, 500) : null,
+    };
+    await this.repo.insertActivityLog({
+      userId,
+      moduleName: 'web_client',
+      actionType: `client:${kind}`,
+      newValues,
+      ipAddress: clientIp(req),
+      deviceInfo: req.headers['user-agent']?.slice(0, 200),
+      sessionId: req.sessionId ?? null,
+    });
+    return { ok: true };
   }
 
   async getWorkstations(locationId) {

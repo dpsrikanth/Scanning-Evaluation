@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { persistAuditError } from './auditLog.js';
 
 export default function errorHandler(err, req, res, _next) {
   const status = err.statusCode || err.status || 500;
@@ -29,6 +30,8 @@ export default function errorHandler(err, req, res, _next) {
     status === 500 && process.env.NODE_ENV === 'production' && !isScanRoute && !isScanAdminRoute && !isHeadEvalRoute && !isEvalRoute
       ? 'Internal server error'
       : err.message;
+
+  persistAuditError(req, status, err.message);
 
   res.status(status).json({
     success: false,

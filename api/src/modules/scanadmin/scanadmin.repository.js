@@ -1,3 +1,25 @@
+function normalizeTemplateRow(t) {
+  if (!t) return t;
+  const zones =
+    t.BarcodeZonesJson != null && typeof t.BarcodeZonesJson === 'object'
+      ? JSON.stringify(t.BarcodeZonesJson)
+      : t.BarcodeZonesJson;
+  return { ...t, BarcodeZonesJson: zones };
+}
+
+function stringifyZonesJson(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'string') {
+    try {
+      JSON.parse(v);
+      return v;
+    } catch {
+      return null;
+    }
+  }
+  return JSON.stringify(v);
+}
+
 export default class ScanAdminRepository {
   constructor(db) {
     this.db = db;
@@ -175,219 +197,88 @@ export default class ScanAdminRepository {
 
   // ── Scan Templates ────────────────────────────────────────────────────────
 
-  // Helper to avoid breaking when optional template columns are missing in older DB schema
-  async #runTemplateQuery(sql, params = []) {
-    try {
-      return await this.db.execute(sql, params);
-    } catch (err) {
-      const msg = String(err.message || err);
-      if (msg.includes("Unknown column 'BarcodeZones'") ||
-          msg.includes("Unknown column 'PageBarcodeStartPage'") ||
-          msg.includes("Unknown column 'PdfFilenameFormat'") ||
-          msg.includes("Unknown column 'UploadScheduleMode'") ||
-          msg.includes("Unknown column 'UploadIntervalHours'")) {
-        const fallbackSql = sql
-          .replace(/,?\s*BarcodeZones\s*,?/, ',')
-          .replace(/,?\s*PageBarcodeStartPage\s*,?/, ',')
-          .replace(/,?\s*PdfFilenameFormat\s*,?/, ',')
-          .replace(/,?\s*UploadScheduleMode\s*,?/, ',')
-          .replace(/,?\s*UploadIntervalHours\s*,?/, ',')
-          .replace(/\s+WHERE\s+TemplateID\s+=\s+\?\s+AND\s+IsDeleted\s+=\s+0/, ' WHERE TemplateID = ? AND IsDeleted = 0')
-          .replace(/\s+WHERE\s+IsDeleted\s+=\s+0/, ' WHERE IsDeleted = 0');
-
-        return await this.db.execute(fallbackSql, params);
-      }
-      throw err;
-    }
-  }
-
-  async ensureTemplateSchema() {
-    const colNames = ['BarcodeZones', 'PageBarcodeStartPage', 'PdfFilenameFormat', 'UploadScheduleMode', 'UploadIntervalHours'];
-    const [existingCols] = await this.db.execute(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Scan_ScanTemplates' AND COLUMN_NAME IN (${colNames.map(() => '?').join(', ')})`,
-      colNames
-    );
-
-    const existingSet = new Set(existingCols.map((r) => r.COLUMN_NAME));
-    const addStmts = [];
-
-    if (!existingSet.has('BarcodeZones')) {
-      addStmts.push("ALTER TABLE Scan_ScanTemplates ADD COLUMN BarcodeZones JSON NULL COMMENT 'Zone-based barcode/QR reading definitions (JSON array)'");
-    }
-    if (!existingSet.has('PageBarcodeStartPage')) {
-      addStmts.push("ALTER TABLE Scan_ScanTemplates ADD COLUMN PageBarcodeStartPage INT NOT NULL DEFAULT 2 COMMENT 'Page number from which sequential page-order barcodes are expected'");
-    }
-    if (!existingSet.has('PdfFilenameFormat')) {
-      addStmts.push("ALTER TABLE Scan_ScanTemplates ADD COLUMN PdfFilenameFormat VARCHAR(200) NOT NULL DEFAULT '{BookletId}' COMMENT 'Token-based PDF filename format; {BookletId},{ExamCode},{PaperCode},{RollNo},{ScanDate},etc.'");
-    }
-    if (!existingSet.has('UploadScheduleMode')) {
-      addStmts.push("ALTER TABLE Scan_ScanTemplates ADD COLUMN UploadScheduleMode VARCHAR(30) NOT NULL DEFAULT 'Immediate' COMMENT 'Upload trigger mode: Immediate|Every4h|Every8h|Every12h|Custom|EndOfDay'");
-    }
-    if (!existingSet.has('UploadIntervalHours')) {
-      addStmts.push("ALTER TABLE Scan_ScanTemplates ADD COLUMN UploadIntervalHours DECIMAL(4,1) NOT NULL DEFAULT 0 COMMENT 'Custom upload interval in hours (used when UploadScheduleMode=Custom)'");
-    }
-
-    for (const stmt of addStmts) {
-      await this.db.execute(stmt);
-    }
-  }
-
   async listTemplates() {
-    await this.ensureTemplateSchema();
-    const [rows] = await this.#runTemplateQuery(
+    const [rows] = await this.db.execute(
       `SELECT TemplateID, TemplateName, Description, PageCount, DPI, ColorMode, PageSize,
               DuplexMode, JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-              Threshold, PdfJpegQuality, PdfMaxDpi,
-              BarcodeZones, PageBarcodeStartPage, PdfFilenameFormat,
-              UploadScheduleMode, UploadIntervalHours,
-              IsActive
+              Threshold, PdfJpegQuality, PdfMaxDpi, IsActive,
+              PdfFilenameFormat, BarcodeStartPage, BarcodeZonesJson,
+              UploadScheduleMode, UploadScheduleParam
        FROM Scan_ScanTemplates WHERE IsDeleted = 0 ORDER BY TemplateName`
     );
-    return rows.map(r => ({
-      ...r,
-      BarcodeZones: r.BarcodeZones ? (typeof r.BarcodeZones === 'string' ? JSON.parse(r.BarcodeZones) : r.BarcodeZones) : [],
-      PageBarcodeStartPage: r.PageBarcodeStartPage ?? 2,
-      PdfFilenameFormat: r.PdfFilenameFormat ?? '{BookletId}',
-      UploadScheduleMode: r.UploadScheduleMode ?? 'Immediate',
-      UploadIntervalHours: r.UploadIntervalHours ?? 0,
-    }));
+    return rows.map((t) => normalizeTemplateRow(t));
   }
 
   async getTemplate(templateId) {
-    await this.ensureTemplateSchema();
-    const [rows] = await this.#runTemplateQuery(
+    const [rows] = await this.db.execute(
       `SELECT TemplateID, TemplateName, Description, PageCount, DPI, ColorMode, PageSize,
               DuplexMode, JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-              Threshold, PdfJpegQuality, PdfMaxDpi,
-              BarcodeZones, PageBarcodeStartPage, PdfFilenameFormat,
-              UploadScheduleMode, UploadIntervalHours,
-              IsActive
+              Threshold, PdfJpegQuality, PdfMaxDpi, IsActive,
+              PdfFilenameFormat, BarcodeStartPage, BarcodeZonesJson,
+              UploadScheduleMode, UploadScheduleParam
        FROM Scan_ScanTemplates WHERE TemplateID = ? AND IsDeleted = 0`,
       [templateId]
     );
-    const r = rows[0];
-    if (!r) return null;
-    return {
-      ...r,
-      BarcodeZones: r.BarcodeZones ? (typeof r.BarcodeZones === 'string' ? JSON.parse(r.BarcodeZones) : r.BarcodeZones) : [],
-    };
+    return rows[0] ? normalizeTemplateRow(rows[0]) : null;
   }
 
   async createTemplate(data) {
-    await this.ensureTemplateSchema();
-    const barcodeZonesJson = data.barcodeZones != null
-      ? JSON.stringify(data.barcodeZones)
-      : null;
-
-    const baseColumns = [
-      'TemplateName', 'Description', 'PageCount', 'DPI', 'ColorMode', 'PageSize', 'DuplexMode',
-      'JpegQuality', 'BrightnessAdj', 'ContrastAdj', 'SkipBlankPages', 'DeSkew',
-      'Threshold', 'PdfJpegQuality', 'PdfMaxDpi',
-      'BarcodeZones', 'PageBarcodeStartPage', 'PdfFilenameFormat',
-      'UploadScheduleMode', 'UploadIntervalHours',
-      'IsActive', 'CreatedBy', 'CreatedFromIP', 'CreatedFromSystem'
-    ];
-
-    const baseValues = [
-      data.templateName, data.description || null, data.pageCount,
-      data.dpi || 300, data.colorMode || 'Grayscale', data.pageSize || 'A4',
-      data.duplexMode || 'Simplex', data.jpegQuality ?? 85,
-      data.brightnessAdj ?? 128, data.contrastAdj ?? 128,
-      data.skipBlankPages ? 1 : 0, data.deSkew !== false ? 1 : 0,
-      data.threshold ?? 128, data.pdfJpegQuality ?? 70, data.pdfMaxDpi ?? 150,
-      barcodeZonesJson,
-      data.pageBarcodeStartPage ?? 2,
-      data.pdfFilenameFormat || '{BookletId}',
-      data.uploadScheduleMode || 'Immediate',
-      data.uploadIntervalHours ?? 0,
-      data.isActive ?? 1,
-      data.createdBy, data.createdFromIP, data.createdFromSystem
-    ];
-
-    const insertWith = async (cols, vals) => {
-      const placeholders = cols.map(() => '?').join(', ');
-      const sql = `INSERT INTO Scan_ScanTemplates (${cols.join(', ')}) VALUES (${placeholders})`;
-      return this.db.execute(sql, vals);
-    };
-
-    try {
-      const [result] = await insertWith(baseColumns, baseValues);
-      return result.insertId;
-    } catch (err) {
-      const msg = String(err.message || err);
-      if (msg.includes("Unknown column 'BarcodeZones'") ||
-          msg.includes("Unknown column 'PageBarcodeStartPage'") ||
-          msg.includes("Unknown column 'PdfFilenameFormat'") ||
-          msg.includes("Unknown column 'UploadScheduleMode'") ||
-          msg.includes("Unknown column 'UploadIntervalHours'")) {
-        const legacyColumns = baseColumns.filter(c => !['BarcodeZones','PageBarcodeStartPage','PdfFilenameFormat','UploadScheduleMode','UploadIntervalHours'].includes(c));
-        const legacyValues = baseValues.slice(0, legacyColumns.length);
-        const [result] = await insertWith(legacyColumns, legacyValues);
-        return result.insertId;
-      }
-      throw err;
-    }
+    const zonesJson = stringifyZonesJson(data.barcodeZonesJson);
+    const [result] = await this.db.execute(
+      `INSERT INTO Scan_ScanTemplates
+        (TemplateName, Description, PageCount, DPI, ColorMode, PageSize, DuplexMode,
+         JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
+         Threshold, PdfJpegQuality, PdfMaxDpi, IsActive,
+         PdfFilenameFormat, BarcodeStartPage, BarcodeZonesJson,
+         UploadScheduleMode, UploadScheduleParam,
+         CreatedBy, CreatedFromIP, CreatedFromSystem)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        data.templateName, data.description || null, data.pageCount,
+        data.dpi || 300, data.colorMode || 'Grayscale', data.pageSize || 'A4',
+        data.duplexMode || 'Simplex', data.jpegQuality ?? 85,
+        data.brightnessAdj ?? 128, data.contrastAdj ?? 128,
+        data.skipBlankPages ? 1 : 0, data.deSkew !== false ? 1 : 0,
+        data.threshold ?? 128, data.pdfJpegQuality ?? 70, data.pdfMaxDpi ?? 150,
+        data.pdfFilenameFormat || null,
+        data.barcodeStartPage != null ? parseInt(data.barcodeStartPage, 10) || 3 : 3,
+        zonesJson,
+        data.uploadScheduleMode || 'immediate',
+        data.uploadScheduleParam || null,
+        data.createdBy, data.createdFromIP, data.createdFromSystem,
+      ]
+    );
+    return result.insertId;
   }
 
   async updateTemplate(templateId, data) {
-    await this.ensureTemplateSchema();
-    const barcodeZonesJson = data.barcodeZones != null
-      ? JSON.stringify(data.barcodeZones)
-      : null;
-
-    const updates = [
-      { col: 'TemplateName', val: data.templateName },
-      { col: 'Description', val: data.description || null },
-      { col: 'PageCount', val: data.pageCount },
-      { col: 'DPI', val: data.dpi || 300 },
-      { col: 'ColorMode', val: data.colorMode || 'Grayscale' },
-      { col: 'PageSize', val: data.pageSize || 'A4' },
-      { col: 'DuplexMode', val: data.duplexMode || 'Simplex' },
-      { col: 'JpegQuality', val: data.jpegQuality ?? 85 },
-      { col: 'BrightnessAdj', val: data.brightnessAdj ?? 128 },
-      { col: 'ContrastAdj', val: data.contrastAdj ?? 128 },
-      { col: 'SkipBlankPages', val: data.skipBlankPages ? 1 : 0 },
-      { col: 'DeSkew', val: data.deSkew !== false ? 1 : 0 },
-      { col: 'Threshold', val: data.threshold ?? 128 },
-      { col: 'PdfJpegQuality', val: data.pdfJpegQuality ?? 70 },
-      { col: 'PdfMaxDpi', val: data.pdfMaxDpi ?? 150 },
-      { col: 'BarcodeZones', val: barcodeZonesJson },
-      { col: 'PageBarcodeStartPage', val: data.pageBarcodeStartPage ?? 2 },
-      { col: 'PdfFilenameFormat', val: data.pdfFilenameFormat || '{BookletId}' },
-      { col: 'UploadScheduleMode', val: data.uploadScheduleMode || 'Immediate' },
-      { col: 'UploadIntervalHours', val: data.uploadIntervalHours ?? 0 },
-      { col: 'IsActive', val: data.isActive ?? 1 },
-      { col: 'ModifiedBy', val: data.modifiedBy },
-      { col: 'ModifiedFromIP', val: data.modifiedFromIP },
-      { col: 'ModifiedFromSystem', val: data.modifiedFromSystem }
-    ];
-
-    const execUpdate = async (fields) => {
-      const setClause = fields.map(f => `${f.col} = ?`).join(', ');
-      const values = fields.map(f => f.val);
-      values.push(templateId);
-      await this.db.execute(
-        `UPDATE Scan_ScanTemplates SET ${setClause} WHERE TemplateID = ? AND IsDeleted = 0`,
-        values
-      );
-    };
-
-    try {
-      await execUpdate(updates);
-    } catch (err) {
-      const msg = String(err.message || err);
-      if (msg.includes("Unknown column 'BarcodeZones'") ||
-          msg.includes("Unknown column 'PageBarcodeStartPage'") ||
-          msg.includes("Unknown column 'PdfFilenameFormat'") ||
-          msg.includes("Unknown column 'UploadScheduleMode'") ||
-          msg.includes("Unknown column 'UploadIntervalHours'")) {
-        const subset = updates.filter(f => !['BarcodeZones', 'PageBarcodeStartPage', 'PdfFilenameFormat', 'UploadScheduleMode', 'UploadIntervalHours'].includes(f.col));
-        await execUpdate(subset);
-        return;
-      }
-      throw err;
-    }
+    const zonesJson = stringifyZonesJson(data.barcodeZonesJson);
+    await this.db.execute(
+      `UPDATE Scan_ScanTemplates SET
+        TemplateName = ?, Description = ?, PageCount = ?, DPI = ?, ColorMode = ?,
+        PageSize = ?, DuplexMode = ?, JpegQuality = ?, BrightnessAdj = ?,
+        ContrastAdj = ?, SkipBlankPages = ?, DeSkew = ?,
+        Threshold = ?, PdfJpegQuality = ?, PdfMaxDpi = ?, IsActive = ?,
+        PdfFilenameFormat = ?, BarcodeStartPage = ?, BarcodeZonesJson = ?,
+        UploadScheduleMode = ?, UploadScheduleParam = ?,
+        ModifiedBy = ?, ModifiedFromIP = ?, ModifiedFromSystem = ?
+       WHERE TemplateID = ? AND IsDeleted = 0`,
+      [
+        data.templateName, data.description || null, data.pageCount,
+        data.dpi || 300, data.colorMode || 'Grayscale', data.pageSize || 'A4',
+        data.duplexMode || 'Simplex', data.jpegQuality ?? 85,
+        data.brightnessAdj ?? 128, data.contrastAdj ?? 128,
+        data.skipBlankPages ? 1 : 0, data.deSkew !== false ? 1 : 0,
+        data.threshold ?? 128, data.pdfJpegQuality ?? 70, data.pdfMaxDpi ?? 150,
+        data.isActive ?? 1,
+        data.pdfFilenameFormat || null,
+        data.barcodeStartPage != null ? parseInt(data.barcodeStartPage, 10) || 3 : 3,
+        zonesJson,
+        data.uploadScheduleMode || 'immediate',
+        data.uploadScheduleParam || null,
+        data.modifiedBy, data.modifiedFromIP, data.modifiedFromSystem, templateId,
+      ]
+    );
   }
 
   async deleteTemplate(templateId, deletedBy) {
@@ -396,59 +287,6 @@ export default class ScanAdminRepository {
        WHERE TemplateID = ?`,
       [deletedBy, templateId]
     );
-  }
-
-  // ── Template Sample Images ────────────────────────────────────────────────
-
-  async ensureTemplateImagesTable() {
-    await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS Scan_TemplateImages (
-        ImageID INT NOT NULL AUTO_INCREMENT,
-        TemplateID INT NOT NULL,
-        ImageType VARCHAR(30) NOT NULL DEFAULT 'SamplePage',
-        FilePath VARCHAR(500) NOT NULL,
-        UploadedAt DATETIME NOT NULL DEFAULT NOW(),
-        PRIMARY KEY (ImageID),
-        CONSTRAINT fk_tplimg_tpl FOREIGN KEY (TemplateID)
-          REFERENCES Scan_ScanTemplates(TemplateID) ON DELETE CASCADE
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
-    );
-  }
-
-  async saveTemplateImage(templateId, filePath, imageType = 'SamplePage') {
-    await this.ensureTemplateSchema();
-    await this.ensureTemplateImagesTable();
-    // Upsert: delete existing then insert
-    await this.db.execute(
-      `DELETE FROM Scan_TemplateImages WHERE TemplateID = ? AND ImageType = ?`,
-      [templateId, imageType]
-    );
-    await this.db.execute(
-      `INSERT INTO Scan_TemplateImages (TemplateID, ImageType, FilePath) VALUES (?, ?, ?)`,
-      [templateId, imageType, filePath]
-    );
-  }
-
-  async getTemplateImage(templateId, imageType = 'SamplePage') {
-    try {
-      await this.ensureTemplateImagesTable();
-    } catch (err) {
-      // If table creation fails, continue to allow null response.
-    }
-
-    try {
-      const [rows] = await this.db.execute(
-        `SELECT FilePath FROM Scan_TemplateImages
-         WHERE TemplateID = ? AND ImageType = ? ORDER BY UploadedAt DESC LIMIT 1`,
-        [templateId, imageType]
-      );
-      return rows[0] || null;
-    } catch (err) {
-      if (String(err.message).includes('Scan_TemplateImages') || String(err.message).includes("doesn't exist")) {
-        return null;
-      }
-      throw err;
-    }
   }
 
   // ── Printer Profiles ──────────────────────────────────────────────────────

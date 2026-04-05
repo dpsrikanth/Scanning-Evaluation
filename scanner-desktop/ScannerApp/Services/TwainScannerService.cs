@@ -16,7 +16,7 @@ namespace ScannerApp.Services
     /// Standard TWAIN CAP keys supported in TwainCapabilities JSON:
     ///   ICAP_XRESOLUTION      — int (DPI, e.g. 300)
     ///   ICAP_YRESOLUTION      — int (DPI, e.g. 300)
-    ///   ICAP_PIXELTYPE        — int (0=BW, 1=Gray, 2=RGB)
+    ///   ICAP_PIXELTYPE        — int (0=BW, 1=Gray, 2=RGB); applied from profile JSON then overridden by the scan template Colour / Grayscale / BlackWhite setting
     ///   CAP_DUPLEXENABLED     — int (0=Simplex, 1=Duplex)
     ///   ICAP_SUPPORTEDSIZES   — int (1=A4, 9=A4 landscape…)
     ///   ICAP_AUTOMATICDESKEW  — int (1=enabled, 0=disabled)
@@ -27,6 +27,9 @@ namespace ScannerApp.Services
     public class TwainScannerService : IScannerService
     {
         private readonly PrinterProfile? _profile;
+
+        /// <summary>When true, the scanner driver's own UI is shown (useful for hardware troubleshooting).</summary>
+        public bool UseScannerUi { get; set; }
 
         public TwainScannerService(PrinterProfile? profile = null)
         {
@@ -127,7 +130,8 @@ namespace ScannerApp.Services
 
                 source.Open();
                 ApplyCapabilities(source, template, scanSource);
-                source.Enable(SourceEnableMode.NoUI, false, IntPtr.Zero);
+                var uiMode = UseScannerUi ? SourceEnableMode.ShowUI : SourceEnableMode.NoUI;
+                source.Enable(uiMode, false, IntPtr.Zero);
 
                 // Pump the Windows message loop until all pages are transferred
                 var deadline = DateTime.UtcNow.AddMinutes(5);
@@ -162,18 +166,9 @@ namespace ScannerApp.Services
 
         private void ApplyCapabilities(DataSource source, ScanTemplate template, ScanSource scanSource)
         {
-            // Resolution from template
-            SafeSet(() => source.Capabilities.ICapXResolution.SetValue((TWFix32)template.DPI));
-            SafeSet(() => source.Capabilities.ICapYResolution.SetValue((TWFix32)template.DPI));
-
-            // Pixel type
-            var pixelType = template.ColorMode switch
-            {
-                "Color"      => PixelType.RGB,
-                "BlackWhite" => PixelType.BlackWhite,
-                _            => PixelType.Gray,
-            };
-            SafeSet(() => source.Capabilities.ICapPixelType.SetValue(pixelType));
+            // Brand / driver defaults first (feeder quirks, sizes, etc.)
+            if (_profile != null)
+                ApplyBrandCapabilities(source, _profile.GetCapabilities());
 
             // Hardware source — feeder or flatbed, simplex or duplex
             bool useFeeder = scanSource != ScanSource.Flatbed;
@@ -203,9 +198,52 @@ namespace ScannerApp.Services
             if (template.SkipBlankPages)
                 SafeSet(() => source.Capabilities.ICapAutoDiscardBlankPages.SetValue(BlankPage.Auto));
 
-            // Brand-specific JSON overrides
-            if (_profile != null)
-                ApplyBrandCapabilities(source, _profile.GetCapabilities());
+            // DPI and pixel type must match the scan template (admin UI). Printer-profile JSON
+            // often sets ICAP_PIXELTYPE to line-art/BW for speed — that would override Color scans.
+            ApplyTemplateImageCaps(source, template);
+        }
+
+        /// <summary>
+        /// Maps template colour mode to TWAIN pixel type. Case-insensitive; API may send color/grayscale/blackwhite.
+        /// </summary>
+        private static PixelType TemplateColorModeToPixelType(string? colorMode)
+        {
+            if (string.IsNullOrWhiteSpace(colorMode))
+                return PixelType.Gray;
+            switch (colorMode.Trim().ToLowerInvariant())
+            {
+                case "color":
+                case "rgb":
+                case "24bit":
+                case "24-bit":
+                    return PixelType.RGB;
+                case "blackwhite":
+                case "bw":
+                case "lineart":
+                case "black_white":
+                    return PixelType.BlackWhite;
+                default:
+                    return PixelType.Gray;
+            }
+        }
+
+        private static void ApplyTemplateImageCaps(DataSource source, ScanTemplate template)
+        {
+            SafeSet(() => source.Capabilities.ICapXResolution.SetValue((TWFix32)template.DPI));
+            SafeSet(() => source.Capabilities.ICapYResolution.SetValue((TWFix32)template.DPI));
+            var pixelType = TemplateColorModeToPixelType(template.ColorMode);
+            SafeSet(() => source.Capabilities.ICapPixelType.SetValue(pixelType));
+
+            // Some drivers (e.g. Fujitsu) still deliver gray/BW unless bit depth is set; auto-colour can force mono.
+            if (pixelType == PixelType.RGB)
+            {
+                SafeSet(() => source.Capabilities.ICapAutomaticColorEnabled.SetValue(BoolType.False));
+                SafeSet(() => source.Capabilities.ICapBitDepth.SetValue(24));
+            }
+            else if (pixelType == PixelType.Gray)
+                SafeSet(() => source.Capabilities.ICapBitDepth.SetValue(8));
+            else
+                SafeSet(() => source.Capabilities.ICapBitDepth.SetValue(1));
         }
 
         private static void ApplyBrandCapabilities(

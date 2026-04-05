@@ -11,6 +11,7 @@ Incremental SQL migrations for the Scanning & Evaluation system.
 
 1. **001_scanning_additions.sql** — Locations, workstations, sync queue, new columns in scanning tables
 2. **002_evaluation_additions.sql** — Locations, metadata, question scheme, page visit log, attendance, etc.
+3. **006_scan_template_extended.sql** — `Scan_ScanTemplates`: `PdfFilenameFormat`, `BarcodeStartPage`, `BarcodeZonesJson`, `UploadScheduleMode`, `UploadScheduleParam` (required for scan template admin UI / scanner-desktop parity). **Run this if you see SQL errors about missing `BarcodeStartPage`.**
 
 ## Usage
 

@@ -19,11 +19,16 @@ async function request(url, options = {}) {
     ...options,
   });
 
-  let data = null;
+  const text = await res.text();
+  let data;
   try {
-    data = await res.json();
+    data = text ? JSON.parse(text) : null;
   } catch {
-    data = null;
+    throw new Error(text ? `Invalid JSON from server (${res.status})` : `Empty response (${res.status})`);
+  }
+
+  if (data == null || typeof data !== 'object') {
+    throw new Error(`Invalid API response (${res.status})`);
   }
 
   if (res.status === 401) {
@@ -34,16 +39,11 @@ async function request(url, options = {}) {
     throw new Error('Session expired');
   }
 
-  if (data == null || typeof data !== 'object') {
-    throw new Error('Invalid response from server');
-  }
-
   if (data.success === false) {
     throw new Error(data.message || 'Request failed');
   }
 
-  // Support both old-style ({success,data}) and direct payload returns
-  if (data.hasOwnProperty('data')) {
+  if (Object.prototype.hasOwnProperty.call(data, 'data')) {
     return data.data;
   }
 
@@ -103,6 +103,14 @@ export const api = {
       const q = new URLSearchParams(params).toString();
       return request(`/auth/activity-logs?${q}`);
     },
+    /** Fire-and-forget client audit; does not redirect on 401. */
+    postClientActivity: (body) =>
+      fetch(`${API_BASE}/auth/client-activity`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(() => {}),
   },
 
   eval: {

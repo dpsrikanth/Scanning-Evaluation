@@ -124,16 +124,84 @@ export default class ScanAdminService {
     return t;
   }
 
+  /** Canonical values stored in DB / used by scanner-desktop (see UploadScheduleHelper). */
+  #normalizeUploadScheduleMode(raw) {
+    const s = String(raw ?? 'immediate')
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, '_')
+      .replace(/\s+/g, '_');
+    const aliases = {
+      immediate: 'immediate',
+      end_of_day: 'end_of_day',
+      endofday: 'end_of_day',
+      eod: 'end_of_day',
+      eod_2300: 'end_of_day',
+      every_4h: 'every_4h',
+      every_4_hours: 'every_4h',
+      every4h: 'every_4h',
+      every_8h: 'every_8h',
+      every_8_hours: 'every_8h',
+      every8h: 'every_8h',
+      every_12h: 'every_12h',
+      every_12_hours: 'every_12h',
+      every12h: 'every_12h',
+      custom: 'custom',
+    };
+    return aliases[s] ?? s;
+  }
+
+  #validateTemplatePayload(data) {
+    const schedOk = new Set(['immediate', 'end_of_day', 'every_4h', 'every_8h', 'every_12h', 'custom']);
+    const mode = this.#normalizeUploadScheduleMode(data.uploadScheduleMode);
+    data.uploadScheduleMode = mode;
+    if (!schedOk.has(mode)) {
+      throw Object.assign(new Error('Invalid uploadScheduleMode'), { statusCode: 400 });
+    }
+    if (mode === 'custom') {
+      const m = parseInt(String(data.uploadScheduleParam ?? '').trim(), 10);
+      if (!Number.isFinite(m) || m < 1) {
+        throw Object.assign(new Error('uploadScheduleParam must be a positive number of minutes for custom schedule'), { statusCode: 400 });
+      }
+    }
+    const zones = data.barcodeZonesJson;
+    if (zones == null || zones === '') return;
+    if (!Array.isArray(zones)) {
+      throw Object.assign(new Error('barcodeZonesJson must be an array or null'), { statusCode: 400 });
+    }
+    for (const z of zones) {
+      if (!z || typeof z !== 'object') {
+        throw Object.assign(new Error('Each barcode zone must be an object'), { statusCode: 400 });
+      }
+      const name = String(z.zoneName || '').trim();
+      if (!name) {
+        throw Object.assign(new Error('Each zone requires zoneName'), { statusCode: 400 });
+      }
+      for (const key of ['xPct', 'yPct', 'wPct', 'hPct']) {
+        const v = Number(z[key]);
+        if (!Number.isFinite(v) || v < 0 || v > 100) {
+          throw Object.assign(new Error(`Zone ${name}: ${key} must be a number 0–100`), { statusCode: 400 });
+        }
+      }
+    }
+    const fmt = data.pdfFilenameFormat;
+    if (fmt != null && String(fmt).length > 500) {
+      throw Object.assign(new Error('pdfFilenameFormat is too long'), { statusCode: 400 });
+    }
+  }
+
   async createTemplate(data) {
     if (!data.templateName || !data.pageCount) {
       throw Object.assign(new Error('templateName and pageCount are required'), { statusCode: 400 });
     }
+    this.#validateTemplatePayload(data);
     const id = await this.repo.createTemplate(data);
     return this.repo.getTemplate(id);
   }
 
   async updateTemplate(templateId, data) {
     await this.getTemplate(templateId);
+    this.#validateTemplatePayload(data);
     await this.repo.updateTemplate(templateId, data);
     return this.repo.getTemplate(templateId);
   }

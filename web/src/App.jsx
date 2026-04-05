@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -12,11 +12,12 @@ import HeadEvalLogin from './pages/HeadEvalLogin';
 import HeadEvalAssign from './pages/HeadEvalAssign';
 import ViewBooklet from './pages/ViewBooklet';
 import AdminSettings from './pages/AdminSettings';
+import ScanSettings from './pages/ScanSettings';
+import ScanTemplateForm from './pages/ScanTemplateForm';
 import QuestionPaperConfig from './pages/QuestionPaperConfig';
 import AnswerSheetDesigner from './pages/AnswerSheetDesigner';
 import TimeReport from './pages/TimeReport';
 import ScanQcPortal from './pages/ScanQcPortal';
-import ScanTemplateForm from './pages/ScanTemplateForm';
 
 function ProtectedRoute({ children, requiredRole, allowedRoles }) {
   const token = localStorage.getItem('token');
@@ -34,6 +35,16 @@ function ProtectedRoute({ children, requiredRole, allowedRoles }) {
     }
   }
   return children;
+}
+
+/** Old URLs from docs / bookmarks → current scan admin routes */
+function LegacyScanScannerRedirect() {
+  return <Navigate to="/admin/scan-settings" replace />;
+}
+
+function LegacyScanTemplateRedirect() {
+  const { templateId } = useParams();
+  return <Navigate to={`/admin/scan-settings/templates/${templateId}`} replace />;
 }
 
 /** Scan DB users: operator / vendor QC / customer QC / scan Admin */
@@ -105,7 +116,31 @@ function App() {
             }
           />
           <Route
-            path="admin/settings/scanner/templates/new"
+            path="admin/settings/scanner"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
+                <LegacyScanScannerRedirect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/settings/scanner/templates/:templateId"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
+                <LegacyScanTemplateRedirect />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/scan-settings"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
+                <ScanSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/scan-settings/templates/new"
             element={
               <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
                 <ScanTemplateForm />
@@ -113,7 +148,7 @@ function App() {
             }
           />
           <Route
-            path="admin/settings/scanner/templates/:templateId"
+            path="admin/scan-settings/templates/:templateId"
             element={
               <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
                 <ScanTemplateForm />
@@ -124,7 +159,7 @@ function App() {
             path="admin/scanned-booklets"
             element={
               <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
-                <Navigate to="/admin/settings?tab=scanner&subtab=booklets" replace />
+                <Navigate to="/admin/scan-settings?subtab=booklets" replace />
               </ProtectedRoute>
             }
           />

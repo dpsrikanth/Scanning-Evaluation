@@ -220,7 +220,7 @@ export default class AuthRepository {
     const safeOffset = parseInt(offset, 10) || 0;
 
     const [rows] = await this.db.execute(
-      `SELECT al.LogID, al.UserID, u.FullName, u.Username, al.ModuleName, al.ActionType,
+      `SELECT al.ActivityID, al.UserID, u.FullName, u.Username, al.ModuleName, al.ActionType,
               al.ReferenceID, al.OldValues, al.NewValues, al.IPAddress, al.DeviceInfo,
               al.CreatedAt
        FROM ActivityLogs al

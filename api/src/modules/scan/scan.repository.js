@@ -35,7 +35,9 @@ export default class ScanRepository {
     const [templates] = await this.db.execute(
       `SELECT TemplateID, TemplateName, Description, PageCount, DPI, ColorMode, PageSize,
               DuplexMode, JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-              Threshold, PdfJpegQuality, PdfMaxDpi
+              Threshold, PdfJpegQuality, PdfMaxDpi,
+              PdfFilenameFormat, BarcodeStartPage, BarcodeZonesJson,
+              UploadScheduleMode, UploadScheduleParam
        FROM Scan_ScanTemplates WHERE IsActive = 1 AND IsDeleted = 0 ORDER BY TemplateName`
     );
 
@@ -55,11 +57,17 @@ export default class ScanRepository {
       exams,
       papers,
       workstations: workstations.map(stringifyTwain),
-      templates: templates.map(t => ({
-        ...t,
-        SkipBlankPages: t.SkipBlankPages === 1 || t.SkipBlankPages === true,
-        DeSkew:         t.DeSkew         === 1 || t.DeSkew         === true,
-      })),
+      templates: templates.map(t => {
+        const zones = t.BarcodeZonesJson != null && typeof t.BarcodeZonesJson === 'object'
+          ? JSON.stringify(t.BarcodeZonesJson)
+          : (t.BarcodeZonesJson || null);
+        return {
+          ...t,
+          BarcodeZonesJson: zones,
+          SkipBlankPages: t.SkipBlankPages === 1 || t.SkipBlankPages === true,
+          DeSkew: t.DeSkew === 1 || t.DeSkew === true,
+        };
+      }),
       printerProfiles: printerProfiles.map(stringifyTwain),
       defaults: {
         dpi: 300,
@@ -97,14 +105,22 @@ export default class ScanRepository {
     const [rows] = await this.db.execute(
       `SELECT TemplateID, TemplateName, Description, PageCount, DPI, ColorMode, PageSize,
               DuplexMode, JpegQuality, BrightnessAdj, ContrastAdj, SkipBlankPages, DeSkew,
-              Threshold, PdfJpegQuality, PdfMaxDpi
+              Threshold, PdfJpegQuality, PdfMaxDpi,
+              PdfFilenameFormat, BarcodeStartPage, BarcodeZonesJson,
+              UploadScheduleMode, UploadScheduleParam
        FROM Scan_ScanTemplates WHERE IsActive = 1 AND IsDeleted = 0 ORDER BY TemplateName`
     );
-    return rows.map(t => ({
-      ...t,
-      SkipBlankPages: t.SkipBlankPages === 1 || t.SkipBlankPages === true,
-      DeSkew:         t.DeSkew         === 1 || t.DeSkew         === true,
-    }));
+    return rows.map(t => {
+      const zones = t.BarcodeZonesJson != null && typeof t.BarcodeZonesJson === 'object'
+        ? JSON.stringify(t.BarcodeZonesJson)
+        : (t.BarcodeZonesJson || null);
+      return {
+        ...t,
+        BarcodeZonesJson: zones,
+        SkipBlankPages: t.SkipBlankPages === 1 || t.SkipBlankPages === true,
+        DeSkew: t.DeSkew === 1 || t.DeSkew === true,
+      };
+    });
   }
 
   async getPrinterProfiles() {

@@ -7,7 +7,6 @@ import { syncBookletToEval } from '../scan/syncScanToEval.js';
 import { getScanDb, getEvalDb } from '../../config/database.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import auditLog from '../../middleware/auditLog.js';
-import { uploadTemplateSampleImage } from '../../middleware/upload.js';
 
 const router = Router();
 
@@ -15,10 +14,6 @@ const repo = new ScanAdminRepository(getScanDb());
 const service = new ScanAdminService(repo);
 const controller = new ScanAdminController(service);
 const scanRepo = new ScanRepository(getScanDb());
-
-// Allow public sample-image retrieval by URL (no bearer header required).
-// Upload still requires authentication through normal middleware below.
-router.get('/templates/:templateId/sample-image', controller.getSampleImage);
 
 router.use(authenticate);
 router.use(authorize('Admin', 'ScanAdmin'));
@@ -613,8 +608,6 @@ router.put('/templates/:templateId', controller.updateTemplate);
  *         description: Template not found
  */
 router.delete('/templates/:templateId', controller.deleteTemplate);
-
-router.post('/templates/:templateId/sample-image', uploadTemplateSampleImage, controller.uploadSampleImage);
 
 // ── Printer Profiles ───────────────────────────────────────────────────────────
 

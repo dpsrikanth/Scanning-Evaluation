@@ -132,4 +132,11 @@ export default class AuthController {
       return ok(res, result);
     } catch (err) { next(err); }
   };
+
+  clientActivity = async (req, res, next) => {
+    try {
+      await this.service.recordClientActivity(req.user.userId, req.body || {}, req);
+      return ok(res, { ok: true });
+    } catch (err) { next(err); }
+  };
 }

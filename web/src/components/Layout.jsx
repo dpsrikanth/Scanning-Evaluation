@@ -2,7 +2,7 @@ import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Settings, Users,
   ClipboardList, ChevronRight, Clock, BookOpen, PenTool,
-  Monitor, Layers, Printer, FolderOpen, ShieldCheck,
+  Monitor, Layers, Printer, FolderOpen, ShieldCheck, ScanLine,
 } from 'lucide-react';
 import Header from './Header';
 import { api } from '../services/api';
@@ -27,7 +27,18 @@ const navItems = [
   { to: '/reports/time', label: 'Time Analytics', icon: Clock },
 ];
 
-/** Sidebar links under “Scan settings” — must match AdminSettings VALID_SCAN_SUBTABS / SCAN_SUB_TABS ids */
+const SCAN_SETTINGS_SUBTAB_IDS = new Set([
+  'exams', 'papers', 'workstations', 'scanUsers', 'templates', 'printers', 'booklets', 'outputPaths', 'scanQc',
+]);
+
+function scanSettingsEffectiveSubtab(pathname, search) {
+  if (!pathname.startsWith('/admin/scan-settings')) return null;
+  if (/^\/admin\/scan-settings\/templates\/(new|\d+)$/.test(pathname)) return 'templates';
+  const s = new URLSearchParams(search).get('subtab');
+  return SCAN_SETTINGS_SUBTAB_IDS.has(s) ? s : 'exams';
+}
+
+/** Sidebar quick links — ids must match ScanSettings.jsx SCAN_SUB_TABS */
 const scanSettingsSubLinks = [
   { subtab: 'exams', label: 'Exams', Icon: BookOpen },
   { subtab: 'papers', label: 'Papers', Icon: FileText },
@@ -53,7 +64,7 @@ const headItems = [
 export default function Layout() {
   const user = useCurrentUser();
   const location = useLocation();
-  const adminSearch = location.pathname === '/admin/settings' ? new URLSearchParams(location.search) : null;
+  const scanSubtabActive = scanSettingsEffectiveSubtab(location.pathname, location.search);
 
   return (
     <div className="layout">
@@ -85,36 +96,38 @@ export default function Layout() {
                     <NavLink
                       key={to}
                       to={to}
-                      className={({ isActive }) => {
-                        if (to !== '/admin/settings') {
-                          return `sidebar-link ${isActive ? 'active' : ''}`;
-                        }
-                        const p = new URLSearchParams(location.search);
-                        const onScanSettings = p.get('tab') === 'scanner';
-                        return `sidebar-link ${isActive && !onScanSettings ? 'active' : ''}`;
-                      }}
+                      className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                     >
                       <Icon size={16} /><span>{label}</span>
                       <ChevronRight size={12} className="sidebar-chevron" />
                     </NavLink>
                   ))}
-                  <p className="sidebar-label">Scan settings</p>
-                  {scanSettingsSubLinks.map(({ subtab, label, Icon }) => {
-                    const to = `/admin/settings?tab=scanner&subtab=${subtab}`;
-                    const active =
-                      adminSearch?.get('tab') === 'scanner' && adminSearch?.get('subtab') === subtab;
-                    return (
-                      <Link
-                        key={subtab}
-                        to={to}
-                        className={`sidebar-link sidebar-sublink ${active ? 'active' : ''}`}
-                      >
-                        <Icon size={15} />
-                        <span>{label}</span>
-                        <ChevronRight size={12} className="sidebar-chevron" />
-                      </Link>
-                    );
-                  })}
+                  <div className="sidebar-scan-group">
+                    <p className="sidebar-label">Scanner admin</p>
+                    <NavLink
+                      to="/admin/scan-settings"
+                      className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                    >
+                      <ScanLine size={16} />
+                      <span>Scan settings</span>
+                      <ChevronRight size={12} className="sidebar-chevron" />
+                    </NavLink>
+                    {scanSettingsSubLinks.map(({ subtab, label, Icon }) => {
+                      const to = `/admin/scan-settings?subtab=${subtab}`;
+                      const active = scanSubtabActive === subtab;
+                      return (
+                        <Link
+                          key={subtab}
+                          to={to}
+                          className={`sidebar-link sidebar-sublink ${active ? 'active' : ''}`}
+                        >
+                          <Icon size={15} />
+                          <span>{label}</span>
+                          <ChevronRight size={12} className="sidebar-chevron" />
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </>
               )}
               {headItems.map(({ to, label, icon: Icon }) => (

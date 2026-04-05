@@ -3,10 +3,11 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Linq;
-using ScannerApp.Models;
+using Newtonsoft.Json;
 using ZXing;
 using ZXing.Common;
 using ZXing.Windows.Compatibility;
+using ScannerApp.Models;
 
 namespace ScannerApp.Services
 {
@@ -82,45 +83,6 @@ namespace ScannerApp.Services
             using var scaled = DownscaleForBarcodeDecode(image);
             return _reader.Decode(scaled)?.Text;
         }
-
-        /// <summary>
-        /// Crops the zone rectangle from the full page bitmap and decodes a barcode/QR within it.
-        /// Returns null if the zone is too small or no barcode is found.
-        /// </summary>
-        public string? ReadBarcodeFromZone(Bitmap fullPage, BarcodeZone zone)
-        {
-            if (fullPage == null || fullPage.Width < 16 || fullPage.Height < 16) return null;
-            var crop = zone.CropRect(fullPage.Width, fullPage.Height);
-            // Clamp to image bounds
-            crop = System.Drawing.Rectangle.Intersect(crop,
-                new System.Drawing.Rectangle(0, 0, fullPage.Width, fullPage.Height));
-            if (crop.Width < 8 || crop.Height < 8) return null;
-            using var zoneBmp = fullPage.Clone(crop, fullPage.PixelFormat);
-            // Select hint-specific reader
-            var reader = zone.BarcodeHint switch
-            {
-                "QR"      => BuildHintReader(BarcodeFormat.QR_CODE),
-                "CODE128" => BuildHintReader(BarcodeFormat.CODE_128),
-                "CODE39"  => BuildHintReader(BarcodeFormat.CODE_39),
-                _         => _reader,
-            };
-            if (!NeedsDownscaleForDecode(zoneBmp))
-                return reader.Decode(zoneBmp)?.Text;
-            using var scaled = DownscaleForBarcodeDecode(zoneBmp);
-            return reader.Decode(scaled)?.Text;
-        }
-
-        private static BarcodeReader BuildHintReader(BarcodeFormat format) =>
-            new BarcodeReader
-            {
-                AutoRotate = true,
-                Options = new DecodingOptions
-                {
-                    TryHarder = true,
-                    TryInverted = true,
-                    PossibleFormats = new List<BarcodeFormat> { format },
-                }
-            };
 
         /// <summary>
         /// Decodes the page-order barcode. Input is downscaled internally so large scans (e.g. 2550×4200)
@@ -467,10 +429,171 @@ namespace ScannerApp.Services
             return false;
         }
 
+        /// <summary>Decodes a single symbol from a pixel region (percent-based zones from templates).</summary>
+        public string? ReadBarcodeFromRectangle(Bitmap image, Rectangle rect)
+        {
+            if (image == null || image.Width < 8 || image.Height < 8) return null;
+            var r = Rectangle.Intersect(rect, new Rectangle(0, 0, image.Width, image.Height));
+            if (r.Width < 4 || r.Height < 4) return null;
+            try
+            {
+                using var crop = image.Clone(r, image.PixelFormat);
+                return ReadBarcode(crop);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Parses template JSON and reads each zone from the appropriate scanned page (1-based page indices).</summary>
+        public Dictionary<string, string> DecodeTemplateZones(IList<Bitmap> pages, string? zonesJson)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (pages == null || pages.Count == 0 || string.IsNullOrWhiteSpace(zonesJson))
+                return map;
+
+            List<TemplateBarcodeZone>? zones;
+            try
+            {
+                zones = JsonConvert.DeserializeObject<List<TemplateBarcodeZone>>(zonesJson);
+            }
+            catch
+            {
+                return map;
+            }
+
+            if (zones == null) return map;
+
+            foreach (var z in zones)
+            {
+                if (string.IsNullOrWhiteSpace(z.ZoneName)) continue;
+                int pageIdx;
+                if (z.PageScope.Equals("fromPage", StringComparison.OrdinalIgnoreCase))
+                    pageIdx = Math.Max(0, z.PageNumber - 1);
+                else
+                    pageIdx = 0;
+
+                if (pageIdx >= pages.Count) continue;
+                var bmp = pages[pageIdx];
+                var rect = ZoneToRectangle(bmp, z);
+                var text = ReadBarcodeFromRectangle(bmp, rect);
+                if (!string.IsNullOrWhiteSpace(text))
+                    map[z.ZoneName.Trim()] = text.Trim();
+            }
+
+            return map;
+        }
+
+        private static Rectangle ZoneToRectangle(Bitmap bmp, TemplateBarcodeZone z)
+        {
+            double x = z.XPct;
+            double y = z.YPct;
+            double w = z.WPct;
+            double h = z.HPct;
+            int px = (int)Math.Round(bmp.Width * x / 100.0);
+            int py = (int)Math.Round(bmp.Height * y / 100.0);
+            int pw = Math.Max(8, (int)Math.Round(bmp.Width * w / 100.0));
+            int ph = Math.Max(8, (int)Math.Round(bmp.Height * h / 100.0));
+            return new Rectangle(px, py, pw, ph);
+        }
+
         public string? ReadBarcodeFromFile(string imagePath)
         {
             using var bitmap = new Bitmap(imagePath);
             return ReadBarcode(bitmap);
+        }
+
+        /// <summary>
+        /// Decodes the footer page-number barcode. Tries several bottom strip heights (full-page
+        /// <see cref="ReadBarcode"/> often misses small Code128 or picks the wrong symbol first).
+        /// </summary>
+        public string? ReadBarcodeForPageNumber(Bitmap image)
+        {
+            if (image == null || image.Width < 16 || image.Height < 16)
+                return null;
+
+            foreach (var frac in new[] { 0.40, 0.32, 0.25, 0.18, 0.12 })
+            {
+                var t = ReadBarcodeFromBottom(image, frac);
+                if (!string.IsNullOrWhiteSpace(t) && IsLikelyPageNumberPayload(t)) return t;
+            }
+
+            foreach (var frac in new[] { 0.40, 0.32, 0.25, 0.18, 0.12 })
+            {
+                var t = ReadBarcodeFromBottom(image, frac);
+                if (!string.IsNullOrWhiteSpace(t)) return t;
+            }
+
+            foreach (var upsample in new[] { false, true })
+            {
+                foreach (var frac in new[] { 0.50, 0.38, 0.28 })
+                {
+                    var t = DecodeBottomRegion(image, frac, upsample, preferNumeric: true);
+                    if (!string.IsNullOrWhiteSpace(t)) return t;
+                }
+            }
+
+            foreach (var upsample in new[] { false, true })
+            {
+                var t = DecodeBottomRegion(image, 0.45, upsample, preferNumeric: false);
+                if (!string.IsNullOrWhiteSpace(t)) return t;
+            }
+
+            return ReadBarcode(image);
+        }
+
+        private string? DecodeBottomRegion(Bitmap image, double bottomFraction, bool upsample, bool preferNumeric)
+        {
+            try
+            {
+                double f = Math.Clamp(bottomFraction, 0.08, 0.55);
+                int stripH = Math.Max(32, (int)(image.Height * f));
+                int y0 = Math.Max(0, image.Height - stripH);
+                using var strip = image.Clone(new Rectangle(0, y0, image.Width, stripH), image.PixelFormat);
+                if (upsample)
+                {
+                    using var scaled = UpsampleNearest(strip, 2);
+                    return DecodeBitmapForPageNumber(scaled, preferNumeric);
+                }
+
+                return DecodeBitmapForPageNumber(strip, preferNumeric);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string? DecodeBitmapForPageNumber(Bitmap work, bool preferNumeric)
+        {
+            var multi = _reader.DecodeMultiple(work);
+            if (multi != null && multi.Length > 0)
+            {
+                if (preferNumeric)
+                {
+                    foreach (var r in multi)
+                    {
+                        if (string.IsNullOrEmpty(r?.Text)) continue;
+                        if (IsLikelyPageNumberPayload(r.Text)) return r.Text;
+                    }
+                }
+
+                foreach (var r in multi)
+                {
+                    if (!string.IsNullOrEmpty(r?.Text)) return r.Text;
+                }
+            }
+
+            return _reader.Decode(work)?.Text;
+        }
+
+        private static bool IsLikelyPageNumberPayload(string text)
+        {
+            var t = text.Trim();
+            if (int.TryParse(t, out int n) && n > 0 && n < 100000) return true;
+            var parts = t.Split('_', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length > 0 && int.TryParse(parts[^1].Trim(), out int m) && m > 0;
         }
 
         public List<string> ReadAllBarcodes(Bitmap image)

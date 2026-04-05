@@ -1,5 +1,3 @@
-using Newtonsoft.Json;
-
 namespace ScannerApp.Models
 {
     /// <summary>Scan source selection — mirrors the three options in the WIA common dialog.</summary>
@@ -136,45 +134,12 @@ namespace ScannerApp.Models
         public bool ShowBookletDetailsPopup { get; set; } = false;
     }
 
-    public enum BarcodePageScope { FirstPage, AllPages, FromPage, SpecificPages }
-
-    public class BarcodeZone
-    {
-        public string Name { get; set; } = "";
-        [JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-        public BarcodePageScope PageScope { get; set; } = BarcodePageScope.FirstPage;
-        public int PageScopeValue { get; set; } = 1;
-        /// <summary>0.0–1.0 fraction of page width/height.</summary>
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double W { get; set; }
-        public double H { get; set; }
-        /// <summary>ANY | QR | CODE128 | CODE39</summary>
-        [JsonProperty("hint")]
-        public string BarcodeHint { get; set; } = "ANY";
-
-        public bool AppliesTo(int pageNumber) => PageScope switch
-        {
-            BarcodePageScope.FirstPage     => pageNumber == 1,
-            BarcodePageScope.AllPages      => true,
-            BarcodePageScope.FromPage      => pageNumber >= PageScopeValue,
-            BarcodePageScope.SpecificPages => pageNumber == PageScopeValue,
-            _                              => false,
-        };
-
-        public System.Drawing.Rectangle CropRect(int imgW, int imgH) =>
-            new System.Drawing.Rectangle(
-                (int)(X * imgW), (int)(Y * imgH),
-                Math.Max(1, (int)(W * imgW)), Math.Max(1, (int)(H * imgH)));
-    }
-
     public class ScanTemplate
     {
         public int TemplateID { get; set; }
         public string TemplateName { get; set; } = "";
         public string Description { get; set; } = "";
         public int PageCount { get; set; } = 24;
-        /// <summary>Scanner resolution (DPI). 200 is often sufficient for barcodes and text; 300+ increases file size and CPU load.</summary>
         public int DPI { get; set; } = 300;
         public string ColorMode { get; set; } = "Grayscale";
         public string PageSize { get; set; } = "A4";
@@ -192,43 +157,58 @@ namespace ScannerApp.Models
         /// <summary>Maximum DPI for images in the booklet PDF; 0 = no downscale (preserve scan DPI).</summary>
         public int PdfMaxDpi { get; set; } = 0;
 
-        // ── Zone barcode settings ─────────────────────────────────────────────
-        public List<BarcodeZone> BarcodeZones { get; set; } = new();
-        /// <summary>Page number where per-page order barcodes begin (default 2).</summary>
-        public int PageBarcodeStartPage { get; set; } = 2;
-        /// <summary>Token-based filename template e.g. {BookletId}_{ScanDate}.</summary>
-        public string PdfFilenameFormat { get; set; } = "{BookletId}";
-
-        // ── Upload schedule ───────────────────────────────────────────────────
-        /// <summary>Immediate | Every4h | Every8h | Every12h | Custom | EndOfDay</summary>
-        public string UploadScheduleMode { get; set; } = "Immediate";
-        public double UploadIntervalHours { get; set; } = 0;
+        /// <summary>PDF/booklet folder name pattern, e.g. {BookletId}, {ExamCode}_{RollNo}, {zone:barcodefilename}.</summary>
+        public string? PdfFilenameFormat { get; set; }
+        /// <summary>1-based page index to start footer page-number barcode checks (default 3).</summary>
+        public int BarcodeStartPage { get; set; } = 3;
+        /// <summary>JSON array of barcode/QR zones (see <see cref="TemplateBarcodeZone"/>).</summary>
+        public string? BarcodeZonesJson { get; set; }
+        /// <summary>immediate | every_4h | every_8h | every_12h | end_of_day | custom</summary>
+        public string UploadScheduleMode { get; set; } = "immediate";
+        /// <summary>For custom mode: minimum minutes after scan before upload.</summary>
+        public string? UploadScheduleParam { get; set; }
 
         public override string ToString() => $"{TemplateName} ({PageCount}pp)";
+
+        public static ScanTemplate CloneFrom(ScanTemplate t) => new()
+        {
+            TemplateID           = t.TemplateID,
+            TemplateName         = t.TemplateName,
+            Description          = t.Description,
+            PageCount            = t.PageCount,
+            DPI                  = t.DPI,
+            ColorMode            = t.ColorMode,
+            PageSize             = t.PageSize,
+            DuplexMode           = t.DuplexMode,
+            JpegQuality          = t.JpegQuality,
+            BrightnessAdj        = t.BrightnessAdj,
+            ContrastAdj          = t.ContrastAdj,
+            SkipBlankPages       = t.SkipBlankPages,
+            DeSkew               = t.DeSkew,
+            Threshold            = t.Threshold,
+            PdfJpegQuality       = t.PdfJpegQuality,
+            PdfMaxDpi            = t.PdfMaxDpi,
+            PdfFilenameFormat    = t.PdfFilenameFormat,
+            BarcodeStartPage       = t.BarcodeStartPage > 0 ? t.BarcodeStartPage : 3,
+            BarcodeZonesJson     = t.BarcodeZonesJson,
+            UploadScheduleMode   = string.IsNullOrWhiteSpace(t.UploadScheduleMode) ? "immediate" : t.UploadScheduleMode,
+            UploadScheduleParam  = t.UploadScheduleParam,
+        };
     }
 
-    public static class BookletFilenameBuilder
+    /// <summary>One barcode/QR region on a page (percent of page width/height).</summary>
+    public class TemplateBarcodeZone
     {
-        public static string Build(string format, string bookletId,
-            string examCode, string paperCode, string rollNo, string serial,
-            Dictionary<string, string> zoneValues, string scanDate, int pageCount)
-        {
-            if (string.IsNullOrWhiteSpace(format)) return bookletId;
-            var result = format
-                .Replace("{BookletId}", bookletId)
-                .Replace("{ExamCode}",  examCode)
-                .Replace("{PaperCode}", paperCode)
-                .Replace("{RollNo}",    rollNo)
-                .Replace("{Serial}",    serial)
-                .Replace("{ScanDate}",  scanDate)
-                .Replace("{PageCount}", pageCount.ToString());
-            foreach (var kv in zoneValues)
-                result = result.Replace("{" + kv.Key + "}", kv.Value);
-            // Sanitise — remove characters illegal in Windows filenames
-            foreach (char c in System.IO.Path.GetInvalidFileNameChars())
-                result = result.Replace(c, '_');
-            return string.IsNullOrWhiteSpace(result) ? bookletId : result;
-        }
+        public string ZoneName { get; set; } = "";
+        /// <summary>first | fromPage</summary>
+        public string PageScope { get; set; } = "first";
+        public int PageNumber { get; set; } = 1;
+        public double XPct { get; set; }
+        public double YPct { get; set; }
+        public double WPct { get; set; }
+        public double HPct { get; set; }
+        /// <summary>ANY, QR_CODE, CODE_128, …</summary>
+        public string Hint { get; set; } = "ANY";
     }
 
     public class PrinterProfile
@@ -303,8 +283,8 @@ namespace ScannerApp.Models
         public int TotalPagesScanned { get; set; }
         public int WorkstationId { get; set; }
         public int LocationId { get; set; }
-        /// <summary>JSON blob saved when a scan was interrupted mid-booklet.</summary>
-        public string? ResumeState { get; set; }
+        public string UploadScheduleMode { get; set; } = "immediate";
+        public string? UploadScheduleParam { get; set; }
     }
 
     public class BarcodeLookupResult
@@ -347,7 +327,5 @@ namespace ScannerApp.Models
         public string? BarcodeData { get; set; }
         public string ValidationStatus { get; set; } = "Valid";
         public int IsRoughPage { get; set; }
-        /// <summary>Zone name → decoded barcode value for this page.</summary>
-        public Dictionary<string, string> ZoneBarcodes { get; set; } = new();
     }
 }

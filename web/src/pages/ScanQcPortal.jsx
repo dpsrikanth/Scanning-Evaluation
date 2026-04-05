@@ -62,7 +62,7 @@ export default function ScanQcPortal() {
     (async () => {
       try {
         const settings = await api.scan.settings();
-        setPapers((settings && settings.papers) ? settings.papers : []);
+        setPapers(settings.papers || []);
       } catch {
         setPapers([]);
       }

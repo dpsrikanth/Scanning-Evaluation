@@ -3,7 +3,7 @@ import AuthRepository from './auth.repository.js';
 import AuthService from './auth.service.js';
 import AuthController from './auth.controller.js';
 import { getEvalDb } from '../../config/database.js';
-import { authenticate } from '../../middleware/auth.js';
+import { authenticate, authorize } from '../../middleware/auth.js';
 import { validateBody } from '../../middleware/validate.js';
 import auditLog from '../../middleware/auditLog.js';
 import { authLimiter } from '../../middleware/security.js';
@@ -86,6 +86,7 @@ router.get('/profile', auditLog('auth'), authenticate, controller.profile);
 router.post(
   '/change-password',
   authenticate,
+  auditLog('auth'),
   validateBody({
     currentPassword: { required: true, type: 'string', minLength: 1 },
     newPassword: { required: true, type: 'string', minLength: 8 },
@@ -230,7 +231,7 @@ router.post('/session-context', authenticate, auditLog('auth'), controller.sessi
  *       200:
  *         description: Photo saved — returns photoPath
  */
-router.post('/login-photo', authenticate, uploadCapturedPhoto, controller.uploadLoginPhoto);
+router.post('/login-photo', authenticate, uploadCapturedPhoto, auditLog('auth'), controller.uploadLoginPhoto);
 
 /** @openapi
  * /api/auth/heartbeat:
@@ -246,7 +247,7 @@ router.post('/heartbeat', authenticate, controller.heartbeat);
  *     tags: [Auth]
  *     summary: Logout and close active session
  */
-router.post('/logout', authenticate, controller.logout);
+router.post('/logout', authenticate, auditLog('auth'), controller.logout);
 
 /** @openapi
  * /api/auth/active-session:
@@ -262,7 +263,15 @@ router.get('/active-session', authenticate, controller.activeSession);
  *     tags: [Auth]
  *     summary: List workstations for a location
  */
-router.get('/workstations', authenticate, controller.workstations);
+router.get('/workstations', authenticate, auditLog('auth'), controller.workstations);
+
+/** @openapi
+ * /api/auth/assigned-exam-paper:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Get assigned exam/paper for evaluator (from allocations)
+ */
+router.get('/assigned-exam-paper', authenticate, auditLog('auth'), controller.assignedExamPaper);
 
 /** @openapi
  * /api/auth/assigned-exam-paper:
@@ -278,6 +287,21 @@ router.get('/assigned-exam-paper', authenticate, controller.assignedExamPaper);
  *     tags: [Auth]
  *     summary: List activity audit logs (Admin only)
  */
-router.get('/activity-logs', authenticate, controller.activityLogs);
+router.get('/activity-logs', authenticate, authorize('Admin'), controller.activityLogs);
+
+/**
+ * Client-side audit: page views, JS errors (authenticated sessions only).
+ * @openapi
+ * /api/auth/client-activity:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Record browser-side activity for the audit log
+ */
+router.post(
+  '/client-activity',
+  authenticate,
+  validateBody({ kind: { required: true, type: 'string', maxLength: 64 } }),
+  controller.clientActivity
+);
 
 export default router;
