@@ -361,7 +361,7 @@ export default function ScanTemplateForm() {
               </button>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
-              Name a zone <code>barcodefilename</code> to drive the main booklet barcode when present. Coordinates are top-left origin; width/height as % of page.
+              Name a zone <code>barcodefilename</code> to drive the main booklet barcode when present. Use <code>pageserialno</code> (or <code>pagevalno</code>): scope <strong>First page only</strong> draws the footer strip once — the desktop reuses those % coords on every page from <strong>Footer page# start</strong> onward. Scope <strong>From page #</strong> does the same from max(start, N). Coordinates are top-left origin; width/height as % of page.
             </p>
             {(form.barcodeZonesJson || []).length === 0 ? (
               <p className="empty-row" style={{ padding: '8px 0' }}>No zones — desktop uses full-page heuristics on page 1.</p>

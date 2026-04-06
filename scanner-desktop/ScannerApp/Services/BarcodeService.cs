@@ -8,6 +8,7 @@ using ZXing;
 using ZXing.Common;
 using ZXing.Windows.Compatibility;
 using ScannerApp.Models;
+using ScannerApp.Utils;
 
 namespace ScannerApp.Services
 {
@@ -23,6 +24,11 @@ namespace ScannerApp.Services
         private readonly BarcodeReader _reader;
         /// <summary>Second pass: many scans fail the short format list (e.g. ITF, PDF417, DataMatrix page stamps).</summary>
         private readonly BarcodeReader _readerRelaxed;
+        /// <summary>Same as <see cref="_reader"/> but no QR — used with <see cref="_readerQrOnly"/> for parallel decode.</summary>
+        private readonly BarcodeReader _readerLinearTight;
+        /// <summary>Relaxed formats excluding QR only.</summary>
+        private readonly BarcodeReader _readerLinearRelaxed;
+        private readonly BarcodeReader _readerQrOnly;
 
         public BarcodeService()
         {
@@ -70,6 +76,117 @@ namespace ScannerApp.Services
                     },
                 }
             };
+
+            _readerLinearTight = new BarcodeReader
+            {
+                AutoRotate = true,
+                Options = new DecodingOptions
+                {
+                    TryHarder = true,
+                    TryInverted = true,
+                    PossibleFormats = _reader.Options.PossibleFormats.Where(f => f != BarcodeFormat.QR_CODE).ToList(),
+                },
+            };
+
+            _readerLinearRelaxed = new BarcodeReader
+            {
+                AutoRotate = true,
+                Options = new DecodingOptions
+                {
+                    TryHarder = true,
+                    TryInverted = true,
+                    PossibleFormats = _readerRelaxed.Options.PossibleFormats.Where(f => f != BarcodeFormat.QR_CODE).ToList(),
+                },
+            };
+
+            _readerQrOnly = new BarcodeReader
+            {
+                AutoRotate = true,
+                Options = new DecodingOptions
+                {
+                    TryHarder = true,
+                    TryInverted = true,
+                    PossibleFormats = new List<BarcodeFormat> { BarcodeFormat.QR_CODE },
+                },
+            };
+        }
+
+        /// <summary>
+        /// Full-page decode: linear/stacked symbologies vs QR in parallel (separate ZXing passes on cloned bitmaps).
+        /// </summary>
+        public (string? LinearText, string? QrText) ReadLinearAndQrParallel(Bitmap image)
+        {
+            if (image == null || image.Width < 16 || image.Height < 16)
+                return (null, null);
+
+            Bitmap? work = null;
+            Bitmap? c1 = null;
+            Bitmap? c2 = null;
+            try
+            {
+                work = NeedsDownscaleForDecode(image) ? DownscaleForBarcodeDecode(image) : (Bitmap)image.Clone();
+                c1 = (Bitmap)work.Clone();
+                c2 = (Bitmap)work.Clone();
+                string? lin = null;
+                string? qr = null;
+                System.Threading.Tasks.Parallel.Invoke(
+                    () =>
+                    {
+                        try
+                        {
+                            lin = TryDecodePreferPageNumberWithReader(_readerLinearTight, c1)
+                                  ?? TryDecodePreferPageNumberWithReader(_readerLinearRelaxed, c1);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    },
+                    () =>
+                    {
+                        try
+                        {
+                            qr = DecodeQrFullPage(c2);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    });
+                return (lin, qr);
+            }
+            finally
+            {
+                c1?.Dispose();
+                c2?.Dispose();
+                work?.Dispose();
+            }
+        }
+
+        private string? DecodeQrFullPage(Bitmap bmp)
+        {
+            try
+            {
+                var multi = _readerQrOnly.DecodeMultiple(bmp);
+                if (multi != null)
+                {
+                    foreach (var r in multi)
+                    {
+                        if (r != null && r.BarcodeFormat == BarcodeFormat.QR_CODE && !string.IsNullOrWhiteSpace(r.Text))
+                            return r.Text;
+                    }
+                }
+
+                var one = _readerQrOnly.Decode(bmp);
+                if (one != null && one.BarcodeFormat == BarcodeFormat.QR_CODE && !string.IsNullOrWhiteSpace(one.Text))
+                    return one.Text;
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return null;
         }
 
         public string? ReadBarcode(Bitmap image)
@@ -77,11 +194,20 @@ namespace ScannerApp.Services
             if (image == null || image.Width < 16 || image.Height < 16)
                 return null;
 
-            if (!NeedsDownscaleForDecode(image))
-                return _reader.Decode(image)?.Text;
+            try
+            {
+                using var z = new ZxingBitmapHandle(image);
+                var work = z.Bitmap;
+                if (!NeedsDownscaleForDecode(work))
+                    return _reader.Decode(work)?.Text;
 
-            using var scaled = DownscaleForBarcodeDecode(image);
-            return _reader.Decode(scaled)?.Text;
+                using var scaled = DownscaleForBarcodeDecode(work);
+                return _reader.Decode(scaled)?.Text;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -123,6 +249,43 @@ namespace ScannerApp.Services
 
             return dst;
         }
+
+        /// <summary>
+        /// ZXing's Windows bitmap bridge often throws <see cref="NullReferenceException"/> on indexed
+        /// or exotic <see cref="PixelFormat"/>s. Normalize to 24bpp RGB before decode.
+        /// </summary>
+        private readonly struct ZxingBitmapHandle : IDisposable
+        {
+            private readonly Bitmap? _owned;
+            public Bitmap Bitmap { get; }
+
+            public ZxingBitmapHandle(Bitmap source)
+            {
+                if (NeedsPixelFormatNormalizeForZxing(source))
+                {
+                    var dst = new Bitmap(source.Width, source.Height, PixelFormat.Format24bppRgb);
+                    using (var g = Graphics.FromImage(dst))
+                    {
+                        g.DrawImage(source, 0, 0);
+                    }
+
+                    _owned = dst;
+                    Bitmap = dst;
+                }
+                else
+                {
+                    _owned = null;
+                    Bitmap = source;
+                }
+            }
+
+            public void Dispose() => _owned?.Dispose();
+        }
+
+        private static bool NeedsPixelFormatNormalizeForZxing(Bitmap bmp) =>
+            bmp.PixelFormat is not PixelFormat.Format24bppRgb
+                and not PixelFormat.Format32bppArgb
+                and not PixelFormat.Format32bppRgb;
 
         /// <summary>
         /// Core search on a bitmap already sized for decode (caller may have downscaled).
@@ -224,6 +387,8 @@ namespace ScannerApp.Services
         private string? TryMarginSkippedFooterBand(Bitmap image)
         {
             int h = image.Height, w = image.Width;
+            if (h < 64 || w < 24)
+                return null;
             int y = h - 1;
             const int minY = 8;
             int bedFloor = Math.Max(minY, h - Math.Min(160, Math.Max(48, h / 18)));
@@ -234,7 +399,8 @@ namespace ScannerApp.Services
                 y -= 2;
 
             int bottom = y;
-            int bandH = Math.Clamp(Math.Max(160, h / 5), 120, Math.Min(520, h));
+            // Avoid Math.Clamp(min,max) where min > max on short pages (was throwing).
+            int bandH = Math.Min(h, Math.Max(32, Math.Min(520, Math.Max(160, h / 5))));
             int yTop = Math.Max(0, bottom - bandH + 1);
             int height = bottom - yTop + 1;
             if (height < 48) return null;
@@ -347,31 +513,46 @@ namespace ScannerApp.Services
 
         private static string? TryDecodePreferPageNumberWithReader(BarcodeReader reader, Bitmap bmp)
         {
+            if (reader == null || bmp == null || bmp.Width < 4 || bmp.Height < 4)
+                return null;
+
             try
             {
-                var multi = reader.DecodeMultiple(bmp);
-                if (multi != null && multi.Length > 0)
+                reader.Options ??= new DecodingOptions();
+                using var z = new ZxingBitmapHandle(bmp);
+                var work = z.Bitmap;
+                if (work.Width < 4 || work.Height < 4)
+                    return null;
+                try
                 {
-                    foreach (var r in multi)
+                    var multi = reader.DecodeMultiple(work);
+                    if (multi != null && multi.Length > 0)
                     {
-                        if (string.IsNullOrEmpty(r?.Text)) continue;
-                        if (LooksLikePageNumberPayload(r.Text)) return r.Text;
-                    }
+                        foreach (var r in multi)
+                        {
+                            if (string.IsNullOrEmpty(r?.Text)) continue;
+                            if (LooksLikePageNumberPayload(r.Text)) return r.Text;
+                        }
 
-                    foreach (var r in multi)
-                    {
-                        if (!string.IsNullOrEmpty(r?.Text)) return r.Text;
+                        foreach (var r in multi)
+                        {
+                            if (!string.IsNullOrEmpty(r?.Text)) return r.Text;
+                        }
                     }
                 }
-            }
-            catch
-            {
-                // ignore
-            }
+                catch
+                {
+                    // ignore — ZXing can throw on some pixel formats / bad state
+                }
 
-            try
-            {
-                return reader.Decode(bmp)?.Text;
+                try
+                {
+                    return reader.Decode(work)?.Text;
+                }
+                catch
+                {
+                    return null;
+                }
             }
             catch
             {
@@ -438,7 +619,13 @@ namespace ScannerApp.Services
             try
             {
                 using var crop = image.Clone(r, image.PixelFormat);
-                return ReadBarcode(crop);
+                using var z = new ZxingBitmapHandle(crop);
+                var work = z.Bitmap;
+                if (!NeedsDownscaleForDecode(work))
+                    return _reader.Decode(work)?.Text;
+
+                using var scaled = DownscaleForBarcodeDecode(work);
+                return _reader.Decode(scaled)?.Text;
             }
             catch
             {
@@ -468,6 +655,8 @@ namespace ScannerApp.Services
             foreach (var z in zones)
             {
                 if (string.IsNullOrWhiteSpace(z.ZoneName)) continue;
+                // Per-page serial zones are read during scan / validation, not as a single map entry.
+                if (PageSerialZoneHelper.IsReservedPageSerialName(z.ZoneName)) continue;
                 int pageIdx;
                 if (z.PageScope.Equals("fromPage", StringComparison.OrdinalIgnoreCase))
                     pageIdx = Math.Max(0, z.PageNumber - 1);
@@ -502,6 +691,28 @@ namespace ScannerApp.Services
         {
             using var bitmap = new Bitmap(imagePath);
             return ReadBarcode(bitmap);
+        }
+
+        /// <summary>
+        /// Reads the page-index barcode. When the template defines a <c>pageserialno</c> or <c>pagevalno</c>
+        /// zone, uses that rectangle on each eligible page (see <see cref="PageSerialZoneHelper"/>);
+        /// otherwise uses footer heuristics.
+        /// </summary>
+        public string? ReadPageSerialOrFooter(Bitmap image, int pageNumber1Based, int barcodeStartPage1Based, string? zonesJson)
+        {
+            if (image == null || image.Width < 16 || image.Height < 16)
+                return null;
+
+            var zone = PageSerialZoneHelper.FindPageSerialZone(zonesJson);
+            if (zone != null && PageSerialZoneHelper.ShouldApplyPageSerialZone(zone, pageNumber1Based, barcodeStartPage1Based))
+            {
+                var rect = ZoneToRectangle(image, zone);
+                var t = ReadBarcodeFromRectangle(image, rect);
+                if (!string.IsNullOrWhiteSpace(t))
+                    return t.Trim();
+            }
+
+            return ReadBarcodeForPageNumber(image);
         }
 
         /// <summary>
@@ -567,25 +778,41 @@ namespace ScannerApp.Services
 
         private string? DecodeBitmapForPageNumber(Bitmap work, bool preferNumeric)
         {
-            var multi = _reader.DecodeMultiple(work);
-            if (multi != null && multi.Length > 0)
+            try
             {
-                if (preferNumeric)
+                using var z = new ZxingBitmapHandle(work);
+                var bmp = z.Bitmap;
+                var multi = _reader.DecodeMultiple(bmp);
+                if (multi != null && multi.Length > 0)
                 {
+                    if (preferNumeric)
+                    {
+                        foreach (var r in multi)
+                        {
+                            if (string.IsNullOrEmpty(r?.Text)) continue;
+                            if (IsLikelyPageNumberPayload(r.Text)) return r.Text;
+                        }
+                    }
+
                     foreach (var r in multi)
                     {
-                        if (string.IsNullOrEmpty(r?.Text)) continue;
-                        if (IsLikelyPageNumberPayload(r.Text)) return r.Text;
+                        if (!string.IsNullOrEmpty(r?.Text)) return r.Text;
                     }
                 }
 
-                foreach (var r in multi)
+                try
                 {
-                    if (!string.IsNullOrEmpty(r?.Text)) return r.Text;
+                    return _reader.Decode(bmp)?.Text;
+                }
+                catch
+                {
+                    return null;
                 }
             }
-
-            return _reader.Decode(work)?.Text;
+            catch
+            {
+                return null;
+            }
         }
 
         private static bool IsLikelyPageNumberPayload(string text)

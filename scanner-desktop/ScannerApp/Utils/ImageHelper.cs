@@ -11,6 +11,9 @@ namespace ScannerApp.Utils
 
         public static void SaveAsJpeg(Bitmap bitmap, string outputPath, int quality = 85)
         {
+            if (bitmap.Width < 1 || bitmap.Height < 1)
+                throw new ArgumentException("Bitmap has no valid dimensions for JPEG.", nameof(bitmap));
+
             var encoder = GetEncoder(ImageFormat.Jpeg);
             if (encoder == null)
             {
@@ -72,6 +75,10 @@ namespace ScannerApp.Utils
                     // Deskew is best-effort; proceed with unrotated image on any error
                 }
             }
+
+            // OpenCV / PNG round-trip often yields 32bpp; CropToContent locks as 24bpp — would throw
+            // "Parameter is not valid" without this step (see scanner activity log).
+            rgb = CoerceToRgb24ForLockBits(rgb, src);
 
             Bitmap cropped = CropToContent(rgb);
             if (!ReferenceEquals(rgb, src)) rgb.Dispose();
@@ -251,6 +258,28 @@ namespace ScannerApp.Utils
             using var g = Graphics.FromImage(dst);
             g.DrawImage(src, 0, 0, src.Width, src.Height);
             return dst;
+        }
+
+        /// <summary>
+        /// Ensures <paramref name="rgb"/> is 24bpp for <see cref="CropToContent"/> / LockBits.
+        /// Disposes <paramref name="rgb"/> when it allocated a conversion and rgb was not <paramref name="originalSrc"/>.
+        /// </summary>
+        private static Bitmap CoerceToRgb24ForLockBits(Bitmap rgb, Bitmap originalSrc)
+        {
+            if (rgb.PixelFormat == PixelFormat.Format24bppRgb)
+                return rgb;
+            if (rgb.Width < 2 || rgb.Height < 2)
+                return rgb;
+
+            var conv = new Bitmap(rgb.Width, rgb.Height, PixelFormat.Format24bppRgb);
+            using (var g = Graphics.FromImage(conv))
+            {
+                g.DrawImage(rgb, 0, 0, rgb.Width, rgb.Height);
+            }
+
+            if (!ReferenceEquals(rgb, originalSrc))
+                rgb.Dispose();
+            return conv;
         }
 
         /// <summary>

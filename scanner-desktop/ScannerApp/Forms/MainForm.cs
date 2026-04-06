@@ -1,5 +1,9 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using ScannerApp.Models;
 using ScannerApp.Services;
@@ -37,7 +41,7 @@ namespace ScannerApp.Forms
         private CheckBox   _chkTwainUi      = null!;
         private Label      _lblQcRescan     = null!;
         private TextBox    _txtQcRescanId   = null!;
-        private Label      _lblTemplateInfo = null!;
+        private TextBox    _txtTemplateDetail = null!;
         private Button     _btnRefresh      = null!;
         private Button     _btnScan         = null!;
         private ProgressBar _progressBar    = null!;
@@ -54,6 +58,14 @@ namespace ScannerApp.Forms
         private ComboBox   _cboQueueFilter  = null!;
         private Button     _btnQcRejected   = null!;
         private Button     _btnRetryFailed  = null!;
+        private TextBox    _txtActivityLog  = null!;
+        private Label      _lblNextUpload   = null!;
+        private const int ActivityLogMaxLines = 500;
+
+        /// <summary>Pages finished processing (deskew/save), flushed to UI in 1..N order.</summary>
+        private readonly ConcurrentDictionary<int, (string FilePath, string Hash)> _pagesReadyForUi = new();
+        private int _nextSequentialUiPage = 1;
+        private readonly object _sequentialUiLock = new();
 
         // ── Header bar ────────────────────────────────────────────────────────
         private Panel      _headerPanel     = null!;
@@ -219,7 +231,7 @@ namespace ScannerApp.Forms
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260));
             mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 175));
+            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 268));
 
             mainTable.Controls.Add(BuildLeftPanel(), 0, 0);
             mainTable.Controls.Add(BuildCenterPanel(), 1, 0);
@@ -236,6 +248,7 @@ namespace ScannerApp.Forms
                 Dock      = DockStyle.Fill,
                 BackColor = ColorCard,
                 Padding   = new Padding(14, 14, 14, 14),
+                AutoScroll = true,
             };
             panel.Paint += PaintCardBorder;
 
@@ -257,17 +270,24 @@ namespace ScannerApp.Forms
             _cboTemplate = MakeComboBox(14, y, 228); y += 34;
             _cboTemplate.SelectedIndexChanged += CboTemplate_Changed;
 
-            _lblTemplateInfo = new Label
+            _txtTemplateDetail = new TextBox
             {
-                Location  = new Point(14, y),
-                Width     = 228,
-                Height    = 90,
-                Font      = new Font("Segoe UI", 7.5f),
-                ForeColor = ColorMuted,
-                Text      = "Select a template above",
-                AutoSize  = false,
+                Location      = new Point(14, y),
+                Width         = 228,
+                Height        = 168,
+                Font          = new Font("Segoe UI", 7.5f),
+                ForeColor     = ColorText,
+                BackColor     = Color.FromArgb(252, 252, 254),
+                BorderStyle   = BorderStyle.FixedSingle,
+                Multiline     = true,
+                ReadOnly      = true,
+                ScrollBars    = ScrollBars.Vertical,
+                WordWrap      = false,
+                TabStop       = false,
+                Cursor        = Cursors.Default,
+                Text          = "Select a template above",
             };
-            y += 94;
+            y += 172;
 
             AddSectionLabel(panel, "SCANNER", 14, y); y += 22;
 
@@ -322,7 +342,7 @@ namespace ScannerApp.Forms
                 Checked   = true,
                 ForeColor = ColorText,
             };
-            _chkDeskewTrim.CheckedChanged += (_, _) => UpdateTemplateInfoExtras();
+            _chkDeskewTrim.CheckedChanged += (_, _) => RefreshTemplateDetailView();
             var ttDeskew = new ToolTip();
             ttDeskew.SetToolTip(_chkDeskewTrim,
                 "When on: grayscale → binarize → Hough line deskew (Emgu CV) with AForge fallback, " +
@@ -408,7 +428,7 @@ namespace ScannerApp.Forms
             panel.Controls.AddRange(new Control[]
             {
                 _lblWorkstation, _lblDriverMode,
-                _cboExam, _cboPaper, _cboTemplate, _lblTemplateInfo,
+                _cboExam, _cboPaper, _cboTemplate, _txtTemplateDetail,
                 scannerRow, _chkDeskewTrim, _chkTwainUi, _lblQcRescan, _txtQcRescanId, _btnScan, _progressBar, _lblStatus,
             });
 
@@ -476,13 +496,19 @@ namespace ScannerApp.Forms
 
         private Panel BuildBottomPanel()
         {
-            var panel = new Panel
+            var outer = new TableLayoutPanel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = ColorCard,
-                Padding   = new Padding(8, 6, 8, 6),
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 2,
+                BackColor   = ColorCard,
+                Padding     = new Padding(8, 6, 8, 6),
             };
-            panel.Paint += PaintCardBorder;
+            outer.RowStyles.Add(new RowStyle(SizeType.Percent, 58f));
+            outer.RowStyles.Add(new RowStyle(SizeType.Percent, 42f));
+
+            var queueCard = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard };
+            queueCard.Paint += PaintCardBorder;
 
             // Header row: queue label + status filter dropdown
             var headerRow = new Panel
@@ -498,7 +524,16 @@ namespace ScannerApp.Forms
                 ForeColor = ColorText,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false,
+            };
+
+            _lblNextUpload = new Label
+            {
+                Text      = "",
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = ColorMuted,
+                Dock      = DockStyle.Top,
+                Height    = 22,
+                TextAlign = ContentAlignment.MiddleLeft,
             };
 
             _cboQueueFilter = new ComboBox
@@ -527,8 +562,8 @@ namespace ScannerApp.Forms
             _btnRetryFailed.Click += BtnRetryFailed_Click;
 
             headerRow.Controls.Add(_cboQueueFilter);
-            headerRow.Controls.Add(_lblQueueHeader);
             headerRow.Controls.Add(_btnRetryFailed);
+            headerRow.Controls.Add(_lblQueueHeader);
 
             _lvQueue = new ListView
             {
@@ -543,14 +578,17 @@ namespace ScannerApp.Forms
             };
             _lvQueue.Columns.AddRange(new[]
             {
-                new ColumnHeader { Text = "Booklet ID",    Width = 190 },
-                new ColumnHeader { Text = "Exam",          Width = 70  },
-                new ColumnHeader { Text = "Paper",         Width = 70  },
-                new ColumnHeader { Text = "Roll No",       Width = 90  },
-                new ColumnHeader { Text = "Pages",         Width = 55  },
-                new ColumnHeader { Text = "Status",        Width = 80  },
-                new ColumnHeader { Text = "Scanned At",    Width = 130 },
-                new ColumnHeader { Text = "Error Reason",  Width = 220 },
+                new ColumnHeader { Text = "Booklet ID",    Width = 170 },
+                new ColumnHeader { Text = "Exam",          Width = 60  },
+                new ColumnHeader { Text = "Paper",         Width = 60  },
+                new ColumnHeader { Text = "Roll No",       Width = 80  },
+                new ColumnHeader { Text = "Pages",         Width = 50  },
+                new ColumnHeader { Text = "Status",        Width = 72  },
+                new ColumnHeader { Text = "Scan s",        Width = 52  },
+                new ColumnHeader { Text = "Proc s",        Width = 52  },
+                new ColumnHeader { Text = "Next upload",   Width = 125 },
+                new ColumnHeader { Text = "Scanned At",    Width = 118 },
+                new ColumnHeader { Text = "Error Reason",  Width = 160 },
             });
 
             // Right-click context menu for queue rows
@@ -567,13 +605,42 @@ namespace ScannerApp.Forms
                     ? _lvQueue.SelectedItems[0].SubItems[5].Text
                     : "";
                 miRetryOne.Enabled  = hasSelection && (selStatus == "Failed" || selStatus == "Pending" || selStatus == "Uploaded");
-                miCopyError.Enabled = hasSelection && !string.IsNullOrEmpty(_lvQueue.SelectedItems[0].SubItems[7].Text);
+                miCopyError.Enabled = hasSelection && !string.IsNullOrEmpty(_lvQueue.SelectedItems[0].SubItems[10].Text);
             };
             _lvQueue.ContextMenuStrip = ctxQueue;
 
-            panel.Controls.Add(_lvQueue);
-            panel.Controls.Add(headerRow);
-            return panel;
+            queueCard.Controls.Add(_lvQueue);
+            queueCard.Controls.Add(_lblNextUpload);
+            queueCard.Controls.Add(headerRow);
+
+            var logCard = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(4) };
+            logCard.Paint += PaintCardBorder;
+            var logLabel = new Label
+            {
+                Text      = "Activity",
+                Dock      = DockStyle.Top,
+                Height    = 20,
+                Font      = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = ColorText,
+            };
+            _txtActivityLog = new TextBox
+            {
+                Dock        = DockStyle.Fill,
+                Multiline   = true,
+                ReadOnly    = true,
+                ScrollBars  = ScrollBars.Vertical,
+                Font        = new Font("Consolas", 8f),
+                BackColor   = Color.FromArgb(250, 251, 253),
+                BorderStyle = BorderStyle.FixedSingle,
+                TabStop     = false,
+                WordWrap    = false,
+            };
+            logCard.Controls.Add(_txtActivityLog);
+            logCard.Controls.Add(logLabel);
+
+            outer.Controls.Add(queueCard, 0, 0);
+            outer.Controls.Add(logCard, 0, 1);
+            return outer;
         }
 
         // ── Load ──────────────────────────────────────────────────────────────
@@ -640,7 +707,11 @@ namespace ScannerApp.Forms
                 // 6. Local queue (always initialize — works offline)
                 _queue = new LocalQueueService(_storagePath, _api);
                 _queue.StatusChanged += (id, status, err) =>
-                    BeginInvoke(() => RefreshQueueView());
+                    BeginInvoke(() =>
+                    {
+                        AppendActivity($"Queue: {id} → {status}" + (string.IsNullOrEmpty(err) ? "" : $" — {err}"));
+                        RefreshQueueView();
+                    });
                 SyncQueueUploadFallback();
                 _queue.StartBackgroundUpload();
                 RefreshQueueView();
@@ -703,45 +774,47 @@ namespace ScannerApp.Forms
             _selectedTemplate = _cboTemplate.SelectedItem as ScanTemplate;
             if (_selectedTemplate is ScanTemplate t)
             {
-                UpdateTemplateInfoExtras();
-                _lblTemplateInfo.ForeColor = ColorText;
+                RefreshTemplateDetailView();
                 SetStatus($"Template: {t.TemplateName}", false);
             }
             else
             {
-                _lblTemplateInfo.Text      = "Select a template above";
-                _lblTemplateInfo.ForeColor = ColorMuted;
+                _txtTemplateDetail.Text = "Select a template above";
             }
         }
 
-        private void UpdateTemplateInfoExtras()
+        private void RefreshTemplateDetailView()
         {
-            if (_selectedTemplate is not ScanTemplate t) return;
+            if (_selectedTemplate is not ScanTemplate t)
+            {
+                _txtTemplateDetail.Text = "Select a template above";
+                return;
+            }
 
-            // Line 1 — resolution / colour / paper
-            var line1 = $"{t.DPI} DPI  •  {t.ColorMode}  •  {t.PageSize}";
+            _txtTemplateDetail.Text = TemplateDetailFormatter.BuildDetailText(t, _chkDeskewTrim.Checked);
+        }
 
-            // Line 2 — page count / duplex / image JPEG quality
-            var line2 = $"{t.PageCount} pages  •  {t.DuplexMode}  •  Img JPEG {t.JpegQuality}%";
+        /// <summary>Thread-safe activity log (caps line count).</summary>
+        public void AppendActivity(string line)
+        {
+            var text = $"{DateTime.Now:HH:mm:ss}  {line}";
+            void Append()
+            {
+                if (_txtActivityLog == null) return;
+                var lines = _txtActivityLog.Text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                var list = lines.Where(s => !string.IsNullOrEmpty(s)).ToList();
+                list.Add(text);
+                while (list.Count > ActivityLogMaxLines)
+                    list.RemoveAt(0);
+                _txtActivityLog.Text = string.Join(Environment.NewLine, list);
+                _txtActivityLog.SelectionStart = _txtActivityLog.Text.Length;
+                _txtActivityLog.ScrollToCaret();
+            }
 
-            // Line 3 — scanner adjustments (stored on 0-255 ScanAll Pro scale, 128 = neutral)
-            var bright = t.BrightnessAdj == 128 ? "128 (neutral)" : $"{t.BrightnessAdj}";
-            var contr  = t.ContrastAdj   == 128 ? "128 (neutral)" : $"{t.ContrastAdj}";
-            var line3  = $"Brightness {bright}  •  Contrast {contr}";
-            if (t.ColorMode.Equals("BlackWhite", StringComparison.OrdinalIgnoreCase))
-                line3 += $"  •  Threshold {t.Threshold}";
-
-            // Line 4 — PDF quality
-            var pdfDpi  = t.PdfMaxDpi == 0 ? "native" : $"{t.PdfMaxDpi}";
-            var line4   = $"PDF JPEG {t.PdfJpegQuality}%  •  PDF DPI {pdfDpi}";
-
-            // Line 5 — optional flags
-            var flags = new List<string>();
-            if (t.DeSkew) flags.Add("Template: scanner de-skew");
-            if (_chkDeskewTrim.Checked) flags.Add("App: deskew & trim");
-            var line5 = flags.Count > 0 ? string.Join("  •  ", flags) : "No extras";
-
-            _lblTemplateInfo.Text = $"{line1}\r\n{line2}\r\n{line3}\r\n{line4}\r\n{line5}";
+            if (InvokeRequired)
+                BeginInvoke(Append);
+            else
+                Append();
         }
 
         private void ApplyWorkstation()
@@ -823,7 +896,11 @@ namespace ScannerApp.Forms
                 _queue?.Dispose();
                 _queue = new LocalQueueService(_storagePath, _api);
                 _queue.StatusChanged += (id, status, err) =>
-                    BeginInvoke(() => RefreshQueueView());
+                    BeginInvoke(() =>
+                    {
+                        AppendActivity($"Queue: {id} → {status}" + (string.IsNullOrEmpty(err) ? "" : $" — {err}"));
+                        RefreshQueueView();
+                    });
                 SyncQueueUploadFallback();
                 _queue.StartBackgroundUpload();
                 RefreshQueueView();
@@ -832,6 +909,189 @@ namespace ScannerApp.Forms
         }
 
         // ── Scan flow ─────────────────────────────────────────────────────────
+
+        private static void WriteFinalJpegAtomic(Bitmap bmp, string finalPath, int quality)
+        {
+            var tmp = finalPath + ".tmp.jpg";
+            ImageHelper.SaveAsJpeg(bmp, tmp, quality);
+            if (File.Exists(finalPath))
+                File.Delete(finalPath);
+            File.Move(tmp, finalPath);
+        }
+
+        private static void TryDeleteRawJpegs(string folder, int pageCount)
+        {
+            for (int i = 1; i <= pageCount; i++)
+            {
+                try
+                {
+                    var p = Path.Combine(folder, $"page_{i:D3}_raw.jpg");
+                    if (File.Exists(p))
+                        File.Delete(p);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+        }
+
+        private void RegisterProcessedPageForUi(int pageNum, string finalPath, string pageHash)
+        {
+            _pagesReadyForUi[pageNum] = (finalPath, pageHash);
+            lock (_sequentialUiLock)
+            {
+                while (_pagesReadyForUi.TryRemove(_nextSequentialUiPage, out var info))
+                {
+                    int n = _nextSequentialUiPage++;
+                    BeginInvoke(new Action(() => AddScannedPageToUi(n, info.FilePath, info.Hash)));
+                }
+            }
+        }
+
+        private void AddScannedPageToUi(int pageNum, string imagePath, string pageHash)
+        {
+            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+                return;
+
+            var sp = new ScannedPage
+            {
+                PageNumber = pageNum,
+                FilePath   = imagePath,
+                Hash       = pageHash,
+                IsPage1    = pageNum == 1,
+            };
+            _currentPages.Add(sp);
+
+            Bitmap? uiBmp = null;
+            Bitmap? previewClone = null;
+            try
+            {
+                uiBmp = new Bitmap(imagePath);
+                var thumb = CreateThumbnail(uiBmp, _pageImages.ImageSize);
+                _pageImages.Images.Add(thumb);
+                var item = new ListViewItem($"P{pageNum}", pageNum - 1)
+                {
+                    Tag       = pageNum - 1,
+                    ForeColor = pageNum == 1 ? Color.White : ColorText,
+                    BackColor = pageNum == 1 ? ColorAccent : Color.Transparent,
+                    Font      = pageNum == 1 ? new Font("Segoe UI", 8, FontStyle.Bold) : _lvPages.Font,
+                };
+                _lvPages.Items.Add(item);
+
+                previewClone = (Bitmap)uiBmp.Clone();
+            }
+            finally
+            {
+                uiBmp?.Dispose();
+            }
+
+            try { _picPreview.Image?.Dispose(); } catch { /* ignore */ }
+            _picPreview.Image = previewClone;
+            SetStatus($"Page {pageNum} ready ({_currentPages.Count} total)", true);
+        }
+
+        /// <summary>Background pipeline: raw JPEG, optional deskew/trim, decode, ordered UI flush.</summary>
+        private void RunPagePipeline(
+            Bitmap sourceBmp,
+            int pageNum,
+            string folder,
+            ScanTemplate tmpl,
+            bool deskewTrim,
+            SemaphoreSlim sem)
+        {
+            sem.Wait();
+            try
+            {
+                string rawPath = Path.Combine(folder, $"page_{pageNum:D3}_raw.jpg");
+                string finalPath = Path.Combine(folder, $"page_{pageNum:D3}.jpg");
+                try
+                {
+                    ImageHelper.SaveAsJpeg(sourceBmp, rawPath, tmpl.JpegQuality);
+                    BeginInvoke(() => AppendActivity($"P{pageNum}: raw JPEG saved"));
+                }
+                catch (Exception ex)
+                {
+                    BeginInvoke(() => AppendActivity($"P{pageNum}: raw save failed — {ex.Message}"));
+                    RegisterProcessedPageForUi(pageNum, string.Empty, string.Empty);
+                    return;
+                }
+
+                try
+                {
+                    if (deskewTrim)
+                    {
+                        using var processed = ImageHelper.AutoTrimAndDeskew(sourceBmp, true);
+                        WriteFinalJpegAtomic(processed, finalPath, tmpl.JpegQuality);
+                    }
+                    else
+                    {
+                        WriteFinalJpegAtomic(sourceBmp, finalPath, tmpl.JpegQuality);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BeginInvoke(() => AppendActivity($"P{pageNum}: deskew/save failed — {ex.Message}; using raw copy."));
+                    try { WriteFinalJpegAtomic(sourceBmp, finalPath, tmpl.JpegQuality); }
+                    catch (Exception ex2)
+                    {
+                        BeginInvoke(() => AppendActivity($"P{pageNum}: fallback save failed — {ex2.Message}"));
+                        RegisterProcessedPageForUi(pageNum, string.Empty, string.Empty);
+                        return;
+                    }
+                }
+
+                // Flush thumbs/preview as soon as the final JPEG exists (before slow barcode decode).
+                string hash = "";
+                if (File.Exists(finalPath))
+                {
+                    try
+                    {
+                        hash = HashHelper.ComputeSha256(finalPath);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                }
+
+                RegisterProcessedPageForUi(pageNum, finalPath, hash);
+                BeginInvoke(() => AppendActivity($"P{pageNum}: final JPEG ready"));
+
+                if (File.Exists(finalPath))
+                {
+                    try
+                    {
+                        using var decBmp = new Bitmap(finalPath);
+                        var (lin, qr) = _barcode.ReadLinearAndQrParallel(decBmp);
+                        string footer = "";
+                        if (pageNum >= tmpl.BarcodeStartPage)
+                            footer = _barcode.ReadPageSerialOrFooter(decBmp, pageNum, tmpl.BarcodeStartPage, tmpl.BarcodeZonesJson) ?? "";
+                        string msg = pageNum >= tmpl.BarcodeStartPage
+                            ? $"P{pageNum}: decode linear={lin ?? "—"} QR={qr ?? "—"} footer#={(string.IsNullOrEmpty(footer) ? "—" : footer)}"
+                            : $"P{pageNum}: decode linear={lin ?? "—"} QR={qr ?? "—"}";
+                        BeginInvoke(() => AppendActivity(msg));
+                    }
+                    catch
+                    {
+                        // decode is best-effort
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    sourceBmp.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                sem.Release();
+            }
+        }
 
         private async void BtnScan_Click(object? sender, EventArgs e)
         {
@@ -877,15 +1137,23 @@ namespace ScannerApp.Forms
             _lvPages.Items.Clear();
             _pageImages.Images.Clear();
             _picPreview.Image = null;
+            _pagesReadyForUi.Clear();
+            _nextSequentialUiPage = 1;
 
             _scanCts = new CancellationTokenSource();
 
-            // Create the pending folder before scanning so the progress handler can write pages
             var pendingFolder = BuildBookletFolder("PENDING", effectiveTemplate);
             Directory.CreateDirectory(pendingFolder);
 
-            // Live-preview progress: called on the UI thread for each page as it arrives
+            // Allow some overlap while bounding memory (full-page 300 dpi bitmaps per worker).
+            int parallel = Math.Max(2, Math.Min(12, Environment.ProcessorCount * 2));
+            var pipelineSem = new SemaphoreSlim(parallel);
+            var pageTasks = new List<Task>();
+            bool deskewTrim = _chkDeskewTrim.Checked;
             int pageCounter = 0;
+
+            AppendActivity($"Scan started — {effectiveTemplate.TemplateName} ({effectiveTemplate.PageCount} pp expected)");
+
             var progress = new Progress<Bitmap>(bmp =>
             {
                 int pageNum = ++pageCounter;
@@ -897,122 +1165,116 @@ namespace ScannerApp.Forms
                         AppLogger.Info($"ScanColourDiag firstPage pixelFormat={bmp.PixelFormat} bpp={bpp} " +
                                        $"w={bmp.Width} h={bmp.Height}");
                     }
-                    catch { /* ignore */ }
+                    catch
+                    {
+                        // ignore
+                    }
                 }
-                var imagePath = Path.Combine(pendingFolder, $"page_{pageNum:D3}.jpg");
-                Bitmap? processed = null;
+
+                Bitmap? clone = null;
                 try
                 {
-                    processed = _chkDeskewTrim.Checked
-                        ? ImageHelper.AutoTrimAndDeskew(bmp, deskew: true)
-                        : bmp; // unchecked: no software deskew or auto-trim (PDF uses same files)
-                    ImageHelper.SaveAsJpeg(processed, imagePath, effectiveTemplate.JpegQuality);
+                    clone = (Bitmap)bmp.Clone();
                 }
                 catch (Exception ex)
                 {
-                    AppLogger.Warn($"Save page_{pageNum:D3} (processed) failed: {ex.Message}");
-                    if (processed != null && !ReferenceEquals(processed, bmp))
-                    {
-                        try { processed.Dispose(); } catch { /* ignore */ }
-                        processed = null;
-                    }
-
-                    try
-                    {
-                        ImageHelper.SaveAsJpeg(bmp, imagePath, effectiveTemplate.JpegQuality);
-                    }
-                    catch (Exception ex2)
-                    {
-                        AppLogger.Error($"Save page_{pageNum:D3} (raw fallback) failed: {ex2.Message}");
-                    }
-                }
-                finally
-                {
-                    if (processed != null && !ReferenceEquals(processed, bmp))
-                        processed.Dispose();
+                    AppendActivity($"P{pageNum}: could not clone bitmap — {ex.Message}");
+                    RegisterProcessedPageForUi(pageNum, string.Empty, string.Empty);
+                    return;
                 }
 
-                string pageHash = "";
-                if (File.Exists(imagePath))
-                {
-                    try
-                    {
-                        pageHash = HashHelper.ComputeSha256(imagePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        AppLogger.Warn($"SHA-256 page_{pageNum:D3} failed: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    AppLogger.Warn($"Scan file missing after save attempts: {imagePath}");
-                }
-
-                var sp = new ScannedPage
-                {
-                    PageNumber = pageNum,
-                    FilePath   = imagePath,
-                    Hash       = pageHash,
-                    IsPage1    = pageNum == 1,
-                };
-                _currentPages.Add(sp);
-
-                // UI must reflect the same processed image that was saved on disk.
-                Bitmap uiBmp;
-                try
-                {
-                    uiBmp = File.Exists(imagePath)
-                        ? new Bitmap(imagePath)
-                        : (Bitmap)bmp.Clone();
-                }
-                catch
-                {
-                    uiBmp = (Bitmap)bmp.Clone();
-                }
-
-                // Add thumbnail to page strip using processed output
-                var thumb = CreateThumbnail(uiBmp, _pageImages.ImageSize);
-                _pageImages.Images.Add(thumb);
-                var item = new ListViewItem($"P{pageNum}", pageNum - 1)
-                {
-                    Tag       = pageNum - 1,
-                    ForeColor = pageNum == 1 ? Color.White : ColorText,
-                    BackColor = pageNum == 1 ? ColorAccent : Color.Transparent,
-                    Font      = pageNum == 1 ? new Font("Segoe UI", 8, FontStyle.Bold) : _lvPages.Font,
-                };
-                _lvPages.Items.Add(item);
-
-                // Always show the latest processed page in the preview.
-                try { _picPreview.Image?.Dispose(); } catch { /* ignore */ }
-                _picPreview.Image = (Bitmap)uiBmp.Clone();
-                uiBmp.Dispose();
-                SetStatus($"Scanning — page {pageNum} received…", true);
+                var c = clone!;
+                int n = pageNum;
+                pageTasks.Add(Task.Run(() => RunPagePipeline(c, n, pendingFolder, effectiveTemplate, deskewTrim, pipelineSem)));
+                AppendActivity($"P{pageNum}: scan received, queued for processing");
+                SetStatus($"Scanning — page {pageNum} captured…", true);
             });
 
+            var scanSw = Stopwatch.StartNew();
             try
             {
                 var bitmaps = await _scanner.ScanBookletAsync(
                     scannerName, effectiveTemplate, scanSrc, _scanCts.Token, progress);
+                scanSw.Stop();
 
                 if (bitmaps.Count == 0)
                 {
-                    try { if (Directory.Exists(pendingFolder)) Directory.Delete(pendingFolder, true); } catch { }
+                    try
+                    {
+                        if (Directory.Exists(pendingFolder))
+                            Directory.Delete(pendingFolder, true);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
                     SetStatus("No pages scanned — feeder may be empty", false);
+                    AppendActivity("Scan finished — no pages.");
                     return;
                 }
 
-                AppLogger.Info($"Scan complete: {bitmaps.Count} pages received for {effectiveTemplate.TemplateName}");
-                SetStatus($"Scan complete — {bitmaps.Count} pages received. Processing…", true);
+                if (pageCounter < bitmaps.Count)
+                {
+                    AppendActivity($"Warning: progress reported {pageCounter} pages, buffer has {bitmaps.Count} — processing remainder from memory.");
+                    for (int i = pageCounter; i < bitmaps.Count; i++)
+                    {
+                        Bitmap? b = null;
+                        int page1 = i + 1;
+                        try
+                        {
+                            b = (Bitmap)bitmaps[i].Clone();
+                        }
+                        catch
+                        {
+                            RegisterProcessedPageForUi(page1, string.Empty, string.Empty);
+                            continue;
+                        }
 
-                // Validate page-number barcode series (pages 3+ are content pages).
-                // Prefer on-disk JPEGs so checks match deskew/trim output; fall back to in-memory TWAIN bitmaps.
-                var seriesWarning = ValidatePageSeries(bitmaps, pendingFolder, effectiveTemplate.BarcodeStartPage);
+                        int n = page1;
+                        var bb = b;
+                        pageTasks.Add(Task.Run(() => RunPagePipeline(bb, n, pendingFolder, effectiveTemplate, deskewTrim, pipelineSem!)));
+                    }
+                }
+
+                var processSw = Stopwatch.StartNew();
+                await Task.WhenAll(pageTasks);
+                AppendActivity($"Pipeline: all {bitmaps.Count} pages processed on disk");
+
+                SetStatus($"Scan complete — validating and building booklet…", true);
+
+                var seriesWarning = ValidatePageSeries(bitmaps, pendingFolder, effectiveTemplate.BarcodeStartPage, effectiveTemplate.BarcodeZonesJson);
                 if (seriesWarning != null)
                     MessageBox.Show(seriesWarning, "Page Series Warning",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-                var zoneMap = _barcode.DecodeTemplateZones(bitmaps, effectiveTemplate.BarcodeZonesJson);
+                var pagesForZones = new List<Bitmap>();
+                Dictionary<string, string> zoneMap;
+                try
+                {
+                    for (int i = 1; i <= bitmaps.Count; i++)
+                    {
+                        var pth = Path.Combine(pendingFolder, $"page_{i:D3}.jpg");
+                        if (File.Exists(pth))
+                            pagesForZones.Add(new Bitmap(pth));
+                    }
+
+                    zoneMap = _barcode.DecodeTemplateZones(pagesForZones, effectiveTemplate.BarcodeZonesJson);
+                }
+                finally
+                {
+                    foreach (var b in pagesForZones)
+                    {
+                        try
+                        {
+                            b.Dispose();
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    }
+                }
 
                 var barcodeDetails = BarcodeDetails.Parse("");
                 try
@@ -1020,10 +1282,21 @@ namespace ScannerApp.Forms
                     string? rawBarcode = null;
                     if (zoneMap.TryGetValue("barcodefilename", out var zfn) && !string.IsNullOrWhiteSpace(zfn))
                         rawBarcode = zfn;
-                    rawBarcode ??= _barcode.ReadBarcode(bitmaps[0]);
+                    var p1 = Path.Combine(pendingFolder, "page_001.jpg");
+                    if (rawBarcode == null && File.Exists(p1))
+                    {
+                        using var b1 = new Bitmap(p1);
+                        rawBarcode = _barcode.ReadBarcode(b1);
+                    }
+
+                    if (rawBarcode == null && bitmaps.Count > 0)
+                        rawBarcode = _barcode.ReadBarcode(bitmaps[0]);
                     barcodeDetails = BarcodeDetails.Parse(rawBarcode ?? "");
                 }
-                catch { /* barcode decode failure is non-fatal */ }
+                catch
+                {
+                    /* barcode decode failure is non-fatal */
+                }
 
                 var qcOverride = _txtQcRescanId.Text?.Trim();
                 var ts = DateTime.Now.ToString("HHmmss");
@@ -1039,19 +1312,26 @@ namespace ScannerApp.Forms
                         sp.FilePath = sp.FilePath.Replace(pendingFolder, finalFolder);
                 }
 
-                // Generate PDF from all page images using the template's quality settings.
-                // PdfMaxDpi = 0 means no downscale (preserve full scan DPI).
-                var pageFiles  = _currentPages.Select(p => p.FilePath).ToList();
-                var pdfPath    = Path.Combine(finalFolder, "booklet.pdf");
-                var pdfJpeg    = effectiveTemplate.PdfJpegQuality > 0 ? effectiveTemplate.PdfJpegQuality : 85;
-                var pdfMaxDpi  = effectiveTemplate.PdfMaxDpi;
-                var pdfOptions = new PdfService.CompressionOptions(JpegQuality: pdfJpeg, MaxDpi: pdfMaxDpi);
-                // PDF embeds the on-disk JPEGs; deskew/trim already applied when _chkDeskewTrim was on during scan.
-                try { await Task.Run(() => PdfService.CreateBookletPdf(pdfPath, pageFiles, pdfOptions)); }
-                catch { /* PDF generation failure is non-fatal */ }
+                TryDeleteRawJpegs(finalFolder, bitmaps.Count);
 
-                // Build queue record
-                var pagesJson = JsonConvert.SerializeObject(_currentPages.Select(p => new PageData
+                var pageFiles = _currentPages.OrderBy(p => p.PageNumber).Select(p => p.FilePath).ToList();
+                var pdfPath = Path.Combine(finalFolder, "booklet.pdf");
+                var pdfJpeg = effectiveTemplate.PdfJpegQuality > 0 ? effectiveTemplate.PdfJpegQuality : 85;
+                var pdfMaxDpi = effectiveTemplate.PdfMaxDpi;
+                var pdfOptions = new PdfService.CompressionOptions(JpegQuality: pdfJpeg, MaxDpi: pdfMaxDpi);
+                try
+                {
+                    await Task.Run(() => PdfService.CreateBookletPdf(pdfPath, pageFiles, pdfOptions));
+                }
+                catch
+                {
+                    /* PDF generation failure is non-fatal */
+                }
+
+                processSw.Stop();
+                AppendActivity($"Booklet saved: {bookletId} — scan {scanSw.Elapsed.TotalSeconds:0.0}s, post-process {processSw.Elapsed.TotalSeconds:0.0}s");
+
+                var pagesJson = JsonConvert.SerializeObject(_currentPages.OrderBy(p => p.PageNumber).Select(p => new PageData
                 {
                     PageNumber       = p.PageNumber,
                     ImagePath        = p.FilePath,
@@ -1076,21 +1356,18 @@ namespace ScannerApp.Forms
                     TotalPagesExpected = effectiveTemplate.PageCount,
                     TotalPagesScanned  = bitmaps.Count,
                     WorkstationId      = _myWorkstation?.WorkstationID ?? 0,
-                    // Fallback to the operator's own LocationId (from login) when no
-                    // workstation is assigned — the server also applies this fallback
-                    // so existing queue records with LocationId=0 will upload too.
                     LocationId         = _myWorkstation?.LocationID
                                          ?? _api.CurrentUser?.LocationId
                                          ?? 0,
                     UploadScheduleMode  = effectiveTemplate.UploadScheduleMode,
                     UploadScheduleParam = effectiveTemplate.UploadScheduleParam,
+                    ScanDurationMs      = (int)Math.Min(int.MaxValue, scanSw.ElapsedMilliseconds),
+                    ProcessingDurationMs  = (int)Math.Min(int.MaxValue, processSw.ElapsedMilliseconds),
                 };
 
-                // Auto-save to queue (always)
                 _queue?.SaveToQueue(record);
                 RefreshQueueView();
 
-                // Trigger background upload immediately (fire-and-forget)
                 _ = _queue?.TryUploadPendingAsync();
 
                 if (!string.IsNullOrEmpty(qcOverride))
@@ -1098,7 +1375,6 @@ namespace ScannerApp.Forms
 
                 SetStatus($"Saved: {bookletId} ({bitmaps.Count} pages)", false);
 
-                // Show optional confirmation popup (configurable from web; off by default)
                 bool showPopup = _settings?.Defaults?.ShowBookletDetailsPopup == true;
                 if (showPopup)
                 {
@@ -1107,9 +1383,17 @@ namespace ScannerApp.Forms
 
                     if (result == DialogResult.Retry)
                     {
-                        // Operator chose to discard and re-scan
                         _queue?.DeleteRecord(bookletId);
-                        try { if (Directory.Exists(finalFolder)) Directory.Delete(finalFolder, true); } catch { }
+                        try
+                        {
+                            if (Directory.Exists(finalFolder))
+                                Directory.Delete(finalFolder, true);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+
                         _currentPages.Clear();
                         _lvPages.Items.Clear();
                         _pageImages.Images.Clear();
@@ -1120,20 +1404,51 @@ namespace ScannerApp.Forms
                 }
             }
             catch (OperationCanceledException)
-            {
-                AppLogger.Warn("Scan cancelled by user.");
-                try { if (Directory.Exists(pendingFolder)) Directory.Delete(pendingFolder, true); } catch { }
-                SetStatus("Scan cancelled", false);
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Error($"Scan exception: {ex.Message}", ex);
-                SetStatus($"Scan error: {ex.Message}", false);
-                MessageBox.Show($"Scanning failed:\n{ex.Message}", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                {
+                    if (scanSw.IsRunning)
+                        scanSw.Stop();
+                    AppLogger.Warn("Scan cancelled by user.");
+                    AppendActivity("Scan cancelled by user");
+                    try
+                    {
+                        await Task.WhenAll(pageTasks);
+                    }
+                    catch
+                    {
+                        // pipeline may fail if folder is torn down mid-write
+                    }
+
+                    try
+                    {
+                        if (Directory.Exists(pendingFolder))
+                            Directory.Delete(pendingFolder, true);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    SetStatus("Scan cancelled", false);
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        await Task.WhenAll(pageTasks);
+                    }
+                    catch
+                    {
+                        // pipeline tasks may fail after scan error; do not dispose sem until drained
+                    }
+
+                    AppLogger.Error($"Scan exception: {ex.Message}", ex);
+                    SetStatus($"Scan error: {ex.Message}", false);
+                    MessageBox.Show($"Scanning failed:\n{ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             finally
             {
+                pipelineSem?.Dispose();
                 _btnScan.Enabled     = true;
                 _progressBar.Visible = false;
                 _scanCts?.Dispose();
@@ -1234,6 +1549,7 @@ namespace ScannerApp.Forms
                 ? _queue.GetAllRecords()
                 : _queue.GetFilteredRecords(filterText);
 
+            var now = DateTime.Now;
             _lvQueue.Items.Clear();
             foreach (var r in items)
             {
@@ -1243,6 +1559,12 @@ namespace ScannerApp.Forms
                 item.SubItems.Add(r.RollNo);
                 item.SubItems.Add($"{r.TotalPagesScanned}/{r.TotalPagesExpected}");
                 item.SubItems.Add(r.Status);
+                item.SubItems.Add(FormatDurationSeconds(r.ScanDurationMs));
+                item.SubItems.Add(FormatDurationSeconds(r.ProcessingDurationMs));
+                var nextUp = (r.Status == "Pending" || r.Status == "Failed")
+                    ? FormatNextUploadHint(r, now)
+                    : "—";
+                item.SubItems.Add(nextUp);
                 item.SubItems.Add(r.CreatedAt.ToString("dd-MM-yy HH:mm:ss"));
                 item.SubItems.Add(r.ErrorReason ?? "");
                 item.ForeColor = StatusColor(r.Status);
@@ -1260,6 +1582,38 @@ namespace ScannerApp.Forms
             int totalCount    = allRecords.Count;
             int pendingCount  = allRecords.Count(x => x.Status == "Pending" || x.Status == "Failed");
             _lblQueueHeader.Text = $"Upload Queue ({totalCount} total, {pendingCount} pending)";
+
+            var pend = allRecords.Where(x => x.Status == "Pending" || x.Status == "Failed").ToList();
+            if (pend.Count == 0)
+                _lblNextUpload.Text = "";
+            else
+            {
+                DateTime? earliest = null;
+                foreach (var r in pend)
+                {
+                    var n = UploadScheduleHelper.GetNextEligibleUploadTime(r, now);
+                    if (!earliest.HasValue || n < earliest.Value)
+                        earliest = n;
+                }
+
+                _lblNextUpload.Text = earliest.HasValue && earliest.Value > now.AddSeconds(2)
+                    ? $"Earliest deferred upload: {earliest.Value:yyyy-MM-dd HH\\:mm} (local)"
+                    : "Next upload: eligible now or on next background poll (~30s).";
+            }
+        }
+
+        private static string FormatDurationSeconds(int? ms)
+        {
+            if (!ms.HasValue || ms.Value < 0) return "—";
+            return (ms.Value / 1000.0).ToString("0.0");
+        }
+
+        private static string FormatNextUploadHint(LocalBookletRecord r, DateTime now)
+        {
+            if (UploadScheduleHelper.ShouldUploadNow(r, now))
+                return "now";
+            var n = UploadScheduleHelper.GetNextEligibleUploadTime(r, now);
+            return n <= now ? "now" : n.ToString("dd-MM HH:mm");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -1270,7 +1624,7 @@ namespace ScannerApp.Forms
         /// missing from the series.  Returns null when the series is complete or
         /// when there is insufficient barcode data to validate.
         /// </summary>
-        private string? ValidatePageSeries(IList<System.Drawing.Bitmap> bitmaps, string? pagesFolder = null, int barcodeStartPage1Based = 3)
+        private string? ValidatePageSeries(IList<System.Drawing.Bitmap> bitmaps, string? pagesFolder = null, int barcodeStartPage1Based = 3, string? barcodeZonesJson = null)
         {
             var startIdx = Math.Max(0, Math.Max(1, barcodeStartPage1Based) - 1);
             if (bitmaps.Count <= startIdx) return null;
@@ -1281,18 +1635,19 @@ namespace ScannerApp.Forms
             {
                 try
                 {
+                    int page1 = i + 1;
                     string? raw = null;
                     if (!string.IsNullOrEmpty(pagesFolder))
                     {
-                        var diskPath = Path.Combine(pagesFolder, $"page_{i + 1:D3}.jpg");
+                        var diskPath = Path.Combine(pagesFolder, $"page_{page1:D3}.jpg");
                         if (File.Exists(diskPath))
                         {
                             using var saved = new Bitmap(diskPath);
-                            raw = _barcode.ReadBarcodeForPageNumber(saved);
+                            raw = _barcode.ReadPageSerialOrFooter(saved, page1, barcodeStartPage1Based, barcodeZonesJson);
                         }
                     }
 
-                    raw ??= _barcode.ReadBarcodeForPageNumber(bitmaps[i]);
+                    raw ??= _barcode.ReadPageSerialOrFooter(bitmaps[i], page1, barcodeStartPage1Based, barcodeZonesJson);
                     if (raw == null) continue;
 
                     // Accept either a pure integer barcode or the last numeric segment
@@ -1416,7 +1771,7 @@ namespace ScannerApp.Forms
         private void MiCopyError_Click(object? sender, EventArgs e)
         {
             if (_lvQueue.SelectedItems.Count == 0) return;
-            var errorText = _lvQueue.SelectedItems[0].SubItems[7].Text;
+            var errorText = _lvQueue.SelectedItems[0].SubItems[10].Text;
             if (!string.IsNullOrEmpty(errorText))
             {
                 Clipboard.SetText(errorText);

@@ -92,7 +92,7 @@ namespace ScannerApp.Utils
                 }
 
                 const int pad = 8;
-                Bitmap full = MatToBitmap(rotated);
+                Bitmap full = MatToBitmapBgr24(rotated);
                 if (best.Width <= 0 || best.Height <= 0)
                     return full;
 
@@ -107,7 +107,7 @@ namespace ScannerApp.Utils
                 if (best.Width < 40 || best.Height < 40)
                     return full;
 
-                Bitmap cropped = full.Clone(best, full.PixelFormat);
+                Bitmap cropped = full.Clone(best, PixelFormat.Format24bppRgb);
                 full.Dispose();
                 return cropped;
             }
@@ -165,21 +165,79 @@ namespace ScannerApp.Utils
             return angles[angles.Count / 2];
         }
 
+        /// <summary>LockBits copy — avoids PNG encode/decode on every page (major scan throughput win).</summary>
         private static Mat BitmapToMatBgr(Bitmap bmp)
         {
-            using var ms = new MemoryStream();
-            bmp.Save(ms, ImageFormat.Png);
-            byte[] data = ms.ToArray();
-            Mat mat = new Mat();
-            CvInvoke.Imdecode(data, ImreadModes.Color, mat);
-            return mat;
+            if (bmp.PixelFormat != PixelFormat.Format24bppRgb)
+                throw new InvalidOperationException("BitmapToMatBgr expects 24bpp RGB (call EnsureRgb24 first).");
+
+            var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+            var bd = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+            try
+            {
+                var mat = new Mat(bmp.Height, bmp.Width, DepthType.Cv8U, 3);
+                nuint srcStride = (nuint)bd.Stride;
+                nuint dstStep = (nuint)mat.Step;
+                int w = bmp.Width;
+                int h = bmp.Height;
+                nuint rowBytes = (nuint)(w * 3);
+                unsafe
+                {
+                    byte* srcBase = (byte*)bd.Scan0;
+                    byte* dstBase = (byte*)mat.DataPointer;
+                    for (int y = 0; y < h; y++)
+                    {
+                        Buffer.MemoryCopy(
+                            srcBase + (nuint)y * srcStride,
+                            dstBase + (nuint)y * dstStep,
+                            rowBytes,
+                            rowBytes);
+                    }
+                }
+
+                return mat;
+            }
+            finally
+            {
+                bmp.UnlockBits(bd);
+            }
         }
 
-        private static Bitmap MatToBitmap(Mat mat)
+        private static Bitmap MatToBitmapBgr24(Mat mat)
         {
-            byte[] buf = CvInvoke.Imencode(".png", mat) ?? Array.Empty<byte>();
-            using var ms = new MemoryStream(buf);
-            return new Bitmap(ms);
+            if (mat.IsEmpty || mat.Width < 1 || mat.Height < 1)
+                throw new ArgumentException("Invalid mat for bitmap conversion.");
+
+            int w = mat.Width;
+            int h = mat.Height;
+            var bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb);
+            var rect = new Rectangle(0, 0, w, h);
+            var bd = bmp.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+            try
+            {
+                nuint dstStride = (nuint)bd.Stride;
+                nuint srcStep = (nuint)mat.Step;
+                nuint rowBytes = (nuint)(w * 3);
+                unsafe
+                {
+                    byte* dstBase = (byte*)bd.Scan0;
+                    byte* srcBase = (byte*)mat.DataPointer;
+                    for (int y = 0; y < h; y++)
+                    {
+                        Buffer.MemoryCopy(
+                            srcBase + (nuint)y * srcStep,
+                            dstBase + (nuint)y * dstStride,
+                            rowBytes,
+                            rowBytes);
+                    }
+                }
+            }
+            finally
+            {
+                bmp.UnlockBits(bd);
+            }
+
+            return bmp;
         }
 
         private static Bitmap EnsureRgb24(Bitmap src)

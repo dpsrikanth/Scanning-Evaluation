@@ -73,6 +73,8 @@ namespace ScannerApp.Services
                 "ALTER TABLE LocalQueue ADD COLUMN PaperId INTEGER DEFAULT 0",
                 "ALTER TABLE LocalQueue ADD COLUMN UploadScheduleMode TEXT DEFAULT 'immediate'",
                 "ALTER TABLE LocalQueue ADD COLUMN UploadScheduleParam TEXT",
+                "ALTER TABLE LocalQueue ADD COLUMN ScanDurationMs INTEGER",
+                "ALTER TABLE LocalQueue ADD COLUMN ProcessingDurationMs INTEGER",
             })
             {
                 try { using var a = conn.CreateCommand(); a.CommandText = migration; a.ExecuteNonQuery(); }
@@ -91,11 +93,11 @@ namespace ScannerApp.Services
                     (BookletId, ExamId, PaperId, ExamCode, PaperCode, RollNo, Serial, FolderPath, PagesJson,
                      Status, ErrorReason, AttemptCount, LastAttempt, CreatedAt,
                      TotalPagesExpected, TotalPagesScanned, WorkstationId, LocationId,
-                     UploadScheduleMode, UploadScheduleParam)
+                     UploadScheduleMode, UploadScheduleParam, ScanDurationMs, ProcessingDurationMs)
                 VALUES
                     (@id, @examId, @paperId, @exam, @paper, @roll, @serial, @folder, @pages,
                      @status, @error, @attempts, @last, @created, @expected, @scanned, @ws, @loc,
-                     @schedMode, @schedParam)";
+                     @schedMode, @schedParam, @scanMs, @procMs)";
 
             cmd.Parameters.AddWithValue("@id",       record.BookletId);
             cmd.Parameters.AddWithValue("@examId",   record.ExamId);
@@ -117,6 +119,8 @@ namespace ScannerApp.Services
             cmd.Parameters.AddWithValue("@loc",      record.LocationId);
             cmd.Parameters.AddWithValue("@schedMode", record.UploadScheduleMode ?? "immediate");
             cmd.Parameters.AddWithValue("@schedParam", (object?)record.UploadScheduleParam ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@scanMs", record.ScanDurationMs.HasValue ? (object)record.ScanDurationMs.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@procMs", record.ProcessingDurationMs.HasValue ? (object)record.ProcessingDurationMs.Value : DBNull.Value);
             cmd.ExecuteNonQuery();
         }
 
@@ -344,7 +348,23 @@ namespace ScannerApp.Services
                 LocationId         = r["LocationId"]    is DBNull ? 0 : Convert.ToInt32(r["LocationId"]),
                 UploadScheduleMode = TryGetOptionalString(r, "UploadScheduleMode", "immediate"),
                 UploadScheduleParam = TryGetOptionalStringNullable(r, "UploadScheduleParam"),
+                ScanDurationMs       = TryGetOptionalInt32(r, "ScanDurationMs"),
+                ProcessingDurationMs = TryGetOptionalInt32(r, "ProcessingDurationMs"),
             };
+        }
+
+        private static int? TryGetOptionalInt32(SqliteDataReader r, string column)
+        {
+            try
+            {
+                var v = r[column];
+                if (v is DBNull) return null;
+                return Convert.ToInt32(v);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static string TryGetOptionalString(SqliteDataReader r, string column, string fallback)

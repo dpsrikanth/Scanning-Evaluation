@@ -6,10 +6,13 @@ namespace ScannerApp.Utils
     public static class UploadScheduleHelper
     {
         /// <summary>Returns true when a pending queue row may be uploaded now (local time).</summary>
-        public static bool ShouldUploadNow(LocalBookletRecord record)
+        public static bool ShouldUploadNow(LocalBookletRecord record) =>
+            ShouldUploadNow(record, DateTime.Now);
+
+        /// <summary>Same as <see cref="ShouldUploadNow(LocalBookletRecord)"/> but uses <paramref name="now"/> for tests / UI preview.</summary>
+        public static bool ShouldUploadNow(LocalBookletRecord record, DateTime now)
         {
             var mode = (record.UploadScheduleMode ?? "immediate").Trim().ToLowerInvariant();
-            var now = DateTime.Now;
 
             return mode switch
             {
@@ -21,6 +24,55 @@ namespace ScannerApp.Utils
                 "custom" => MinutesSince(record.CreatedAt, now) >= ParseMinutes(record.UploadScheduleParam, 60),
                 _ => true,
             };
+        }
+
+        /// <summary>Earliest local time at or after <paramref name="now"/> when <see cref="ShouldUploadNow"/> becomes true.</summary>
+        public static DateTime GetNextEligibleUploadTime(LocalBookletRecord record, DateTime now)
+        {
+            if (ShouldUploadNow(record, now))
+                return now;
+
+            var mode = (record.UploadScheduleMode ?? "immediate").Trim().ToLowerInvariant();
+            return mode switch
+            {
+                "immediate" => now,
+                "end_of_day" or "endofday" or "eod" or "eod_2300" => NextEndOfDayWindow(now),
+                "every_4h" or "every_4_hours" => NextEveryNHoursWindowStart(now, 4),
+                "every_8h" or "every_8_hours" => NextEveryNHoursWindowStart(now, 8),
+                "every_12h" or "every_12_hours" => NextEveryNHoursWindowStart(now, 12),
+                "custom" => record.CreatedAt.AddMinutes(ParseMinutes(record.UploadScheduleParam, 60)),
+                _ => now,
+            };
+        }
+
+        private static DateTime NextEndOfDayWindow(DateTime now)
+        {
+            var today23 = new DateTime(now.Year, now.Month, now.Day, 23, 0, 0, DateTimeKind.Local);
+            if (now < today23)
+                return today23;
+            return today23.AddDays(1);
+        }
+
+        /// <summary>Next start of a [hour:00, hour:29] window where hour % n == 0, strictly after <paramref name="now"/> if outside window.</summary>
+        private static DateTime NextEveryNHoursWindowStart(DateTime now, int n)
+        {
+            if (now.Hour % n == 0 && now.Minute < 30)
+                return now;
+
+            var day = now.Date;
+            for (int add = 0; add < 3; add++)
+            {
+                var d = day.AddDays(add);
+                for (int h = 0; h < 24; h++)
+                {
+                    if (h % n != 0) continue;
+                    var start = d.AddHours(h);
+                    if (start > now)
+                        return start;
+                }
+            }
+
+            return now.AddMinutes(1);
         }
 
         private static int ParseMinutes(string? param, int fallback)

@@ -122,13 +122,11 @@ namespace ScannerApp.Services
                 SetWiaProperty(item.Properties, WIA_IPS_XRES, template.DPI);
                 SetWiaProperty(item.Properties, WIA_IPS_YRES, template.DPI);
 
-                // Set color mode properties first
+                // Set pixel type / depth first, then scan intent (feeder path must set COLOR intent too;
+                // omitting it leaves some drivers in grayscale even when IPA_DATATYPE=Color).
                 ApplyScanQuality(item.Properties, template);
-                if (template.ColorMode != "Color")
-                {
-                    int intent = ColorModeToIntent(template.ColorMode);
-                    SetWiaProperty(item.Properties, WIA_IPS_CUR_INTENT, intent);
-                }
+                int intent = ColorModeToIntent(template.ColorMode);
+                SetWiaProperty(item.Properties, WIA_IPS_CUR_INTENT, intent);
 
                 for (int i = 0; i < template.PageCount; i++)
                 {
@@ -319,20 +317,20 @@ namespace ScannerApp.Services
                     SetWiaProperty(item.Properties, WIA_IPS_THRESHOLD, threshold);
 
                 // Explicit pixel colour depth for reliable colour mode
-                switch (colorMode)
+                if (colorMode.Equals("Color", StringComparison.OrdinalIgnoreCase))
                 {
-                    case "Color":
-                        SetWiaProperty(item.Properties, WIA_IPA_DATATYPE, 2);
-                        SetWiaProperty(item.Properties, WIA_IPA_DEPTH,    24);
-                        break;
-                    case "BlackWhite":
-                        SetWiaProperty(item.Properties, WIA_IPA_DATATYPE, 0);
-                        SetWiaProperty(item.Properties, WIA_IPA_DEPTH,    1);
-                        break;
-                    default:
-                        SetWiaProperty(item.Properties, WIA_IPA_DATATYPE, 1);
-                        SetWiaProperty(item.Properties, WIA_IPA_DEPTH,    8);
-                        break;
+                    SetWiaProperty(item.Properties, WIA_IPA_DATATYPE, 2);
+                    SetWiaProperty(item.Properties, WIA_IPA_DEPTH,    24);
+                }
+                else if (colorMode.Equals("BlackWhite", StringComparison.OrdinalIgnoreCase))
+                {
+                    SetWiaProperty(item.Properties, WIA_IPA_DATATYPE, 0);
+                    SetWiaProperty(item.Properties, WIA_IPA_DEPTH,    1);
+                }
+                else
+                {
+                    SetWiaProperty(item.Properties, WIA_IPA_DATATYPE, 1);
+                    SetWiaProperty(item.Properties, WIA_IPA_DEPTH,    8);
                 }
 
                 dynamic imageFile = item.Transfer(WIA_FORMAT_BMP);
@@ -410,12 +408,16 @@ namespace ScannerApp.Services
             catch { return device.Items[1]; }
         }
 
-        private static int ColorModeToIntent(string colorMode) => colorMode switch
+        private static int ColorModeToIntent(string colorMode)
         {
-            "Color"      => WIA_INTENT_IMAGE_TYPE_COLOR,
-            "BlackWhite" => WIA_INTENT_IMAGE_TYPE_TEXT,
-            _            => WIA_INTENT_IMAGE_TYPE_GRAYSCALE,
-        };
+            if (string.IsNullOrWhiteSpace(colorMode))
+                return WIA_INTENT_IMAGE_TYPE_GRAYSCALE;
+            if (colorMode.Equals("Color", StringComparison.OrdinalIgnoreCase))
+                return WIA_INTENT_IMAGE_TYPE_COLOR;
+            if (colorMode.Equals("BlackWhite", StringComparison.OrdinalIgnoreCase))
+                return WIA_INTENT_IMAGE_TYPE_TEXT;
+            return WIA_INTENT_IMAGE_TYPE_GRAYSCALE;
+        }
 
         /// <summary>
         /// Converts the ScanAll Pro 0-255 brightness/contrast scale (128 = neutral) to the
@@ -442,20 +444,20 @@ namespace ScannerApp.Services
                 SetWiaProperty(properties, WIA_IPS_THRESHOLD, template.Threshold);
 
             // Explicit pixel type + bit-depth for reliable colour mode selection
-            switch (template.ColorMode)
+            if (template.ColorMode.Equals("Color", StringComparison.OrdinalIgnoreCase))
             {
-                case "Color":
-                    SetWiaProperty(properties, WIA_IPA_DATATYPE, 2); // IT_COLOR
-                    SetWiaProperty(properties, WIA_IPA_DEPTH,    24);
-                    break;
-                case "BlackWhite":
-                    SetWiaProperty(properties, WIA_IPA_DATATYPE, 0); // IT_BLACKANDWHITE
-                    SetWiaProperty(properties, WIA_IPA_DEPTH,    1);
-                    break;
-                default: // Grayscale
-                    SetWiaProperty(properties, WIA_IPA_DATATYPE, 1); // IT_GRAY
-                    SetWiaProperty(properties, WIA_IPA_DEPTH,    8);
-                    break;
+                SetWiaProperty(properties, WIA_IPA_DATATYPE, 2); // IT_COLOR
+                SetWiaProperty(properties, WIA_IPA_DEPTH,    24);
+            }
+            else if (template.ColorMode.Equals("BlackWhite", StringComparison.OrdinalIgnoreCase))
+            {
+                SetWiaProperty(properties, WIA_IPA_DATATYPE, 0); // IT_BLACKANDWHITE
+                SetWiaProperty(properties, WIA_IPA_DEPTH,    1);
+            }
+            else
+            {
+                SetWiaProperty(properties, WIA_IPA_DATATYPE, 1); // IT_GRAY
+                SetWiaProperty(properties, WIA_IPA_DEPTH,    8);
             }
         }
 

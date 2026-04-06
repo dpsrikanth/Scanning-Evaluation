@@ -184,11 +184,15 @@ namespace ScannerApp.Services
                 SafeSet(() => source.Capabilities.CapFeederEnabled.SetValue(BoolType.False));
             }
 
-            // Brightness / contrast
-            if (template.BrightnessAdj != 0)
-                SafeSet(() => source.Capabilities.ICapBrightness.SetValue((TWFix32)template.BrightnessAdj));
-            if (template.ContrastAdj != 0)
-                SafeSet(() => source.Capabilities.ICapContrast.SetValue((TWFix32)template.ContrastAdj));
+            // Brightness / contrast — template uses 0–255 with 128 = neutral (same as WIA path).
+            // Do not pass 128 as a raw TWAIN value (drivers treat ICAP_* as −1000…+1000, 0 = neutral).
+            const int neutral = 128;
+            int twB = Math.Clamp((template.BrightnessAdj - neutral) * 8, -1000, 1000);
+            int twC = Math.Clamp((template.ContrastAdj - neutral) * 8, -1000, 1000);
+            if (twB != 0)
+                SafeSet(() => source.Capabilities.ICapBrightness.SetValue((TWFix32)twB));
+            if (twC != 0)
+                SafeSet(() => source.Capabilities.ICapContrast.SetValue((TWFix32)twC));
 
             // Auto de-skew
             if (template.DeSkew)
