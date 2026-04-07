@@ -35,6 +35,9 @@ namespace ScannerApp.Utils
         /// </summary>
         public static Bitmap AutoTrimAndDeskew(Bitmap src, bool deskew)
         {
+            if (src.Width < 4 || src.Height < 4)
+                return (Bitmap)src.Clone();
+
             // AForge requires 24bpp RGB as input for most filters
             Bitmap rgb = EnsureRgb24(src);
 
@@ -94,7 +97,8 @@ namespace ScannerApp.Utils
         /// </summary>
         public static Bitmap TrimBottomWhiteMargin(Bitmap src)
         {
-            const int PadBottomPx = 6;
+            const int PadBottomPx = 14;
+            const double MaxTrimRatio = 0.12; // never remove more than 12% of the height
 
             bool ownRgb = false;
             Bitmap rgb = src;
@@ -123,24 +127,24 @@ namespace ScannerApp.Utils
                 int stride = data.Stride;
                 int bottom = -1;
 
-                int sideIgnore = Math.Max(12, w / 7); // ignore left/right border rails while checking bottom tail
+                int sideIgnore = Math.Max(12, w / 10);
                 int xStart = sideIgnore;
                 int xEnd = Math.Max(xStart + 1, w - sideIgnore);
+
+                int minBottomY = (int)(h * (1.0 - MaxTrimRatio));
 
                 unsafe
                 {
                     byte* ptr = (byte*)data.Scan0;
                     int contentRun = 0;
-                    for (int y = h - 1; y >= 0; y--)
+                    for (int y = h - 1; y >= minBottomY; y--)
                     {
                         if (!IsEmptyScannerBedRow(ptr + y * stride, xStart, xEnd))
                         {
                             contentRun++;
-                            // Require a small contiguous run so single noisy speckle rows
-                            // at the bottom do not block trimming.
-                            if (contentRun >= 3)
+                            if (contentRun >= 2)
                             {
-                                bottom = Math.Min(h - 1, y + 2);
+                                bottom = Math.Min(h - 1, y + 1);
                                 break;
                             }
                         }
@@ -167,14 +171,6 @@ namespace ScannerApp.Utils
                 var result = rgb.Clone(rect, PixelFormat.Format24bppRgb);
                 if (ownRgb) rgb.Dispose();
 
-                // Second pass: noise can leave a thin band after the first crop (do not use `using` — we return `second`).
-                Bitmap second = TrimBottomWhiteMarginOnce(result, PadBottomPx);
-                if (!ReferenceEquals(second, result))
-                {
-                    result.Dispose();
-                    return second;
-                }
-
                 return result;
             }
             catch
@@ -182,51 +178,6 @@ namespace ScannerApp.Utils
                 if (ownRgb) rgb.Dispose();
                 return src;
             }
-        }
-
-        /// <summary>Single trim pass (used internally; avoids recursion on second pass).</summary>
-        private static Bitmap TrimBottomWhiteMarginOnce(Bitmap rgb, int padBottomPx)
-        {
-            int w = rgb.Width;
-            int h = rgb.Height;
-            var data = rgb.LockBits(
-                new Rectangle(0, 0, w, h),
-                ImageLockMode.ReadOnly,
-                PixelFormat.Format24bppRgb);
-            int stride = data.Stride;
-            int bottom = -1;
-            int sideIgnore = Math.Max(12, w / 7);
-            int xStart = sideIgnore;
-            int xEnd = Math.Max(xStart + 1, w - sideIgnore);
-            unsafe
-            {
-                byte* ptr = (byte*)data.Scan0;
-                int contentRun = 0;
-                for (int y = h - 1; y >= 0; y--)
-                {
-                    if (!IsEmptyScannerBedRow(ptr + y * stride, xStart, xEnd))
-                    {
-                        contentRun++;
-                        if (contentRun >= 3)
-                        {
-                            bottom = Math.Min(h - 1, y + 2);
-                            break;
-                        }
-                    }
-                    else contentRun = 0;
-                }
-            }
-
-            rgb.UnlockBits(data);
-
-            if (bottom < 0)
-                return rgb;
-
-            int newH = Math.Min(h, bottom + 1 + padBottomPx);
-            if (newH >= h - 2)
-                return rgb;
-
-            return rgb.Clone(new Rectangle(0, 0, w, newH), PixelFormat.Format24bppRgb);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -289,15 +240,14 @@ namespace ScannerApp.Utils
         /// </summary>
         private static Bitmap CropToContent(Bitmap src)
         {
-            const int WhiteThreshold = 240; // pixel channel value considered "white"
-            const int MarginPx       = 4;   // leave a few pixels of padding
+            const int WhiteThreshold = 240;
+            const int MarginPx       = 6;
 
             try
             {
                 int w = src.Width;
                 int h = src.Height;
 
-                // Lock bits for fast pixel access
                 var data = src.LockBits(
                     new Rectangle(0, 0, w, h),
                     ImageLockMode.ReadOnly,
@@ -310,28 +260,24 @@ namespace ScannerApp.Utils
                 {
                     byte* ptr = (byte*)data.Scan0;
 
-                    // Scan top edge down
                     for (int y = 0; y < h; y++)
                     {
                         if (!IsWhiteRow(ptr + y * stride, w, WhiteThreshold))
                         { top = y; break; }
                     }
 
-                    // Scan bottom edge up
                     for (int y = h - 1; y >= top; y--)
                     {
                         if (!IsWhiteRow(ptr + y * stride, w, WhiteThreshold))
                         { bottom = y; break; }
                     }
 
-                    // Scan left edge right
                     for (int x = 0; x < w; x++)
                     {
                         if (!IsWhiteCol(ptr, x, h, stride, WhiteThreshold))
                         { left = x; break; }
                     }
 
-                    // Scan right edge left
                     for (int x = w - 1; x >= left; x--)
                     {
                         if (!IsWhiteCol(ptr, x, h, stride, WhiteThreshold))
@@ -341,21 +287,28 @@ namespace ScannerApp.Utils
 
                 src.UnlockBits(data);
 
-                // Add margin and clamp
                 top    = Math.Max(0,     top    - MarginPx);
                 left   = Math.Max(0,     left   - MarginPx);
                 bottom = Math.Min(h - 1, bottom + MarginPx);
                 right  = Math.Min(w - 1, right  + MarginPx);
 
+                // Never crop more than 8% from top or bottom -- protects sparse handwriting
+                int maxTopCrop    = (int)(h * 0.08);
+                int maxBottomCrop = (int)(h * 0.08);
+                if (top > maxTopCrop)    top    = maxTopCrop;
+                if (bottom < h - 1 - maxBottomCrop) bottom = h - 1 - maxBottomCrop;
+
                 int cropW = right  - left + 1;
                 int cropH = bottom - top  + 1;
 
-                // If the crop removes less than 1% in every direction, don't bother
+                if (cropW < 4 || cropH < 4 || left < 0 || top < 0 || left + cropW > w || top + cropH > h)
+                    return src;
+
                 if (cropW >= w * 0.99 && cropH >= h * 0.99)
                     return src;
 
                 var rect = new Rectangle(left, top, cropW, cropH);
-                return src.Clone(rect, src.PixelFormat);
+                return src.Clone(rect, PixelFormat.Format24bppRgb);
             }
             catch
             {
@@ -421,17 +374,17 @@ namespace ScannerApp.Utils
                 byte r = rowPtr[x * 3 + 2];
                 int lum = (r + g + b) / 3;
                 sumLum += lum;
-                if (lum < 205) dark++;
-                if (lum < 170) veryDark++;
+                if (lum < 210) dark++;
+                if (lum < 175) veryDark++;
             }
 
             double meanLum = (double)sumLum / span;
-            // Rows with only scanner-bed tail are bright and have very sparse dark pixels.
-            // Compression noise can create speckles, so use density thresholds (not single-pixel checks).
             double darkDensity = dark / (double)span;
             double veryDarkDensity = veryDark / (double)span;
 
-            bool hasRealContent = meanLum < 239.5 || darkDensity > 0.010 || veryDarkDensity > 0.0035;
+            // Tighter thresholds: only consider truly blank scanner-bed rows as empty.
+            // Sparse handwriting (light ink, few strokes) must survive this check.
+            bool hasRealContent = meanLum < 246.0 || darkDensity > 0.005 || veryDarkDensity > 0.002;
             return !hasRealContent;
         }
 

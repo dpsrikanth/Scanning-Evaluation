@@ -26,6 +26,18 @@ namespace ScannerApp.Forms
         private string                   _storagePath = "";
         private readonly List<ScannedPage> _currentPages = new();
         private CancellationTokenSource? _scanCts;
+        private bool                     _isScanning;
+        private bool                     _isPaused;
+
+        // ── Pause / resume gate ──────────────────────────────────────────────
+        private ManualResetEventSlim     _pauseEvent = new(true);
+
+        // ── Real-time barcode collection ─────────────────────────────────────
+        private readonly ConcurrentDictionary<int, string?> _pageBarcodesRealtime = new();
+        private volatile bool            _barcodeFailureDetected;
+
+        // ── Connectivity polling ─────────────────────────────────────────────
+        private System.Windows.Forms.Timer? _connectivityTimer;
 
         // ── Left panel controls ───────────────────────────────────────────────
         private Label      _lblOperator     = null!;
@@ -62,16 +74,26 @@ namespace ScannerApp.Forms
         private Label      _lblNextUpload   = null!;
         private const int ActivityLogMaxLines = 500;
 
-        /// <summary>Pages finished processing (deskew/save), flushed to UI in 1..N order.</summary>
-        private readonly ConcurrentDictionary<int, (string FilePath, string Hash)> _pagesReadyForUi = new();
-        private int _nextSequentialUiPage = 1;
-        private readonly object _sequentialUiLock = new();
+
+        // ── Scan flow control buttons ────────────────────────────────────────
+        private Button     _btnPause        = null!;
+        private Button     _btnCancel       = null!;
 
         // ── Header bar ────────────────────────────────────────────────────────
         private Panel      _headerPanel     = null!;
         private Label      _lblAppTitle     = null!;
+        private Label      _lblServerStatus = null!;
+        private Label      _lblScannerStatus = null!;
         private Button     _btnLogout       = null!;
         private Button     _btnChangePath   = null!;
+        private Button     _btnToggleQueue  = null!;
+        private Button     _btnToggleActivity = null!;
+
+        // ── Bottom panel refs ────────────────────────────────────────────────
+        private Panel      _queueCard       = null!;
+        private Panel      _logCard         = null!;
+        private TableLayoutPanel _bottomOuter = null!;
+        private TableLayoutPanel _mainTable  = null!;
 
         // ── Colors ────────────────────────────────────────────────────────────
         private static readonly Color ColorPrimary    = Color.FromArgb(13, 110, 74);
@@ -104,8 +126,9 @@ namespace ScannerApp.Forms
             Font            = new Font("Segoe UI", 9);
             FormBorderStyle = FormBorderStyle.Sizable;
 
-            BuildHeader();
             BuildMainLayout();
+            BuildHeader();
+            _headerPanel.BringToFront();
         }
 
         private void BuildHeader()
@@ -213,14 +236,78 @@ namespace ScannerApp.Forms
             _btnQcRejected.FlatAppearance.BorderSize = 0;
             _btnQcRejected.Click += BtnQcRejected_Click;
 
+            _lblServerStatus = new Label
+            {
+                Text      = "● Server: …",
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                Dock      = DockStyle.Right,
+                Width     = 110,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false,
+            };
+
+            _lblScannerStatus = new Label
+            {
+                Text      = "● Scanner: …",
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                Dock      = DockStyle.Right,
+                Width     = 120,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false,
+            };
+
+            _btnToggleQueue = new Button
+            {
+                Text      = "Queue ▾",
+                Width     = 70,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(40, 60, 100),
+                ForeColor = Color.White,
+                Cursor    = Cursors.Hand,
+                Dock      = DockStyle.Right,
+                Font      = new Font("Segoe UI", 7.5f),
+            };
+            _btnToggleQueue.FlatAppearance.BorderSize = 0;
+            _btnToggleQueue.Click += (_, _) =>
+            {
+                bool show = !_queueCard.Visible;
+                _queueCard.Visible = show;
+                _btnToggleQueue.Text = show ? "Queue ▾" : "Queue ▸";
+                AdjustBottomPanelLayout();
+            };
+
+            _btnToggleActivity = new Button
+            {
+                Text      = "Activity ▾",
+                Width     = 75,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(40, 60, 100),
+                ForeColor = Color.White,
+                Cursor    = Cursors.Hand,
+                Dock      = DockStyle.Right,
+                Font      = new Font("Segoe UI", 7.5f),
+            };
+            _btnToggleActivity.FlatAppearance.BorderSize = 0;
+            _btnToggleActivity.Click += (_, _) =>
+            {
+                bool show = !_logCard.Visible;
+                _logCard.Visible = show;
+                _btnToggleActivity.Text = show ? "Activity ▾" : "Activity ▸";
+                AdjustBottomPanelLayout();
+            };
+
             _headerPanel.Controls.AddRange(new Control[]
-                { _lblAppTitle, _lblOperator, _btnQcRejected, _btnViewLog, _btnChangePath, _btnLogout });
+                { _lblAppTitle, _lblOperator,
+                  _btnToggleActivity, _btnToggleQueue, _btnQcRejected, _btnViewLog, _btnChangePath,
+                  _lblScannerStatus, _lblServerStatus, _btnLogout });
             Controls.Add(_headerPanel);
         }
 
         private void BuildMainLayout()
         {
-            var mainTable = new TableLayoutPanel
+            _mainTable = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
                 ColumnCount = 2,
@@ -228,17 +315,17 @@ namespace ScannerApp.Forms
                 Padding     = new Padding(8),
                 BackColor   = ColorSurface,
             };
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260));
-            mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 268));
+            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260));
+            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            _mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 268));
 
-            mainTable.Controls.Add(BuildLeftPanel(), 0, 0);
-            mainTable.Controls.Add(BuildCenterPanel(), 1, 0);
-            mainTable.Controls.Add(BuildBottomPanel(), 0, 1);
-            mainTable.SetColumnSpan(mainTable.GetControlFromPosition(0, 1)!, 2);
+            _mainTable.Controls.Add(BuildLeftPanel(), 0, 0);
+            _mainTable.Controls.Add(BuildCenterPanel(), 1, 0);
+            _mainTable.Controls.Add(BuildBottomPanel(), 0, 1);
+            _mainTable.SetColumnSpan(_mainTable.GetControlFromPosition(0, 1)!, 2);
 
-            Controls.Add(mainTable);
+            Controls.Add(_mainTable);
         }
 
         private Panel BuildLeftPanel()
@@ -402,7 +489,43 @@ namespace ScannerApp.Forms
             };
             _btnScan.FlatAppearance.BorderSize = 0;
             _btnScan.Click += BtnScan_Click;
-            y += 60;
+            y += 56;
+
+            // Pause / Cancel row (visible only during scanning)
+            var flowRow = new Panel { Location = new Point(14, y), Width = 228, Height = 32, Visible = false };
+            _btnPause = new Button
+            {
+                Text      = "⏸ PAUSE",
+                Width     = 110,
+                Height    = 30,
+                Dock      = DockStyle.Left,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(230, 160, 30),
+                ForeColor = Color.White,
+                Font      = new Font("Segoe UI", 9, FontStyle.Bold),
+                Cursor    = Cursors.Hand,
+            };
+            _btnPause.FlatAppearance.BorderSize = 0;
+            _btnPause.Click += BtnPause_Click;
+
+            _btnCancel = new Button
+            {
+                Text      = "✕ CANCEL",
+                Width     = 110,
+                Height    = 30,
+                Dock      = DockStyle.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = ColorDanger,
+                ForeColor = Color.White,
+                Font      = new Font("Segoe UI", 9, FontStyle.Bold),
+                Cursor    = Cursors.Hand,
+            };
+            _btnCancel.FlatAppearance.BorderSize = 0;
+            _btnCancel.Click += BtnCancel_Click;
+
+            flowRow.Controls.AddRange(new Control[] { _btnPause, _btnCancel });
+            flowRow.Tag = "scanFlowRow";
+            y += 38;
 
             _progressBar = new ProgressBar
             {
@@ -429,7 +552,7 @@ namespace ScannerApp.Forms
             {
                 _lblWorkstation, _lblDriverMode,
                 _cboExam, _cboPaper, _cboTemplate, _txtTemplateDetail,
-                scannerRow, _chkDeskewTrim, _chkTwainUi, _lblQcRescan, _txtQcRescanId, _btnScan, _progressBar, _lblStatus,
+                scannerRow, _chkDeskewTrim, _chkTwainUi, _lblQcRescan, _txtQcRescanId, _btnScan, flowRow, _progressBar, _lblStatus,
             });
 
             // Add all section labels manually
@@ -466,12 +589,13 @@ namespace ScannerApp.Forms
             _pageImages = new ImageList { ImageSize = new Size(80, 106), ColorDepth = ColorDepth.Depth32Bit };
             _lvPages = new ListView
             {
-                Dock          = DockStyle.Fill,
-                View          = View.LargeIcon,
-                LargeImageList = _pageImages,
-                BackColor     = ColorCard,
-                BorderStyle   = BorderStyle.None,
-                MultiSelect   = false,
+                Dock             = DockStyle.Fill,
+                View             = View.LargeIcon,
+                LargeImageList   = _pageImages,
+                BackColor        = ColorCard,
+                BorderStyle      = BorderStyle.None,
+                MultiSelect      = false,
+                ShowItemToolTips = true,
             };
             _lvPages.SelectedIndexChanged += LvPages_SelectedChanged;
             var ctxPages = new ContextMenuStrip();
@@ -506,8 +630,10 @@ namespace ScannerApp.Forms
             };
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 58f));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 42f));
+            _bottomOuter = outer;
 
             var queueCard = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard };
+            _queueCard = queueCard;
             queueCard.Paint += PaintCardBorder;
 
             // Header row: queue label + status filter dropdown
@@ -614,6 +740,7 @@ namespace ScannerApp.Forms
             queueCard.Controls.Add(headerRow);
 
             var logCard = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(4) };
+            _logCard = logCard;
             logCard.Paint += PaintCardBorder;
             var logLabel = new Label
             {
@@ -704,7 +831,10 @@ namespace ScannerApp.Forms
                 try { LoadScanners(); }
                 catch { SetStatus("Could not enumerate scanners", false); }
 
-                // 6. Local queue (always initialize — works offline)
+                // 6. Server + scanner connectivity polling
+                StartConnectivityPolling();
+
+                // 7. Local queue (always initialize — works offline)
                 _queue = new LocalQueueService(_storagePath, _api);
                 _queue.StatusChanged += (id, status, err) =>
                     BeginInvoke(() =>
@@ -817,6 +947,44 @@ namespace ScannerApp.Forms
                 Append();
         }
 
+        private void StartConnectivityPolling()
+        {
+            bool hasApiUrl = !string.IsNullOrWhiteSpace(_api.BaseUrl);
+            _lblServerStatus.Visible = hasApiUrl;
+
+            _ = CheckConnectivityAsync();
+            _connectivityTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
+            _connectivityTimer.Tick += async (_, _) => await CheckConnectivityAsync();
+            _connectivityTimer.Start();
+        }
+
+        private async Task CheckConnectivityAsync()
+        {
+            try
+            {
+                bool serverOk = await _api.PingAsync();
+                _lblServerStatus.Text      = serverOk ? "● Server: Online" : "● Server: Offline";
+                _lblServerStatus.ForeColor = serverOk ? Color.FromArgb(80, 220, 120) : Color.FromArgb(255, 90, 90);
+            }
+            catch
+            {
+                _lblServerStatus.Text      = "● Server: Offline";
+                _lblServerStatus.ForeColor = Color.FromArgb(255, 90, 90);
+            }
+
+            try
+            {
+                bool scannerOk = _scanner.IsConnected();
+                _lblScannerStatus.Text      = scannerOk ? "● Scanner: Ready" : "● Scanner: None";
+                _lblScannerStatus.ForeColor = scannerOk ? Color.FromArgb(80, 220, 120) : Color.FromArgb(255, 180, 60);
+            }
+            catch
+            {
+                _lblScannerStatus.Text      = "● Scanner: Error";
+                _lblScannerStatus.ForeColor = Color.FromArgb(255, 90, 90);
+            }
+        }
+
         private void ApplyWorkstation()
         {
             if (_myWorkstation == null)
@@ -878,10 +1046,14 @@ namespace ScannerApp.Forms
                     : -1;
                 _cboScanner.SelectedIndex = matchIdx >= 0 ? matchIdx : 0;
                 SetStatus($"{scanners.Count} scanner(s) found", false);
+                _lblScannerStatus.Text      = "● Scanner: Ready";
+                _lblScannerStatus.ForeColor = Color.FromArgb(80, 220, 120);
             }
             else
             {
                 SetStatus("No scanners detected. Connect a scanner and click ⟳", false);
+                _lblScannerStatus.Text      = "● Scanner: None";
+                _lblScannerStatus.ForeColor = Color.FromArgb(255, 180, 60);
             }
         }
 
@@ -919,6 +1091,29 @@ namespace ScannerApp.Forms
             File.Move(tmp, finalPath);
         }
 
+        /// <summary>
+        /// Deletes a folder with up to 3 retries (500ms apart) to handle lingering file locks
+        /// from IronBarcode, GDI+ Bitmap, or anti-virus scanners.
+        /// </summary>
+        private static void TryDeleteFolderWithRetry(string folder)
+        {
+            if (!Directory.Exists(folder)) return;
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    if (attempt > 0) Thread.Sleep(500);
+                    Directory.Delete(folder, true);
+                    return;
+                }
+                catch
+                {
+                    // retry
+                }
+            }
+            AppLogger.Warn($"Could not delete folder after 3 attempts: {folder}");
+        }
+
         private static void TryDeleteRawJpegs(string folder, int pageCount)
         {
             for (int i = 1; i <= pageCount; i++)
@@ -936,59 +1131,77 @@ namespace ScannerApp.Forms
             }
         }
 
-        private void RegisterProcessedPageForUi(int pageNum, string finalPath, string pageHash)
+        /// <summary>Shows raw (unprocessed) scan in the page list and preview immediately on arrival.</summary>
+        private void AddRawPageToUi(int pageNum, Bitmap rawBmp)
         {
-            _pagesReadyForUi[pageNum] = (finalPath, pageHash);
-            lock (_sequentialUiLock)
-            {
-                while (_pagesReadyForUi.TryRemove(_nextSequentialUiPage, out var info))
-                {
-                    int n = _nextSequentialUiPage++;
-                    BeginInvoke(new Action(() => AddScannedPageToUi(n, info.FilePath, info.Hash)));
-                }
-            }
-        }
-
-        private void AddScannedPageToUi(int pageNum, string imagePath, string pageHash)
-        {
-            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
-                return;
-
             var sp = new ScannedPage
             {
                 PageNumber = pageNum,
-                FilePath   = imagePath,
-                Hash       = pageHash,
+                FilePath   = "",
+                Hash       = null,
                 IsPage1    = pageNum == 1,
             };
             _currentPages.Add(sp);
 
+            var thumb = CreateThumbnail(rawBmp, _pageImages.ImageSize);
+            _pageImages.Images.Add(thumb);
+            var item = new ListViewItem($"P{pageNum}", _pageImages.Images.Count - 1)
+            {
+                Tag       = pageNum - 1,
+                ForeColor = pageNum == 1 ? Color.White : ColorText,
+                BackColor = pageNum == 1 ? ColorAccent : Color.Transparent,
+                Font      = pageNum == 1 ? new Font("Segoe UI", 8, FontStyle.Bold) : _lvPages.Font,
+            };
+            _lvPages.Items.Add(item);
+
+            try { _picPreview.Image?.Dispose(); } catch { }
+            _picPreview.Image = (Bitmap)rawBmp.Clone();
+            SetStatus($"Page {pageNum} scanned (processing…)", true);
+        }
+
+        /// <summary>Replaces the thumbnail and preview with the processed (deskewed/trimmed) image.</summary>
+        private void UpdateProcessedPageInUi(int pageNum, string finalPath, string pageHash)
+        {
+            var sp = _currentPages.FirstOrDefault(p => p.PageNumber == pageNum);
+            if (sp != null)
+            {
+                sp.FilePath = finalPath;
+                sp.Hash     = pageHash;
+            }
+
+            if (string.IsNullOrWhiteSpace(finalPath) || !File.Exists(finalPath))
+                return;
+
             Bitmap? uiBmp = null;
-            Bitmap? previewClone = null;
             try
             {
-                uiBmp = new Bitmap(imagePath);
-                var thumb = CreateThumbnail(uiBmp, _pageImages.ImageSize);
-                _pageImages.Images.Add(thumb);
-                var item = new ListViewItem($"P{pageNum}", pageNum - 1)
+                // Load via MemoryStream so the file lock is released immediately
+                var bytes = File.ReadAllBytes(finalPath);
+                using var ms = new System.IO.MemoryStream(bytes);
+                uiBmp = new Bitmap(ms);
+                int imgIdx = pageNum - 1;
+                if (imgIdx >= 0 && imgIdx < _pageImages.Images.Count)
                 {
-                    Tag       = pageNum - 1,
-                    ForeColor = pageNum == 1 ? Color.White : ColorText,
-                    BackColor = pageNum == 1 ? ColorAccent : Color.Transparent,
-                    Font      = pageNum == 1 ? new Font("Segoe UI", 8, FontStyle.Bold) : _lvPages.Font,
-                };
-                _lvPages.Items.Add(item);
+                    _pageImages.Images[imgIdx]?.Dispose();
+                    _pageImages.Images[imgIdx] = CreateThumbnail(uiBmp, _pageImages.ImageSize);
+                    _lvPages.Invalidate();
+                }
 
-                previewClone = (Bitmap)uiBmp.Clone();
+                bool isSelected = _lvPages.SelectedItems.Count > 0
+                    && _lvPages.SelectedItems[0].Tag is int selIdx && selIdx == pageNum - 1;
+                bool isLast = pageNum == _currentPages.Count;
+                if (isSelected || isLast)
+                {
+                    try { _picPreview.Image?.Dispose(); } catch { }
+                    _picPreview.Image = (Bitmap)uiBmp.Clone();
+                }
             }
             finally
             {
                 uiBmp?.Dispose();
             }
 
-            try { _picPreview.Image?.Dispose(); } catch { /* ignore */ }
-            _picPreview.Image = previewClone;
-            SetStatus($"Page {pageNum} ready ({_currentPages.Count} total)", true);
+            SetStatus($"Page {pageNum} processed ({_currentPages.Count} total)", true);
         }
 
         /// <summary>Background pipeline: raw JPEG, optional deskew/trim, decode, ordered UI flush.</summary>
@@ -1001,28 +1214,40 @@ namespace ScannerApp.Forms
             SemaphoreSlim sem)
         {
             sem.Wait();
+            var sw = Stopwatch.StartNew();
             try
             {
                 string rawPath = Path.Combine(folder, $"page_{pageNum:D3}_raw.jpg");
                 string finalPath = Path.Combine(folder, $"page_{pageNum:D3}.jpg");
+
+                int srcW = sourceBmp.Width, srcH = sourceBmp.Height;
+                var srcFmt = sourceBmp.PixelFormat;
+                string deskewLabel = deskewTrim ? "deskew + trim" : "copy";
+                BeginInvoke(() => AppendActivity($"P{pageNum}: saving raw JPEG ({srcW}x{srcH} {srcFmt})…"));
                 try
                 {
                     ImageHelper.SaveAsJpeg(sourceBmp, rawPath, tmpl.JpegQuality);
-                    BeginInvoke(() => AppendActivity($"P{pageNum}: raw JPEG saved"));
+                    var rawSize = new FileInfo(rawPath).Length / 1024;
+                    BeginInvoke(() => AppendActivity($"P{pageNum}: raw JPEG saved ({rawSize} KB)"));
                 }
                 catch (Exception ex)
                 {
-                    BeginInvoke(() => AppendActivity($"P{pageNum}: raw save failed — {ex.Message}"));
-                    RegisterProcessedPageForUi(pageNum, string.Empty, string.Empty);
+                    AppLogger.Error($"P{pageNum}: raw save failed: {ex.Message}", ex);
+                    BeginInvoke(() => AppendActivity($"P{pageNum}: ERROR raw save failed — {ex.Message}"));
                     return;
                 }
 
+                _pauseEvent.Wait(CancellationToken.None);
+
+                BeginInvoke(() => AppendActivity($"P{pageNum}: {deskewLabel} started…"));
                 try
                 {
                     if (deskewTrim)
                     {
                         using var processed = ImageHelper.AutoTrimAndDeskew(sourceBmp, true);
+                        int pw = processed.Width, ph = processed.Height;
                         WriteFinalJpegAtomic(processed, finalPath, tmpl.JpegQuality);
+                        BeginInvoke(() => AppendActivity($"P{pageNum}: deskew OK → {pw}x{ph}"));
                     }
                     else
                     {
@@ -1031,64 +1256,44 @@ namespace ScannerApp.Forms
                 }
                 catch (Exception ex)
                 {
-                    BeginInvoke(() => AppendActivity($"P{pageNum}: deskew/save failed — {ex.Message}; using raw copy."));
+                    AppLogger.Error($"P{pageNum}: deskew/save failed: {ex.Message}", ex);
+                    BeginInvoke(() => AppendActivity($"P{pageNum}: WARN deskew failed — {ex.Message}; using raw copy"));
                     try { WriteFinalJpegAtomic(sourceBmp, finalPath, tmpl.JpegQuality); }
                     catch (Exception ex2)
                     {
-                        BeginInvoke(() => AppendActivity($"P{pageNum}: fallback save failed — {ex2.Message}"));
-                        RegisterProcessedPageForUi(pageNum, string.Empty, string.Empty);
+                        AppLogger.Error($"P{pageNum}: fallback save failed: {ex2.Message}", ex2);
+                        BeginInvoke(() => AppendActivity($"P{pageNum}: ERROR fallback save failed — {ex2.Message}"));
                         return;
                     }
                 }
 
-                // Flush thumbs/preview as soon as the final JPEG exists (before slow barcode decode).
                 string hash = "";
                 if (File.Exists(finalPath))
                 {
-                    try
+                    try { hash = HashHelper.ComputeSha256(finalPath); }
+                    catch (Exception ex)
                     {
-                        hash = HashHelper.ComputeSha256(finalPath);
-                    }
-                    catch
-                    {
-                        // ignore
+                        AppLogger.Error($"P{pageNum}: hash failed: {ex.Message}", ex);
                     }
                 }
 
-                RegisterProcessedPageForUi(pageNum, finalPath, hash);
-                BeginInvoke(() => AppendActivity($"P{pageNum}: final JPEG ready"));
-
-                if (File.Exists(finalPath))
+                var finalSize = File.Exists(finalPath) ? new FileInfo(finalPath).Length / 1024 : 0;
+                sw.Stop();
+                BeginInvoke(() =>
                 {
-                    try
-                    {
-                        using var decBmp = new Bitmap(finalPath);
-                        var (lin, qr) = _barcode.ReadLinearAndQrParallel(decBmp);
-                        string footer = "";
-                        if (pageNum >= tmpl.BarcodeStartPage)
-                            footer = _barcode.ReadPageSerialOrFooter(decBmp, pageNum, tmpl.BarcodeStartPage, tmpl.BarcodeZonesJson) ?? "";
-                        string msg = pageNum >= tmpl.BarcodeStartPage
-                            ? $"P{pageNum}: decode linear={lin ?? "—"} QR={qr ?? "—"} footer#={(string.IsNullOrEmpty(footer) ? "—" : footer)}"
-                            : $"P{pageNum}: decode linear={lin ?? "—"} QR={qr ?? "—"}";
-                        BeginInvoke(() => AppendActivity(msg));
-                    }
-                    catch
-                    {
-                        // decode is best-effort
-                    }
-                }
+                    UpdateProcessedPageInUi(pageNum, finalPath, hash);
+                    AppendActivity($"P{pageNum}: processed OK ({finalSize} KB, {sw.ElapsedMilliseconds} ms)");
+                });
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error($"P{pageNum}: pipeline unexpected error: {ex.Message}", ex);
+                BeginInvoke(() => AppendActivity($"P{pageNum}: ERROR pipeline — {ex.Message}"));
             }
             finally
             {
-                try
-                {
-                    sourceBmp.Dispose();
-                }
-                catch
-                {
-                    // ignore
-                }
-
+                try { sourceBmp.Dispose(); }
+                catch (Exception ex) { AppLogger.Error($"P{pageNum}: dispose error: {ex.Message}", ex); }
                 sem.Release();
             }
         }
@@ -1130,17 +1335,14 @@ namespace ScannerApp.Forms
                            $"workstationDriver={_myWorkstation?.DriverType ?? "n/a"} deskewTrim={_chkDeskewTrim.Checked}");
 
             // UI: enter scanning state
-            _btnScan.Enabled     = false;
-            _progressBar.Visible = true;
-            SetStatus($"Scanning — {effectiveTemplate.TemplateName}…", true);
             _currentPages.Clear();
             _lvPages.Items.Clear();
             _pageImages.Images.Clear();
             _picPreview.Image = null;
-            _pagesReadyForUi.Clear();
-            _nextSequentialUiPage = 1;
 
             _scanCts = new CancellationTokenSource();
+            EnterScanningState();
+            SetStatus($"Scanning — {effectiveTemplate.TemplateName}…", true);
 
             var pendingFolder = BuildBookletFolder("PENDING", effectiveTemplate);
             Directory.CreateDirectory(pendingFolder);
@@ -1152,7 +1354,10 @@ namespace ScannerApp.Forms
             bool deskewTrim = _chkDeskewTrim.Checked;
             int pageCounter = 0;
 
-            AppendActivity($"Scan started — {effectiveTemplate.TemplateName} ({effectiveTemplate.PageCount} pp expected)");
+            AppendActivity($"Scan started — {effectiveTemplate.TemplateName} ({effectiveTemplate.PageCount} pp, {effectiveTemplate.DPI} DPI, {scanSrc})");
+            AppendActivity($"  Scanner: {scannerName} ({driverName}), deskew={deskewTrim}, parallel workers={parallel}");
+            AppendActivity($"  Barcode start page: {effectiveTemplate.BarcodeStartPage}, zones: {effectiveTemplate.BarcodeZonesJson ?? "(none)"}");
+            AppendActivity($"  Output folder: {pendingFolder}");
 
             var progress = new Progress<Bitmap>(bmp =>
             {
@@ -1178,9 +1383,18 @@ namespace ScannerApp.Forms
                 }
                 catch (Exception ex)
                 {
-                    AppendActivity($"P{pageNum}: could not clone bitmap — {ex.Message}");
-                    RegisterProcessedPageForUi(pageNum, string.Empty, string.Empty);
+                    AppLogger.Error($"P{pageNum}: clone bitmap failed: {ex.Message}", ex);
+                    AppendActivity($"P{pageNum}: ERROR clone bitmap — {ex.Message}");
                     return;
+                }
+
+                try
+                {
+                    AddRawPageToUi(pageNum, bmp);
+                }
+                catch (Exception ex2)
+                {
+                    AppLogger.Error($"P{pageNum}: raw preview failed: {ex2.Message}", ex2);
                 }
 
                 var c = clone!;
@@ -1202,7 +1416,7 @@ namespace ScannerApp.Forms
                     try
                     {
                         if (Directory.Exists(pendingFolder))
-                            Directory.Delete(pendingFolder, true);
+                            TryDeleteFolderWithRetry(pendingFolder);
                     }
                     catch
                     {
@@ -1227,9 +1441,11 @@ namespace ScannerApp.Forms
                         }
                         catch
                         {
-                            RegisterProcessedPageForUi(page1, string.Empty, string.Empty);
                             continue;
                         }
+
+                        // Add raw preview for catch-up pages
+                        try { AddRawPageToUi(page1, bitmaps[i]); } catch { }
 
                         int n = page1;
                         var bb = b;
@@ -1238,15 +1454,225 @@ namespace ScannerApp.Forms
                 }
 
                 var processSw = Stopwatch.StartNew();
+                AppendActivity($"Waiting for {pageTasks.Count} deskew tasks to finish…");
                 await Task.WhenAll(pageTasks);
-                AppendActivity($"Pipeline: all {bitmaps.Count} pages processed on disk");
+                AppendActivity($"Pipeline: all {bitmaps.Count} pages deskewed + saved ({scanSw.Elapsed.TotalSeconds:0.0}s scan, {processSw.Elapsed.TotalSeconds:0.0}s process so far)");
 
-                SetStatus($"Scan complete — validating and building booklet…", true);
+                // ── Parallel barcode reading (each thread gets its own BarcodeService) ──
+                SetStatus($"Reading barcodes in parallel…", true);
+                int maxWorkers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
+                AppendActivity($"Barcode scan: starting parallel read ({maxWorkers} workers)…");
 
-                var seriesWarning = ValidatePageSeries(bitmaps, pendingFolder, effectiveTemplate.BarcodeStartPage, effectiveTemplate.BarcodeZonesJson);
-                if (seriesWarning != null)
-                    MessageBox.Show(seriesWarning, "Page Series Warning",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                int failedAtPage = 0;
+                var ct = _scanCts!.Token;
+                int barcodeStart = effectiveTemplate.BarcodeStartPage;
+                string? zonesJson = effectiveTemplate.BarcodeZonesJson;
+                int totalPages = bitmaps.Count;
+
+                await Task.Run(() =>
+                {
+                    // IronBarcode is fully thread-safe — share the single _barcode instance
+                    try
+                    {
+                        var opts = new ParallelOptions
+                        {
+                            MaxDegreeOfParallelism = maxWorkers,
+                            CancellationToken = ct,
+                        };
+
+                        Parallel.For(1, totalPages + 1, opts, (pg, loopState) =>
+                        {
+                            if (_barcodeFailureDetected || ct.IsCancellationRequested) { loopState.Stop(); return; }
+
+                            string fpFinal = Path.Combine(pendingFolder, $"page_{pg:D3}.jpg");
+                            string fpRaw   = Path.Combine(pendingFolder, $"page_{pg:D3}_raw.jpg");
+                            int pageNum = pg;
+
+                            if (!File.Exists(fpFinal))
+                            {
+                                AppLogger.Warn($"P{pageNum}: final JPEG missing at {fpFinal}");
+                                BeginInvoke(() => AppendActivity($"P{pageNum}: WARN final JPEG not found — skipped"));
+                                return;
+                            }
+
+                            var bc = _barcode;
+                            var pageSw = Stopwatch.StartNew();
+                            try
+                            {
+                                string? lin = null, qr = null;
+                                string? footer = null;
+                                string diagInfo = "";
+
+                                // Load bitmap via MemoryStream to release the file lock immediately.
+                                // new Bitmap(filePath) keeps the file locked until the bitmap is disposed.
+                                int decW = 0, decH = 0;
+                                Bitmap? decBmp = null;
+                                try
+                                {
+                                    var imgBytes = File.ReadAllBytes(fpFinal);
+                                    using var imgMs = new System.IO.MemoryStream(imgBytes);
+                                    decBmp = new Bitmap(imgMs);
+                                    decW = decBmp.Width; decH = decBmp.Height;
+
+                                    if (pageNum < barcodeStart)
+                                    {
+                                        try { (lin, qr) = bc.ReadLinearAndQrParallel(decBmp); }
+                                        catch (Exception ex) { AppLogger.Error($"P{pageNum}: ReadLinearAndQr: {ex.Message}", ex); }
+                                    }
+                                    else
+                                    {
+                                        var (r1, d1) = bc.ReadPageSerialOrFooterWithDiag(decBmp, pageNum, barcodeStart, zonesJson);
+                                        footer = r1;
+                                        diagInfo = $"[pass1 {decW}x{decH}] {d1}";
+                                    }
+                                }
+                                finally { decBmp?.Dispose(); }
+
+                                if (pageNum >= barcodeStart && string.IsNullOrEmpty(footer) && File.Exists(fpRaw))
+                                {
+                                    BeginInvoke(() => AppendActivity($"P{pageNum}: barcode retry (raw)…"));
+                                    try
+                                    {
+                                        var rawBytes = File.ReadAllBytes(fpRaw);
+                                        using var rawMs = new System.IO.MemoryStream(rawBytes);
+                                        using var rawBmp = new Bitmap(rawMs);
+                                        var (r2, d2) = bc.ReadPageSerialOrFooterWithDiag(rawBmp, pageNum, barcodeStart, zonesJson);
+                                        footer = r2;
+                                        diagInfo += $"\n[pass2-raw] {d2}";
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        diagInfo += $"\n[pass2-raw] error: {ex.Message}";
+                                        AppLogger.Error($"P{pageNum}: pass2: {ex.Message}", ex);
+                                    }
+                                }
+
+                                _pageBarcodesRealtime[pageNum] = footer;
+                                pageSw.Stop();
+
+                                string barcodeDisplay = pageNum >= barcodeStart ? (footer ?? "—") : (lin ?? qr ?? "—");
+                                string logLine = $"P{pageNum}: barcode={barcodeDisplay} ({pageSw.ElapsedMilliseconds} ms)";
+                                AppLogger.Info(logLine);
+                                BeginInvoke(() => AppendActivity(logLine));
+
+                                if (pageNum >= barcodeStart)
+                                {
+                                    bool ok = !string.IsNullOrEmpty(footer);
+                                    string tip = ok ? $"{footer}\n---\n{diagInfo}" : $"FAILED\n---\n{diagInfo}";
+                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, ok, tip));
+
+                                    if (!ok)
+                                    {
+                                        Interlocked.CompareExchange(ref failedAtPage, pageNum, 0);
+                                        _barcodeFailureDetected = true;
+                                        AppLogger.Warn($"P{pageNum}: *** BARCODE FAILED ***\n{diagInfo}");
+                                        BeginInvoke(() => AppendActivity($"P{pageNum}: *** BARCODE MISSING / UNREADABLE ***"));
+                                        loopState.Stop();
+                                    }
+                                }
+                                else
+                                {
+                                    string tip = lin ?? qr ?? "(cover page)";
+                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, true, tip));
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                AppLogger.Error($"P{pageNum}: barcode exception: {ex.Message}", ex);
+                                BeginInvoke(() => AppendActivity($"P{pageNum}: ERROR barcode — {ex.Message}"));
+                                if (pageNum >= barcodeStart)
+                                {
+                                    _pageBarcodesRealtime[pageNum] = null;
+                                    Interlocked.CompareExchange(ref failedAtPage, pageNum, 0);
+                                    _barcodeFailureDetected = true;
+                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, false, $"exception: {ex.Message}"));
+                                    loopState.Stop();
+                                }
+                            }
+                        });
+                    }
+                    catch (OperationCanceledException) { }
+                    finally { }
+                });
+
+                // Handle barcode failure or cancellation AFTER the loop exits (on UI thread)
+                if (ct.IsCancellationRequested)
+                {
+                    AppendActivity("Barcode reading cancelled by user");
+                    throw new OperationCanceledException(ct);
+                }
+
+                if (_barcodeFailureDetected)
+                {
+                    processSw.Stop();
+                    AppendActivity($"Barcode scan stopped at page {failedAtPage}");
+
+                    try
+                    {
+                        if (Directory.Exists(pendingFolder))
+                            TryDeleteFolderWithRetry(pendingFolder);
+                    }
+                    catch { }
+
+                    _currentPages.Clear();
+                    _lvPages.Items.Clear();
+                    _pageImages.Images.Clear();
+                    try { _picPreview.Image?.Dispose(); } catch { }
+                    _picPreview.Image = null;
+                    _picPreview.BackColor = Color.FromArgb(230, 235, 242);
+                    _pageBarcodesRealtime.Clear();
+
+                    MessageBox.Show(
+                        $"Scan Failed: Barcode missing / unreadable at page {failedAtPage}.\n\n" +
+                        $"Action:\nPlease re-scan the entire document.",
+                        "Scan Failed — Barcode Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    _barcodeFailureDetected = false;
+                    SetStatus("Ready — re-scan required", false);
+                    AppendActivity("Reset complete — ready for new scan");
+                    return;
+                }
+
+                AppendActivity($"Barcode scan complete for {bitmaps.Count} pages");
+
+                SetStatus($"Scan complete — validating sequence…", true);
+
+                // ── STRICT barcode sequence validation (HARD STOP on failure) ──
+                var validationError = ValidateBarcodeSequenceStrict(
+                    bitmaps.Count, effectiveTemplate.BarcodeStartPage);
+                if (validationError != null)
+                {
+                    processSw.Stop();
+                    AppLogger.Error($"Barcode validation HARD STOP: {validationError}");
+                    AppendActivity($"*** BARCODE VALIDATION FAILED ***\n{validationError}");
+
+                    try
+                    {
+                        if (Directory.Exists(pendingFolder))
+                            TryDeleteFolderWithRetry(pendingFolder);
+                    }
+                    catch { }
+
+                    _currentPages.Clear();
+                    _lvPages.Items.Clear();
+                    _pageImages.Images.Clear();
+                    try { _picPreview.Image?.Dispose(); } catch { }
+                    _picPreview.Image = null;
+                    _pageBarcodesRealtime.Clear();
+
+                    MessageBox.Show(
+                        $"Scan Failed: Barcode sequence error detected.\n\n" +
+                        $"Reason:\n{validationError}\n\n" +
+                        $"Action:\nPlease re-scan the entire document.",
+                        "Scan Failed — Barcode Validation",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    SetStatus("Scan failed — barcode validation error", false);
+                    return;
+                }
+
+                AppendActivity("Barcode sequence validated — OK");
 
                 var pagesForZones = new List<Bitmap>();
                 Dictionary<string, string> zoneMap;
@@ -1255,8 +1681,10 @@ namespace ScannerApp.Forms
                     for (int i = 1; i <= bitmaps.Count; i++)
                     {
                         var pth = Path.Combine(pendingFolder, $"page_{i:D3}.jpg");
-                        if (File.Exists(pth))
-                            pagesForZones.Add(new Bitmap(pth));
+                        if (!File.Exists(pth)) continue;
+                        var b2 = File.ReadAllBytes(pth);
+                        using var ms2 = new System.IO.MemoryStream(b2);
+                        pagesForZones.Add(new Bitmap(ms2));
                     }
 
                     zoneMap = _barcode.DecodeTemplateZones(pagesForZones, effectiveTemplate.BarcodeZonesJson);
@@ -1387,7 +1815,7 @@ namespace ScannerApp.Forms
                         try
                         {
                             if (Directory.Exists(finalFolder))
-                                Directory.Delete(finalFolder, true);
+                                TryDeleteFolderWithRetry(finalFolder);
                         }
                         catch
                         {
@@ -1407,39 +1835,43 @@ namespace ScannerApp.Forms
                 {
                     if (scanSw.IsRunning)
                         scanSw.Stop();
-                    AppLogger.Warn("Scan cancelled by user.");
-                    AppendActivity("Scan cancelled by user");
-                    try
-                    {
-                        await Task.WhenAll(pageTasks);
-                    }
-                    catch
-                    {
-                        // pipeline may fail if folder is torn down mid-write
-                    }
+                    _pauseEvent.Set();
+                    AppLogger.Warn("Scan cancelled (OperationCanceledException)");
+                    AppendActivity("Scan cancelled");
+                    try { await Task.WhenAll(pageTasks); } catch { }
 
-                    try
+                    if (_barcodeFailureDetected)
                     {
-                        if (Directory.Exists(pendingFolder))
-                            Directory.Delete(pendingFolder, true);
+                        try
+                        {
+                            if (Directory.Exists(pendingFolder))
+                                TryDeleteFolderWithRetry(pendingFolder);
+                        }
+                        catch { }
                     }
-                    catch
+                    else
                     {
-                        // ignore
-                    }
+                        AppLogger.Warn("Scan cancelled by user.");
+                        AppendActivity("Scan cancelled by user");
+                        try
+                        {
+                            if (Directory.Exists(pendingFolder))
+                                TryDeleteFolderWithRetry(pendingFolder);
+                        }
+                        catch { }
 
-                    SetStatus("Scan cancelled", false);
+                        _currentPages.Clear();
+                        _lvPages.Items.Clear();
+                        _pageImages.Images.Clear();
+                        try { _picPreview.Image?.Dispose(); } catch { }
+                        _picPreview.Image = null;
+                        SetStatus("Scan cancelled", false);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    try
-                    {
-                        await Task.WhenAll(pageTasks);
-                    }
-                    catch
-                    {
-                        // pipeline tasks may fail after scan error; do not dispose sem until drained
-                    }
+                    _pauseEvent.Set();
+                    try { await Task.WhenAll(pageTasks); } catch { }
 
                     AppLogger.Error($"Scan exception: {ex.Message}", ex);
                     SetStatus($"Scan error: {ex.Message}", false);
@@ -1449,12 +1881,92 @@ namespace ScannerApp.Forms
             finally
             {
                 pipelineSem?.Dispose();
-                _btnScan.Enabled     = true;
-                _progressBar.Visible = false;
+                ExitScanningState();
                 _scanCts?.Dispose();
                 _scanCts = null;
             }
         }
+
+        // ── Scan flow state ──────────────────────────────────────────────────
+
+        private void EnterScanningState()
+        {
+            _isScanning = true;
+            _isPaused   = false;
+            _barcodeFailureDetected = false;
+            _pageBarcodesRealtime.Clear();
+            _pauseEvent.Set();
+            _picPreview.BackColor = Color.FromArgb(230, 235, 242);
+
+            _btnScan.Enabled     = false;
+            _progressBar.Visible = true;
+
+            var flowRow = Controls.Find("scanFlowRow", true);
+            foreach (var c in flowRow) c.Visible = true;
+            // Also search in panels
+            foreach (Control ctl in Controls)
+                ShowFlowRow(ctl, true);
+
+            _btnPause.Text      = "⏸ PAUSE";
+            _btnPause.BackColor = Color.FromArgb(230, 160, 30);
+        }
+
+        private void ExitScanningState()
+        {
+            _isScanning = false;
+            _isPaused   = false;
+            _pauseEvent.Set();
+
+            _btnScan.Enabled     = true;
+            _progressBar.Visible = false;
+
+            foreach (Control ctl in Controls)
+                ShowFlowRow(ctl, false);
+        }
+
+        private static void ShowFlowRow(Control parent, bool visible)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (c.Tag is string tag && tag == "scanFlowRow")
+                    c.Visible = visible;
+                else
+                    ShowFlowRow(c, visible);
+            }
+        }
+
+        private void BtnPause_Click(object? sender, EventArgs e)
+        {
+            if (!_isScanning) return;
+
+            if (_isPaused)
+            {
+                _isPaused = false;
+                _pauseEvent.Set();
+                _btnPause.Text      = "⏸ PAUSE";
+                _btnPause.BackColor = Color.FromArgb(230, 160, 30);
+                AppendActivity("Resumed — processing continues");
+                SetStatus("Scanning — resumed", true);
+            }
+            else
+            {
+                _isPaused = true;
+                _pauseEvent.Reset();
+                _btnPause.Text      = "▶ RESUME";
+                _btnPause.BackColor = Color.FromArgb(30, 140, 60);
+                AppendActivity("Paused — waiting to resume…");
+                SetStatus("Paused — click RESUME to continue", true);
+            }
+        }
+
+        private void BtnCancel_Click(object? sender, EventArgs e)
+        {
+            if (!_isScanning) return;
+            _scanCts?.Cancel();
+            _pauseEvent.Set();
+            AppendActivity("Cancel requested — stopping scan…");
+        }
+
 
         // ── Page list view ────────────────────────────────────────────────────
 
@@ -1492,7 +2004,13 @@ namespace ScannerApp.Forms
             var idx = _lvPages.SelectedItems[0].Tag is int tagIdx ? tagIdx : 0;
             if (idx < _currentPages.Count && File.Exists(_currentPages[idx].FilePath))
             {
-                try { _picPreview.Image = System.Drawing.Image.FromFile(_currentPages[idx].FilePath); }
+                try
+                {
+                    var b = File.ReadAllBytes(_currentPages[idx].FilePath);
+                    using var ms = new System.IO.MemoryStream(b);
+                    _picPreview.Image?.Dispose();
+                    _picPreview.Image = new Bitmap(ms);
+                }
                 catch { }
             }
         }
@@ -1513,7 +2031,9 @@ namespace ScannerApp.Forms
                 if (!File.Exists(sp.FilePath)) continue;
                 try
                 {
-                    using var bmp = new Bitmap(sp.FilePath);
+                    var bBytes = File.ReadAllBytes(sp.FilePath);
+                    using var bMs = new System.IO.MemoryStream(bBytes);
+                    using var bmp = new Bitmap(bMs);
                     var found = _barcode.ReadAllBarcodesDetailed(bmp);
                     if (found.Count == 0)
                         lines.Add($"Page {i + 1}: (none)");
@@ -1675,6 +2195,84 @@ namespace ScannerApp.Forms
                    $"Detected pages: {string.Join(", ", found)}";
         }
 
+        /// <summary>
+        /// Strict barcode sequence validation using real-time collected data.
+        /// Returns null when validation passes; returns error description on failure.
+        /// </summary>
+        private string? ValidateBarcodeSequenceStrict(int totalPages, int barcodeStartPage)
+        {
+            int startPage = Math.Max(1, barcodeStartPage);
+            if (totalPages < startPage) return null;
+
+            var errors = new List<string>();
+            var pageNumbers = new List<int>();
+
+            for (int p = startPage; p <= totalPages; p++)
+            {
+                if (!_pageBarcodesRealtime.TryGetValue(p, out var raw) || string.IsNullOrEmpty(raw))
+                {
+                    errors.Add($"- Missing / unreadable barcode at page {p}");
+                    AppLogger.Error($"Barcode validation: page {p} — barcode NULL or unreadable");
+                    continue;
+                }
+
+                string? numStr = int.TryParse(raw, out _)
+                    ? raw
+                    : raw.Split('_').LastOrDefault(s => int.TryParse(s, out _));
+
+                if (numStr == null || !int.TryParse(numStr, out int pageNum) || pageNum <= 0)
+                {
+                    errors.Add($"- Non-numeric barcode at page {p}: \"{raw}\"");
+                    AppLogger.Error($"Barcode validation: page {p} — non-numeric barcode \"{raw}\"");
+                    continue;
+                }
+
+                pageNumbers.Add(pageNum);
+            }
+
+            if (errors.Count > 0)
+                return string.Join("\n", errors);
+
+            // Check for duplicates
+            var duplicates = pageNumbers.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (duplicates.Count > 0)
+            {
+                foreach (var d in duplicates)
+                {
+                    var pages = Enumerable.Range(startPage, totalPages - startPage + 1)
+                        .Where(p => _pageBarcodesRealtime.TryGetValue(p, out var v) && ParseBarcodeNum(v) == d)
+                        .ToList();
+                    errors.Add($"- Duplicate barcode value {d} found on pages: {string.Join(", ", pages)}");
+                    AppLogger.Error($"Barcode validation: duplicate value {d} on pages {string.Join(", ", pages)}");
+                }
+                return string.Join("\n", errors);
+            }
+
+            // Check for gaps in sequence
+            pageNumbers.Sort();
+            var missing = Enumerable.Range(pageNumbers[0], pageNumbers[^1] - pageNumbers[0] + 1)
+                .Except(pageNumbers)
+                .ToList();
+
+            if (missing.Count > 0)
+            {
+                var msg = $"- Barcode sequence gap: missing value(s) {string.Join(", ", missing)}\n" +
+                          $"  Detected sequence: {string.Join(", ", pageNumbers)}";
+                AppLogger.Error($"Barcode validation: sequence gap — missing {string.Join(", ", missing)}");
+                return msg;
+            }
+
+            return null;
+        }
+
+        private static int? ParseBarcodeNum(string? raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+            if (int.TryParse(raw, out int direct) && direct > 0) return direct;
+            var last = raw.Split('_').LastOrDefault(s => int.TryParse(s, out _));
+            return last != null && int.TryParse(last, out int n) && n > 0 ? n : null;
+        }
+
         private string BuildBookletFolder(string id, ScanTemplate template) =>
             Path.Combine(_storagePath, "booklets", $"PENDING_{template.TemplateName}_{DateTime.Now:yyyyMMdd_HHmmss}");
 
@@ -1689,10 +2287,134 @@ namespace ScannerApp.Forms
             return thumb;
         }
 
+        /// <summary>Draws a green tick or red cross badge on the bottom-right of an existing thumbnail.</summary>
+        private static void StampBarcodeStatus(Bitmap thumb, bool ok)
+        {
+            using var g = Graphics.FromImage(thumb);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            int badgeSize = Math.Max(16, Math.Min(thumb.Width, thumb.Height) / 4);
+            int x = thumb.Width  - badgeSize - 2;
+            int y = thumb.Height - badgeSize - 2;
+            var rect = new Rectangle(x, y, badgeSize, badgeSize);
+
+            if (ok)
+            {
+                using var brush = new SolidBrush(Color.FromArgb(210, 20, 160, 60));
+                g.FillEllipse(brush, rect);
+                using var pen = new Pen(Color.White, Math.Max(1.5f, badgeSize / 8f));
+                g.DrawLines(pen, new[]
+                {
+                    new PointF(x + badgeSize * 0.22f, y + badgeSize * 0.52f),
+                    new PointF(x + badgeSize * 0.42f, y + badgeSize * 0.72f),
+                    new PointF(x + badgeSize * 0.78f, y + badgeSize * 0.30f),
+                });
+            }
+            else
+            {
+                using var brush = new SolidBrush(Color.FromArgb(210, 210, 40, 40));
+                g.FillEllipse(brush, rect);
+                using var pen = new Pen(Color.White, Math.Max(1.5f, badgeSize / 8f));
+                float m = badgeSize * 0.28f;
+                g.DrawLine(pen, x + m, y + m, x + badgeSize - m, y + badgeSize - m);
+                g.DrawLine(pen, x + badgeSize - m, y + m, x + m, y + badgeSize - m);
+            }
+        }
+
+        /// <summary>
+        /// Updates the thumbnail badge, list item text, and tooltip for a page after barcode decode.
+        /// Must be called on the UI thread.
+        /// </summary>
+        private void MarkPageBarcodeStatus(int pageNum, bool ok, string? tooltipText = null)
+        {
+            var sp = _currentPages.FirstOrDefault(p => p.PageNumber == pageNum);
+            if (sp != null)
+            {
+                sp.BarcodeOk   = ok;
+                sp.BarcodeData = tooltipText;
+            }
+
+            int imgIdx = pageNum - 1;
+            if (imgIdx >= 0 && imgIdx < _pageImages.Images.Count)
+            {
+                var existing = _pageImages.Images[imgIdx] as Bitmap;
+                if (existing != null)
+                {
+                    StampBarcodeStatus(existing, ok);
+                    _pageImages.Images[imgIdx] = existing;
+                    _lvPages.Invalidate();
+                }
+            }
+
+            if (imgIdx >= 0 && imgIdx < _lvPages.Items.Count)
+            {
+                var item = _lvPages.Items[imgIdx];
+                item.Text = ok ? $"P{pageNum} ✓" : $"P{pageNum} ✗";
+                item.ForeColor = ok ? ColorPrimary : ColorDanger;
+                item.ToolTipText = ok
+                    ? $"Page {pageNum} — Barcode: {tooltipText}"
+                    : $"Page {pageNum} — BARCODE FAILED: {tooltipText}";
+            }
+
+            if (!ok)
+            {
+                bool isSelected = _lvPages.SelectedItems.Count > 0
+                    && _lvPages.SelectedItems[0].Tag is int selIdx && selIdx == imgIdx;
+                bool isLast = pageNum == _currentPages.Count;
+                if (isSelected || isLast)
+                    _picPreview.BackColor = Color.FromArgb(255, 230, 230);
+            }
+        }
+
         private void SetStatus(string text, bool busy)
         {
             _lblStatus.Text      = text;
             _progressBar.Visible = busy;
+        }
+
+        private void AdjustBottomPanelLayout()
+        {
+            bool q = _queueCard.Visible, a = _logCard.Visible;
+            bool anyVisible = q || a;
+
+            // Adjust the main table: collapse bottom row when both panels are hidden
+            _mainTable.RowStyles.Clear();
+            if (anyVisible)
+            {
+                _mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                _mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 268));
+            }
+            else
+            {
+                _mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                _mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+            }
+
+            // Adjust within the bottom panel
+            _bottomOuter.RowStyles.Clear();
+            if (q && a)
+            {
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 58f));
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 42f));
+            }
+            else if (q)
+            {
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+            }
+            else if (a)
+            {
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            }
+            else
+            {
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+                _bottomOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+            }
+
+            _bottomOuter.PerformLayout();
+            _mainTable.PerformLayout();
         }
 
         private static Color StatusColor(string status) => status switch
@@ -1819,7 +2541,9 @@ namespace ScannerApp.Forms
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            try { _connectivityTimer?.Stop(); _connectivityTimer?.Dispose(); } catch { }
             try { _scanCts?.Cancel(); _scanCts?.Dispose(); _scanCts = null; } catch { }
+            try { _pauseEvent.Set(); _pauseEvent.Dispose(); } catch { }
             try { _queue?.StopBackgroundUpload(); } catch { }
             try { _queue?.Dispose(); _queue = null; } catch { }
             base.OnFormClosing(e);
@@ -1834,5 +2558,7 @@ namespace ScannerApp.Forms
         public string? BarcodeData { get; set; }
         public string Status     { get; set; } = "Valid";
         public bool   IsPage1    { get; set; } = false;
+        /// <summary>null = not yet decoded, true = barcode OK, false = missing/unreadable.</summary>
+        public bool?  BarcodeOk  { get; set; }
     }
 }

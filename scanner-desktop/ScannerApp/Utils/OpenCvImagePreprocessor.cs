@@ -91,20 +91,29 @@ namespace ScannerApp.Utils
                     }
                 }
 
-                const int pad = 8;
+                const int pad = 10;
                 Bitmap full = MatToBitmapBgr24(rotated);
                 if (best.Width <= 0 || best.Height <= 0)
                     return full;
 
+                int x0 = Math.Max(0, best.X - pad);
+                int y0 = Math.Max(0, best.Y - pad);
+                int maxW = Math.Max(1, full.Width - x0);
+                int maxH = Math.Max(1, full.Height - y0);
+                int rw = Math.Clamp(best.Width + 2 * pad, 1, maxW);
+                int rh = Math.Clamp(best.Height + 2 * pad, 1, maxH);
                 best = Rectangle.Intersect(
                     new Rectangle(0, 0, full.Width, full.Height),
-                    new Rectangle(
-                        Math.Max(0, best.X - pad),
-                        Math.Max(0, best.Y - pad),
-                        Math.Min(full.Width - Math.Max(0, best.X - pad), best.Width + 2 * pad),
-                        Math.Min(full.Height - Math.Max(0, best.Y - pad), best.Height + 2 * pad)));
+                    new Rectangle(x0, y0, rw, rh));
 
-                if (best.Width < 40 || best.Height < 40)
+                if (best.Width < 40 || best.Height < 40 || best.Width < 1 || best.Height < 1)
+                    return full;
+
+                // Never crop more than 15% of the height or width -- protects
+                // sparse handwritten content that the contour detector may miss.
+                int minW = (int)(full.Width  * 0.85);
+                int minH = (int)(full.Height * 0.85);
+                if (best.Width < minW || best.Height < minH)
                     return full;
 
                 Bitmap cropped = full.Clone(best, PixelFormat.Format24bppRgb);

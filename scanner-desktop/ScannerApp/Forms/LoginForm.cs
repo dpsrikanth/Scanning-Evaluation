@@ -18,19 +18,22 @@ namespace ScannerApp.Forms
         private Button  _btnClose     = null!;
         private Label   _lblStatus    = null!;
         private Button  _btnSettings  = null!;
+        private Label   _lblServerConn  = null!;
+        private Label   _lblScannerConn = null!;
 
         // ── Settings panel controls ───────────────────────────────────────────
         private Panel   _settingsPanel   = null!;
         private TextBox _txtServerUrl    = null!;
         private TextBox _txtStoragePath  = null!;
         private Button  _btnBrowsePath   = null!;
+        private Button  _btnCheckConn    = null!;
         private CheckBox _chkRememberUser = null!;
         private bool    _settingsVisible  = false;
 
         // ── Layout constants ──────────────────────────────────────────────────
         private const int FormWidthCollapsed  = 420;
         private const int FormHeightCollapsed = 460;
-        private const int SettingsPanelHeight = 170;
+        private const int SettingsPanelHeight = 230;
 
         // ── Colors ────────────────────────────────────────────────────────────
         private static readonly Color C_BrandBg     = Color.FromArgb(15, 40, 80);
@@ -258,14 +261,58 @@ namespace ScannerApp.Forms
             _btnBrowsePath.FlatAppearance.BorderColor = C_Border;
             _btnBrowsePath.Click += BtnBrowsePath_Click;
 
+            // Connectivity status row inside settings panel
+            sy += 36;
+            _btnCheckConn = new Button
+            {
+                Text      = "⟳ Check Connectivity",
+                Location  = new Point(12, sy),
+                Size      = new Size(148, 26),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(220, 228, 242),
+                ForeColor = Color.FromArgb(30, 60, 120),
+                Font      = new Font("Segoe UI", 8f),
+                Cursor    = Cursors.Hand,
+            };
+            _btnCheckConn.FlatAppearance.BorderColor = C_Border;
+            _btnCheckConn.Click += async (_, _) => await CheckConnectivityAsync();
+
+            _lblServerConn = new Label
+            {
+                Text      = "● Server: —",
+                Location  = new Point(168, sy + 4),
+                Size      = new Size(180, 18),
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = C_Muted,
+                AutoSize  = false,
+            };
+
+            sy += 32;
+            _lblScannerConn = new Label
+            {
+                Text      = "● Scanner: —",
+                Location  = new Point(12, sy),
+                Size      = new Size(230, 18),
+                Font      = new Font("Segoe UI", 8f),
+                ForeColor = C_Muted,
+                AutoSize  = false,
+            };
+
             _settingsPanel.Controls.AddRange(new Control[]
             {
                 lblUrl, _txtServerUrl,
                 lblPath, _txtStoragePath, _btnBrowsePath,
+                _btnCheckConn, _lblServerConn, _lblScannerConn,
             });
+
+            // Expand settings panel height for the new rows
+            _settingsPanel.Height = sy + 30;
+
             Controls.Add(_settingsPanel);
 
             AcceptButton = _btnLogin;
+
+            Load += async (_, _) => await CheckConnectivityAsync();
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -278,15 +325,62 @@ namespace ScannerApp.Forms
 
             if (_settingsVisible)
             {
-                Height = FormHeightCollapsed + SettingsPanelHeight + 10;
+                Height = FormHeightCollapsed + _settingsPanel.Height + 10;
                 _settingsPanel.Visible = true;
                 _btnSettings.Text      = "⚙  Settings  ▲";
+                _ = CheckConnectivityAsync();
             }
             else
             {
                 _settingsPanel.Visible = false;
                 Height = FormHeightCollapsed;
                 _btnSettings.Text      = "⚙  Settings";
+            }
+        }
+
+        private async Task CheckConnectivityAsync()
+        {
+            // Server connectivity
+            var url = _txtServerUrl?.Text?.Trim().TrimEnd('/') ?? "";
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                _lblServerConn.Text      = "● Server: checking…";
+                _lblServerConn.ForeColor = C_Muted;
+                try
+                {
+                    var saved = _api.BaseUrl;
+                    _api.BaseUrl = url;
+                    bool ok = await _api.PingAsync();
+                    _api.BaseUrl = saved;
+                    _lblServerConn.Text      = ok ? "● Server: Online" : "● Server: Offline";
+                    _lblServerConn.ForeColor = ok ? C_Primary : C_Danger;
+                }
+                catch
+                {
+                    _lblServerConn.Text      = "● Server: Offline";
+                    _lblServerConn.ForeColor = C_Danger;
+                }
+            }
+            else
+            {
+                _lblServerConn.Text      = "● Server: (no URL configured)";
+                _lblServerConn.ForeColor = C_Muted;
+            }
+
+            // Scanner connectivity — enumerate WIA devices
+            try
+            {
+                var svc = new ScannerApp.Services.ScannerService();
+                bool ok = svc.IsConnected();
+                var scanners = svc.GetAvailableScanners();
+                string nameHint = scanners.Count > 0 ? $" — {scanners[0]}" : "";
+                _lblScannerConn.Text      = ok ? $"● Scanner: Ready{nameHint}" : "● Scanner: Not detected";
+                _lblScannerConn.ForeColor = ok ? C_Primary : Color.FromArgb(190, 130, 20);
+            }
+            catch
+            {
+                _lblScannerConn.Text      = "● Scanner: Not detected";
+                _lblScannerConn.ForeColor = Color.FromArgb(190, 130, 20);
             }
         }
 
