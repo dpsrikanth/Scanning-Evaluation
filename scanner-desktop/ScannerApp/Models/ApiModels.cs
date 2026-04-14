@@ -280,6 +280,12 @@ namespace ScannerApp.Models
         public int AttemptCount { get; set; } = 0;
         public DateTime? LastAttempt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        /// <summary>When the operator started this scan session (local workstation time).</summary>
+        public DateTime? ScanStartedAt { get; set; }
+        /// <summary>When deskew/barcode/PDF finished and the booklet was written to the queue.</summary>
+        public DateTime? ScanCompletedAt { get; set; }
+        /// <summary>When the server accepted the upload (local time).</summary>
+        public DateTime? UploadedAt { get; set; }
         public int TotalPagesExpected { get; set; }
         public int TotalPagesScanned { get; set; }
         public int WorkstationId { get; set; }

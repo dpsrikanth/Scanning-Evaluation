@@ -8,18 +8,16 @@
     "build": "node node_modules/vite/bin/vite.js build",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "sync-pdf-worker": "node scripts/sync-pdf-worker.cjs",
-    "postinstall": "npm run sync-pdf-worker"
+    "postinstall": "node scripts/sync-pdf-worker.cjs"
   },
   "dependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
     "face-api.js": "^0.22.2",
     "lucide-react": "^0.576.0",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
+    "react-router-dom": "^6.26.0",
     "vite": "^5.4.2"
   }
 }

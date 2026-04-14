@@ -64,7 +64,14 @@ export default class AdminService {
   }
 
   async updateUser(userId, data, updatedBy) {
-    await this.getUser(userId);
+    const existing = await this.getUser(userId);
+    const role = await this.repo.getRoleById(data.roleId);
+    if (role?.RoleName === 'Evaluator' && !existing.ProfilePhotoPath) {
+      throw Object.assign(
+        new Error('Evaluator role requires a profile photo on file. Use “Update photo” before assigning this role.'),
+        { statusCode: 400 }
+      );
+    }
     const { userStatus, ...rest } = data;
     await this.repo.updateUser(userId, { ...rest, userStatus, updatedBy });
     return { message: 'User updated' };

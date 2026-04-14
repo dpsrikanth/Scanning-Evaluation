@@ -69,6 +69,26 @@
   padding-bottom: 8px; border-bottom: 1px solid var(--color-border);
 }
 
+.sc-session-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+.sc-session-hint strong { color: var(--color-text); }
+
+.sc-verify-error {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-danger);
+  max-width: 100%;
+  text-align: left;
+}
+
+.sc-perm-hint-error { color: var(--color-danger); }
+
 /* ── Period grid ───────────────────────────────────────────────────────────── */
 .sc-period-grid { display: flex; flex-direction: column; gap: 6px; }
 .sc-period-btn {

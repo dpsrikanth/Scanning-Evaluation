@@ -302,6 +302,11 @@ export default function AdminSettings() {
   const saveEditUser = async (e) => {
     e.preventDefault();
     if (!editUser) return;
+    const newRoleName = roles.find((r) => String(r.RoleID) === String(editForm.roleId))?.RoleName;
+    if (newRoleName === 'Evaluator' && !editUser.ProfilePhotoPath) {
+      flash('Evaluator requires a profile photo on file. Use the camera action to upload a photo before assigning this role.', 'error');
+      return;
+    }
     try {
       await api.admin.updateUser(editUser.UserID, editForm);
       flash('User updated.');
@@ -689,6 +694,7 @@ export default function AdminSettings() {
                       <th>User</th>
                       <th>Email</th>
                       <th>Role</th>
+                      <th>Evaluator photo</th>
                       <th>Status</th>
                       <th>First Login</th>
                       <th>Actions</th>
@@ -708,6 +714,17 @@ export default function AdminSettings() {
                         </td>
                         <td>{u.Email || '—'}</td>
                         <td><span className="badge badge-gray">{u.RoleName}</span></td>
+                        <td>
+                          {u.RoleName === 'Evaluator' ? (
+                            u.ProfilePhotoPath ? (
+                              <span className="badge badge-green"><CheckCircle2 size={10} /> Captured</span>
+                            ) : (
+                              <span className="badge badge-red"><AlertCircle size={10} /> Missing</span>
+                            )
+                          ) : (
+                            <span className="user-photo-na">—</span>
+                          )}
+                        </td>
                         <td>{statusBadge(u.UserStatus)}</td>
                         <td>
                           {u.IsFirstLogin

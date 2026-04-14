@@ -1,10 +1,30 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Clock, ChevronRight, Loader2,
-  Camera, Navigation, CheckCircle2, AlertTriangle, XCircle, RefreshCw,
+  Camera, Navigation, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ShieldCheck,
 } from 'lucide-react';
+import * as faceapi from 'face-api.js';
 import { api } from '../services/api';
 import './SessionContextModal.css';
+
+const FACE_MODEL_URL = '/face-api-models';
+let loginFaceModelsLoaded = false;
+async function loadLoginFaceModels() {
+  if (loginFaceModelsLoaded) return;
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+    faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL_URL),
+    faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
+  ]);
+  loginFaceModelsLoaded = true;
+}
+
+function faceDetectorOptsPrimary() {
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.25 });
+}
+function faceDetectorOptsFallback() {
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.15 });
+}
 
 const PERIODS = [
   { value: 'Morning',   label: 'Morning   (8 AM – 12 PM)' },
@@ -33,7 +53,9 @@ export default function SessionContextModal({ onComplete }) {
   const [capturedUrl,  setCapturedUrl]  = useState(null);
   const [photoPath,    setPhotoPath]    = useState(null);
   const [geoCoords,    setGeoCoords]    = useState(null);
-  const [uploading,    setUploading]    = useState(false);
+  /** null | verifying | uploading | done | error */
+  const [verifyPhase, setVerifyPhase]   = useState(null);
+  const [verifyMessage, setVerifyMessage] = useState('');
 
   // ── Session / exam state ───────────────────────────────────────────────────
   const [exams,        setExams]        = useState([]);
@@ -120,7 +142,7 @@ export default function SessionContextModal({ onComplete }) {
       .catch(() => setAssignedExamPaper(null));
   }, [step]);
 
-  // ── Capture ───────────────────────────────────────────────────────────────
+  // ── Capture + mandatory face match vs registration photo, then upload ───────
   const handleCapture = () => {
     const video  = videoRef.current;
     const canvas = canvasRef.current;
@@ -131,31 +153,111 @@ export default function SessionContextModal({ onComplete }) {
     const previewUrl = canvas.toDataURL('image/jpeg', 0.85);
     setCapturedUrl(previewUrl);
     setCamStatus('captured');
-    canvas.toBlob(blob => {
-      setCapturedBlob(blob);
-      uploadPhoto(blob);
-    }, 'image/jpeg', 0.85);
-  };
+    setPhotoPath(null);
+    setCapturedBlob(null);
+    setVerifyPhase('verifying');
+    setVerifyMessage('Verifying your face against your registered photo…');
 
-  const uploadPhoto = async (blob) => {
-    if (!blob) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('photo', blob, 'login_capture.jpg');
-      const result = await api.auth.loginPhoto(fd);
-      setPhotoPath(result.photoPath);
-    } catch {
-      // Non-fatal — proceed without stored path
-    } finally {
-      setUploading(false);
-    }
+    (async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (!user.profilePhotoPath) {
+          setVerifyPhase('error');
+          setVerifyMessage('No registration photo on file. Contact your administrator.');
+          return;
+        }
+        await loadLoginFaceModels();
+        let capDet = await faceapi
+          .detectSingleFace(canvas, faceDetectorOptsPrimary())
+          .withFaceLandmarks(true)
+          .withFaceDescriptor()
+          .catch(() => null);
+        if (!capDet) {
+          capDet = await faceapi
+            .detectSingleFace(canvas, faceDetectorOptsFallback())
+            .withFaceLandmarks(true)
+            .withFaceDescriptor()
+            .catch(() => null);
+        }
+
+        const profileDesc = await new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = async () => {
+            try {
+              let det = await faceapi
+                .detectSingleFace(img, faceDetectorOptsPrimary())
+                .withFaceLandmarks(true)
+                .withFaceDescriptor()
+                .catch(() => null);
+              if (!det) {
+                det = await faceapi
+                  .detectSingleFace(img, faceDetectorOptsFallback())
+                  .withFaceLandmarks(true)
+                  .withFaceDescriptor()
+                  .catch(() => null);
+              }
+              resolve(det?.descriptor || null);
+            } catch {
+              resolve(null);
+            }
+          };
+          img.onerror = () => resolve(null);
+          img.src = api.files.profilePhotoUrl(user.profilePhotoPath);
+        });
+
+        if (!profileDesc) {
+          setVerifyPhase('error');
+          setVerifyMessage('Could not read your registration photo. Contact your administrator.');
+          return;
+        }
+        if (!capDet?.descriptor) {
+          setVerifyPhase('error');
+          setVerifyMessage('No clear face detected. Improve lighting, face the camera squarely, and retake.');
+          return;
+        }
+        const dist = faceapi.euclideanDistance(capDet.descriptor, profileDesc);
+        const score = Math.max(0, Math.round((1 - dist) * 100));
+        if (score < 50) {
+          setVerifyPhase('error');
+          setVerifyMessage(
+            `Face does not match your registration photo (${score}% similarity, need ≥50%). Retake or contact your administrator.`
+          );
+          return;
+        }
+
+        setVerifyPhase('uploading');
+        setVerifyMessage(`Identity verified (${score}% match). Saving login photo…`);
+
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode image'))), 'image/jpeg', 0.85);
+        });
+        const fd = new FormData();
+        fd.append('photo', blob, 'login_capture.jpg');
+        const result = await api.auth.loginPhoto(fd);
+        setPhotoPath(result.photoPath);
+        setCapturedBlob(blob);
+        setVerifyPhase('done');
+        setVerifyMessage(`Verified (${score}% match). You can continue.`);
+      } catch (err) {
+        const msg = err?.message || '';
+        const modelsMissing = /<!DOCTYPE|is not valid JSON|Failed to fetch|404/i.test(String(msg));
+        setVerifyPhase('error');
+        setVerifyMessage(
+          modelsMissing
+            ? 'Face models could not be loaded (check web/public/face-api-models). Install models and try again.'
+            : (msg || 'Verification or upload failed. Retake or try again.')
+        );
+      }
+    })();
   };
 
   const handleRetake = () => {
     setCapturedUrl(null);
     setCapturedBlob(null);
     setPhotoPath(null);
+    setVerifyPhase(null);
+    setVerifyMessage('');
     setCamStatus(streamRef.current ? 'granted' : 'denied');
   };
 
@@ -186,7 +288,8 @@ export default function SessionContextModal({ onComplete }) {
     }
   };
 
-  const canProceed0 = camStatus === 'captured' && !uploading;
+  const verifyBusy = verifyPhase === 'verifying' || verifyPhase === 'uploading';
+  const canProceed0 = camStatus === 'captured' && verifyPhase === 'done' && !!photoPath;
 
   // Step labels for header (2 steps only — centre/workstation not required for evaluators)
   const stepLabels = ['Camera & Location', 'Session & Paper'];
@@ -218,7 +321,10 @@ export default function SessionContextModal({ onComplete }) {
         {/* ── Step 0: Camera + Geolocation ── */}
         {step === 0 && (
           <div className="sc-body">
-            <div className="sc-section-label"><Camera size={14} /> Camera &amp; Location Verification</div>
+            <div className="sc-section-label"><Camera size={14} /> Camera, identity &amp; location</div>
+            <p className="sc-session-hint">
+              Your live photo must <strong>match your administrator-registered profile photo</strong> before you can continue.
+            </p>
 
             <div className="sc-perm-grid">
               {/* Camera card */}
@@ -261,16 +367,22 @@ export default function SessionContextModal({ onComplete }) {
 
                 <div className="sc-cam-footer">
                   {camStatus === 'granted' && (
-                    <button className="btn btn-primary btn-sm" onClick={handleCapture}>
-                      <Camera size={13} /> Capture Photo
+                    <button className="btn btn-primary btn-sm" onClick={handleCapture} disabled={verifyBusy}>
+                      <Camera size={13} /> Capture &amp; verify
                     </button>
                   )}
                   {camStatus === 'captured' && (
                     <div className="sc-cam-captured-bar">
-                      {uploading
-                        ? <span className="sc-uploading"><Loader2 size={13} className="spin" /> Saving…</span>
-                        : <span className="sc-ok"><CheckCircle2 size={13} /> Photo saved</span>}
-                      <button className="btn btn-sm btn-secondary" onClick={handleRetake}>
+                      {verifyPhase === 'verifying' || verifyPhase === 'uploading' ? (
+                        <span className="sc-uploading"><Loader2 size={13} className="spin" /> {verifyMessage || 'Working…'}</span>
+                      ) : verifyPhase === 'done' ? (
+                        <span className="sc-ok"><ShieldCheck size={13} /> {verifyMessage || 'Verified'}</span>
+                      ) : verifyPhase === 'error' ? (
+                        <span className="sc-verify-error"><AlertTriangle size={13} /> {verifyMessage}</span>
+                      ) : (
+                        <span className="sc-uploading"><Loader2 size={13} className="spin" /> …</span>
+                      )}
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={handleRetake} disabled={verifyBusy}>
                         <RefreshCw size={12} /> Retake
                       </button>
                     </div>
@@ -328,7 +440,12 @@ export default function SessionContextModal({ onComplete }) {
 
             {!canProceed0 && camStatus !== 'captured' && (
               <p className="sc-perm-hint">
-                <AlertTriangle size={12} /> Please capture your photo before proceeding
+                <AlertTriangle size={12} /> Capture and pass identity verification before proceeding
+              </p>
+            )}
+            {camStatus === 'captured' && verifyPhase === 'error' && (
+              <p className="sc-perm-hint sc-perm-hint-error">
+                <AlertTriangle size={12} /> Fix the issue above or use Retake, then try again
               </p>
             )}
 

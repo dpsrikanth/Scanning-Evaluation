@@ -1,5 +1,6 @@
 using System.Threading;
 using ScannerApp.Services;
+using ScannerApp.Utils;
 
 namespace ScannerApp.Forms
 {
@@ -71,7 +72,7 @@ namespace ScannerApp.Forms
             int w = (int)(FormWidthCollapsed  * dpiScale);
             int h = (int)(FormHeightCollapsed * dpiScale);
 
-            Text            = "Scanning Station — Login";
+            Text            = $"Scanning Station — Login — {AppVersion.GetTitleSuffix()}";
             Size            = new Size(w, h);
             MinimumSize     = new Size(w, h);
             StartPosition   = FormStartPosition.CenterScreen;
@@ -127,7 +128,7 @@ namespace ScannerApp.Forms
             };
             var lblVersion = new Label
             {
-                Text      = "v1.0",
+                Text      = AppVersion.GetTitleSuffix(),
                 Font      = new Font("Segoe UI", 7.5f),
                 ForeColor = Color.FromArgb(100, 140, 190),
                 Location  = new Point(83, 68),

@@ -1,11 +1,55 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList, BookOpen, Users, CheckSquare, Square, RefreshCw,
-  CheckCircle2, AlertCircle, UserCheck, BookMarked, BarChart3, Loader2, Eye
+  CheckCircle2, UserCheck, BookMarked, BarChart3, Loader2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { api } from '../services/api';
 import './HeadEvalAssign.css';
+
+function formatUploadedAt(value) {
+  if (value == null || value === '') return '—';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function compareLotRows(a, b, key, dir) {
+  const sign = dir === 'asc' ? 1 : -1;
+  const str = (x) => String(x ?? '').toLowerCase();
+  const num = (x) => {
+    const n = Number(x);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const time = (x) => {
+    const v = x?.CreatedAt;
+    if (v == null || v === '') return 0;
+    const t = new Date(v).getTime();
+    return Number.isNaN(t) ? 0 : t;
+  };
+  let cmp = 0;
+  switch (key) {
+    case 'bookletId':
+      cmp = str(a.BookletID).localeCompare(str(b.BookletID), undefined, { numeric: true });
+      break;
+    case 'studentName':
+      cmp = str(a.StudentName).localeCompare(str(b.StudentName));
+      break;
+    case 'detail':
+      cmp = str(`${a.ProgramLevel} ${a.Branch}`).localeCompare(str(`${b.ProgramLevel} ${b.Branch}`));
+      break;
+    case 'totalPages':
+      cmp = num(a.TotalPages) - num(b.TotalPages);
+      break;
+    case 'createdAt':
+      cmp = time(a) - time(b);
+      break;
+    default:
+      cmp = 0;
+  }
+  if (cmp !== 0) return cmp * sign;
+  return str(a.BookletID).localeCompare(str(b.BookletID), undefined, { numeric: true }) * sign;
+}
 
 export default function HeadEvalAssign() {
   const [exams, setExams]                   = useState([]);
@@ -22,6 +66,27 @@ export default function HeadEvalAssign() {
   const [syncing, setSyncing]               = useState(false);
   const [message, setMessage]               = useState('');
   const [summary, setSummary]               = useState([]);
+  const [lotSort, setLotSort]               = useState({ key: 'createdAt', dir: 'desc' });
+
+  const sortedLot = useMemo(
+    () => [...lot].sort((a, b) => compareLotRows(a, b, lotSort.key, lotSort.dir)),
+    [lot, lotSort.key, lotSort.dir]
+  );
+
+  const cycleLotSort = (key) => {
+    setLotSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: key === 'createdAt' ? 'desc' : 'asc' }
+    );
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    if (lotSort.key !== columnKey) return <ArrowUpDown size={12} className="lot-sort-icon lot-sort-inactive" />;
+    return lotSort.dir === 'asc'
+      ? <ArrowUp size={12} className="lot-sort-icon" />
+      : <ArrowDown size={12} className="lot-sort-icon" />;
+  };
 
   useEffect(() => { api.headeval.getExams().then(setExams).catch(() => {}); }, []);
 
@@ -151,30 +216,81 @@ export default function HeadEvalAssign() {
               )}
             </div>
           </div>
-          <div className="lot-list">
+          <div className="lot-list lot-list-table-wrap">
             {lot.length === 0 ? (
               <div className="empty-state">
                 <BookMarked size={36} className="empty-state-icon" />
                 {loading ? 'Loading booklets…' : 'Load a paper to see unassigned booklets'}
               </div>
             ) : (
-              lot.map(b => (
-                <div key={b.BookletID}
-                  className={`lot-item ${selectedBooklets.has(b.BookletID) ? 'selected' : ''}`}
-                  onClick={() => toggleBooklet(b.BookletID)}>
-                  <input type="checkbox" checked={selectedBooklets.has(b.BookletID)}
-                    onChange={() => toggleBooklet(b.BookletID)}
-                    onClick={e => e.stopPropagation()} />
-                  <div className="lot-info">
-                    <span className="lot-id">{b.BookletID}</span>
-                    <span className="lot-meta">{b.StudentName || '—'} · {b.ProgramLevel} {b.Branch} · {b.TotalPages}pg</span>
-                  </div>
-                  <Link to={`/view-booklet/${encodeURIComponent(b.BookletID)}`} className="lot-view-link" onClick={e => e.stopPropagation()} title="View answer sheet">
-                    <Eye size={14} /> View
-                  </Link>
-                  <div className="lot-status-dot" />
-                </div>
-              ))
+              <table className="lot-table">
+                <thead>
+                  <tr>
+                    <th className="lot-th lot-th-check" aria-label="Select" />
+                    <th className="lot-th lot-th-sortable">
+                      <button type="button" className="lot-th-btn" onClick={() => cycleLotSort('bookletId')}>
+                        Booklet <SortIcon columnKey="bookletId" />
+                      </button>
+                    </th>
+                    <th className="lot-th lot-th-sortable">
+                      <button type="button" className="lot-th-btn" onClick={() => cycleLotSort('studentName')}>
+                        Student <SortIcon columnKey="studentName" />
+                      </button>
+                    </th>
+                    <th className="lot-th lot-th-sortable">
+                      <button type="button" className="lot-th-btn" onClick={() => cycleLotSort('detail')}>
+                        Program / Branch <SortIcon columnKey="detail" />
+                      </button>
+                    </th>
+                    <th className="lot-th lot-th-sortable lot-th-narrow">
+                      <button type="button" className="lot-th-btn" onClick={() => cycleLotSort('totalPages')}>
+                        Pages <SortIcon columnKey="totalPages" />
+                      </button>
+                    </th>
+                    <th
+                      className="lot-th lot-th-sortable lot-th-uploaded"
+                      title="When this booklet was first added to evaluation (sync from scan upload)"
+                    >
+                      <button type="button" className="lot-th-btn" onClick={() => cycleLotSort('createdAt')}>
+                        Uploaded <SortIcon columnKey="createdAt" />
+                      </button>
+                    </th>
+                    <th className="lot-th lot-th-view" aria-label="View" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedLot.map(b => (
+                    <tr
+                      key={b.BookletID}
+                      className={`lot-row ${selectedBooklets.has(b.BookletID) ? 'selected' : ''}`}
+                      onClick={() => toggleBooklet(b.BookletID)}
+                    >
+                      <td className="lot-td lot-td-check" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedBooklets.has(b.BookletID)}
+                          onChange={() => toggleBooklet(b.BookletID)}
+                        />
+                      </td>
+                      <td className="lot-td lot-td-mono">{b.BookletID}</td>
+                      <td className="lot-td">{b.StudentName || '—'}</td>
+                      <td className="lot-td lot-td-muted">{b.ProgramLevel || '—'} {b.Branch || ''}</td>
+                      <td className="lot-td lot-td-n">{b.TotalPages ?? '—'}</td>
+                      <td className="lot-td lot-td-date">{formatUploadedAt(b.CreatedAt)}</td>
+                      <td className="lot-td lot-td-view">
+                        <Link
+                          to={`/view-booklet/${encodeURIComponent(b.BookletID)}`}
+                          className="lot-view-link"
+                          onClick={e => e.stopPropagation()}
+                          title="View answer sheet"
+                        >
+                          <Eye size={14} /> View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>

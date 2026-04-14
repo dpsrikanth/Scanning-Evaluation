@@ -18,6 +18,7 @@ namespace ScannerApp.Forms
         private readonly BarcodeService  _barcode;
         private IScannerService          _scanner;
         private LocalQueueService?       _queue;
+        private DesktopNotifier?         _notifier;
 
         // ── State ─────────────────────────────────────────────────────────────
         private ScanSettings?            _settings;
@@ -66,6 +67,11 @@ namespace ScannerApp.Forms
 
         // ── Bottom panel controls ─────────────────────────────────────────────
         private ListView   _lvQueue         = null!;
+        /// <summary>Upload queue ListView column indices (Details view; SubItems[0] is Booklet ID).</summary>
+        private const int QColStatus = 5;
+        private const int QColErr    = 12;
+        private const int QColPdf   = 13;
+        private const int QColUp    = 14;
         private Label      _lblQueueHeader  = null!;
         private ComboBox   _cboQueueFilter  = null!;
         private Button     _btnQcRejected   = null!;
@@ -118,7 +124,7 @@ namespace ScannerApp.Forms
 
         private void InitializeComponent()
         {
-            Text            = "Scanner — Scanning Station";
+            Text            = $"Scanner — Scanning Station — {AppVersion.GetTitleSuffix()}";
             Size            = new Size(1280, 820);
             MinimumSize     = new Size(1024, 700);
             StartPosition   = FormStartPosition.CenterScreen;
@@ -704,18 +710,23 @@ namespace ScannerApp.Forms
             };
             _lvQueue.Columns.AddRange(new[]
             {
-                new ColumnHeader { Text = "Booklet ID",    Width = 170 },
-                new ColumnHeader { Text = "Exam",          Width = 60  },
-                new ColumnHeader { Text = "Paper",         Width = 60  },
-                new ColumnHeader { Text = "Roll No",       Width = 80  },
-                new ColumnHeader { Text = "Pages",         Width = 50  },
-                new ColumnHeader { Text = "Status",        Width = 72  },
-                new ColumnHeader { Text = "Scan s",        Width = 52  },
-                new ColumnHeader { Text = "Proc s",        Width = 52  },
-                new ColumnHeader { Text = "Next upload",   Width = 125 },
-                new ColumnHeader { Text = "Scanned At",    Width = 118 },
-                new ColumnHeader { Text = "Error Reason",  Width = 160 },
+                new ColumnHeader { Text = "Booklet ID",         Width = 160 },
+                new ColumnHeader { Text = "Exam",             Width = 52  },
+                new ColumnHeader { Text = "Paper",            Width = 52  },
+                new ColumnHeader { Text = "Roll No",          Width = 72  },
+                new ColumnHeader { Text = "Pages",            Width = 48  },
+                new ColumnHeader { Text = "Status",           Width = 72  },
+                new ColumnHeader { Text = "Scan started",     Width = 112 },
+                new ColumnHeader { Text = "Scan completed",   Width = 112 },
+                new ColumnHeader { Text = "Uploaded",         Width = 112 },
+                new ColumnHeader { Text = "Scan s",           Width = 48  },
+                new ColumnHeader { Text = "Proc s",           Width = 48  },
+                new ColumnHeader { Text = "Next upload",      Width = 108 },
+                new ColumnHeader { Text = "Error",            Width = 140 },
+                new ColumnHeader { Text = "PDF",              Width = 44  },
+                new ColumnHeader { Text = "Upload",           Width = 52  },
             });
+            _lvQueue.MouseClick += LvQueue_MouseClick;
 
             // Right-click context menu for queue rows
             var ctxQueue = new ContextMenuStrip();
@@ -728,10 +739,10 @@ namespace ScannerApp.Forms
             {
                 bool hasSelection = _lvQueue.SelectedItems.Count > 0;
                 var selStatus = hasSelection
-                    ? _lvQueue.SelectedItems[0].SubItems[5].Text
+                    ? _lvQueue.SelectedItems[0].SubItems[QColStatus].Text
                     : "";
                 miRetryOne.Enabled  = hasSelection && (selStatus == "Failed" || selStatus == "Pending" || selStatus == "Uploaded");
-                miCopyError.Enabled = hasSelection && !string.IsNullOrEmpty(_lvQueue.SelectedItems[0].SubItems[10].Text);
+                miCopyError.Enabled = hasSelection && !string.IsNullOrEmpty(_lvQueue.SelectedItems[0].SubItems[QColErr].Text);
             };
             _lvQueue.ContextMenuStrip = ctxQueue;
 
@@ -774,7 +785,9 @@ namespace ScannerApp.Forms
 
         private async void MainForm_Load(object? sender, EventArgs e)
         {
+            _notifier ??= new DesktopNotifier(TryGetAppIcon());
             AppLogger.Info("=== Scanner Station starting ===");
+            AppLogger.Info($"App version: {AppVersion.GetInformationalVersion()}  ({AppVersion.GetDisplayLabel()})");
             AppLogger.Info($"Machine={Environment.MachineName}  User={Environment.UserName}  " +
                            $"OS={Environment.OSVersion}");
             SetStatus("Loading settings…", true);
@@ -836,12 +849,7 @@ namespace ScannerApp.Forms
 
                 // 7. Local queue (always initialize — works offline)
                 _queue = new LocalQueueService(_storagePath, _api);
-                _queue.StatusChanged += (id, status, err) =>
-                    BeginInvoke(() =>
-                    {
-                        AppendActivity($"Queue: {id} → {status}" + (string.IsNullOrEmpty(err) ? "" : $" — {err}"));
-                        RefreshQueueView();
-                    });
+                WireQueueStatus(_queue);
                 SyncQueueUploadFallback();
                 _queue.StartBackgroundUpload();
                 RefreshQueueView();
@@ -884,6 +892,41 @@ namespace ScannerApp.Forms
             var examId  = (_cboExam.SelectedItem  as ExamInfo)?.ExamID  ?? 0;
             var paperId = (_cboPaper.SelectedItem as PaperInfo)?.PaperID ?? 0;
             _queue.SetUploadFallback(examId, paperId);
+        }
+
+        private static Icon? TryGetAppIcon()
+        {
+            try
+            {
+                var p = Application.ExecutablePath;
+                if (!string.IsNullOrEmpty(p) && File.Exists(p))
+                    return Icon.ExtractAssociatedIcon(p);
+            }
+            catch { /* ignore */ }
+            return null;
+        }
+
+        private void WireQueueStatus(LocalQueueService queue)
+        {
+            queue.StatusChanged += OnQueueStatusChanged;
+        }
+
+        private void OnQueueStatusChanged(string id, string status, string? err)
+        {
+            if (IsDisposed) return;
+            BeginInvoke(() =>
+            {
+                AppendActivity($"Queue: {id} → {status}" + (string.IsNullOrEmpty(err) ? "" : $" — {err}"));
+                RefreshQueueView();
+                if (status == "Uploaded")
+                    _notifier?.Show("Upload complete", $"{id} was sent to the server.", ToolTipIcon.Info);
+                else if (status == "Failed")
+                {
+                    var detail = string.IsNullOrWhiteSpace(err) ? "See Activity log for details." : err;
+                    if (detail.Length > 400) detail = detail[..397] + "…";
+                    _notifier?.Show("Upload failed", $"{id}: {detail}", ToolTipIcon.Error);
+                }
+            });
         }
 
         private void LoadTemplates()
@@ -1067,12 +1110,7 @@ namespace ScannerApp.Forms
                 _queue?.StopBackgroundUpload();
                 _queue?.Dispose();
                 _queue = new LocalQueueService(_storagePath, _api);
-                _queue.StatusChanged += (id, status, err) =>
-                    BeginInvoke(() =>
-                    {
-                        AppendActivity($"Queue: {id} → {status}" + (string.IsNullOrEmpty(err) ? "" : $" — {err}"));
-                        RefreshQueueView();
-                    });
+                WireQueueStatus(_queue);
                 SyncQueueUploadFallback();
                 _queue.StartBackgroundUpload();
                 RefreshQueueView();
@@ -1343,6 +1381,7 @@ namespace ScannerApp.Forms
             _scanCts = new CancellationTokenSource();
             EnterScanningState();
             SetStatus($"Scanning — {effectiveTemplate.TemplateName}…", true);
+            var scanSessionStarted = DateTime.Now;
 
             var pendingFolder = BuildBookletFolder("PENDING", effectiveTemplate);
             Directory.CreateDirectory(pendingFolder);
@@ -1732,6 +1771,7 @@ namespace ScannerApp.Forms
                     ? TemplateBookletNaming.BuildBookletId(effectiveTemplate, barcodeDetails, zoneMap, ts)
                     : qcOverride;
                 var finalFolder = Path.Combine(_storagePath, "booklets", bookletId);
+                Directory.CreateDirectory(Path.Combine(_storagePath, "booklets"));
                 Directory.CreateDirectory(Path.GetDirectoryName(finalFolder)!);
                 if (Directory.Exists(pendingFolder) && pendingFolder != finalFolder)
                 {
@@ -1742,22 +1782,17 @@ namespace ScannerApp.Forms
 
                 TryDeleteRawJpegs(finalFolder, bitmaps.Count);
 
+                processSw.Stop();
+                AppendActivity(
+                    $"Booklet verified: {bookletId} — scan {scanSw.Elapsed.TotalSeconds:0.0}s, process {processSw.Elapsed.TotalSeconds:0.0}s " +
+                    $"(PDF + queue + upload in background)");
+
+                var completedAt = DateTime.Now;
                 var pageFiles = _currentPages.OrderBy(p => p.PageNumber).Select(p => p.FilePath).ToList();
                 var pdfPath = Path.Combine(finalFolder, "booklet.pdf");
                 var pdfJpeg = effectiveTemplate.PdfJpegQuality > 0 ? effectiveTemplate.PdfJpegQuality : 85;
                 var pdfMaxDpi = effectiveTemplate.PdfMaxDpi;
                 var pdfOptions = new PdfService.CompressionOptions(JpegQuality: pdfJpeg, MaxDpi: pdfMaxDpi);
-                try
-                {
-                    await Task.Run(() => PdfService.CreateBookletPdf(pdfPath, pageFiles, pdfOptions));
-                }
-                catch
-                {
-                    /* PDF generation failure is non-fatal */
-                }
-
-                processSw.Stop();
-                AppendActivity($"Booklet saved: {bookletId} — scan {scanSw.Elapsed.TotalSeconds:0.0}s, post-process {processSw.Elapsed.TotalSeconds:0.0}s");
 
                 var pagesJson = JsonConvert.SerializeObject(_currentPages.OrderBy(p => p.PageNumber).Select(p => new PageData
                 {
@@ -1781,6 +1816,9 @@ namespace ScannerApp.Forms
                     FolderPath         = finalFolder,
                     PagesJson          = pagesJson,
                     Status             = "Pending",
+                    CreatedAt          = completedAt,
+                    ScanStartedAt     = scanSessionStarted,
+                    ScanCompletedAt   = completedAt,
                     TotalPagesExpected = effectiveTemplate.PageCount,
                     TotalPagesScanned  = bitmaps.Count,
                     WorkstationId      = _myWorkstation?.WorkstationID ?? 0,
@@ -1793,43 +1831,26 @@ namespace ScannerApp.Forms
                     ProcessingDurationMs  = (int)Math.Min(int.MaxValue, processSw.ElapsedMilliseconds),
                 };
 
-                _queue?.SaveToQueue(record);
-                RefreshQueueView();
-
-                _ = _queue?.TryUploadPendingAsync();
+                BeginInvoke(() => _notifier?.Show(
+                    "Scan complete",
+                    $"Booklet {bookletId} — {bitmaps.Count} page(s).\n" +
+                    "PDF, queue save, and server upload continue in the background.\n" +
+                    "The workspace is cleared for the next booklet.",
+                    ToolTipIcon.Info));
 
                 if (!string.IsNullOrEmpty(qcOverride))
                     _txtQcRescanId.Clear();
 
-                SetStatus($"Saved: {bookletId} ({bitmaps.Count} pages)", false);
+                ClearScanWorkspaceForNextBooklet();
+                SetStatus("Ready — scan another booklet", false);
 
-                bool showPopup = _settings?.Defaults?.ShowBookletDetailsPopup == true;
-                if (showPopup)
+                foreach (var bmp in bitmaps)
                 {
-                    using var dlg = new ScanCompleteDialog(barcodeDetails, bitmaps, effectiveTemplate.PageCount);
-                    var result = dlg.ShowDialog(this);
-
-                    if (result == DialogResult.Retry)
-                    {
-                        _queue?.DeleteRecord(bookletId);
-                        try
-                        {
-                            if (Directory.Exists(finalFolder))
-                                TryDeleteFolderWithRetry(finalFolder);
-                        }
-                        catch
-                        {
-                            // ignore
-                        }
-
-                        _currentPages.Clear();
-                        _lvPages.Items.Clear();
-                        _pageImages.Images.Clear();
-                        _picPreview.Image = null;
-                        RefreshQueueView();
-                        SetStatus("Ready for re-scan", false);
-                    }
+                    try { bmp.Dispose(); }
+                    catch (Exception dEx) { AppLogger.Warn($"Dispose scan bitmap: {dEx.Message}"); }
                 }
+
+                StartBookletFinalizeBackground(record, pageFiles, pdfPath, pdfOptions);
             }
             catch (OperationCanceledException)
                 {
@@ -1875,7 +1896,11 @@ namespace ScannerApp.Forms
 
                     AppLogger.Error($"Scan exception: {ex.Message}", ex);
                     SetStatus($"Scan error: {ex.Message}", false);
-                    MessageBox.Show($"Scanning failed:\n{ex.Message}", "Error",
+                    var wiaHint = ex.Message.Contains("0x80004005", StringComparison.OrdinalIgnoreCase)
+                        ? "\n\nWIA tip: generic scanner failure — check USB/cable, close other apps using the scanner, power-cycle the device, or try Windows Fax and Scan once to confirm the driver."
+                        : "";
+                    AppendActivity($"Scan error: {ex.Message}{wiaHint}");
+                    MessageBox.Show($"Scanning failed:\n{ex.Message}{wiaHint}", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             finally
@@ -1967,6 +1992,95 @@ namespace ScannerApp.Forms
             AppendActivity("Cancel requested — stopping scan…");
         }
 
+        /// <summary>Clears page list, preview, and barcode UI so another booklet can be scanned.</summary>
+        private void ClearScanWorkspaceForNextBooklet()
+        {
+            _currentPages.Clear();
+            _lvPages.Items.Clear();
+            _pageImages.Images.Clear();
+            try { _picPreview.Image?.Dispose(); }
+            catch { /* ignore */ }
+            _picPreview.Image = null;
+            _picPreview.BackColor = Color.FromArgb(230, 235, 242);
+            _pageBarcodesRealtime.Clear();
+        }
+
+        /// <summary>Builds PDF, persists queue row, and runs upload pass without blocking the UI thread.</summary>
+        private void StartBookletFinalizeBackground(
+            LocalBookletRecord record,
+            List<string> pageFiles,
+            string pdfPath,
+            PdfService.CompressionOptions pdfOptions)
+        {
+            var queue = _queue;
+            var id = record.BookletId;
+            var paths = new List<string>(pageFiles);
+            var pdf = pdfPath;
+            var opts = pdfOptions;
+            var rec = record;
+
+            _ = Task.Run(async () =>
+            {
+                if (!IsDisposed)
+                    BeginInvoke(() => AppendActivity($"[{id}] background: building PDF…"));
+                try
+                {
+                    await Task.Run(() => PdfService.CreateBookletPdf(pdf, paths, opts)).ConfigureAwait(false);
+                    if (File.Exists(pdf))
+                    {
+                        var kb = new FileInfo(pdf).Length / 1024;
+                        AppLogger.Info($"booklet.pdf (background): {pdf} ({kb} KB)");
+                        if (!IsDisposed)
+                            BeginInvoke(() => AppendActivity($"[{id}] PDF ready ({kb} KB)"));
+                    }
+                    else
+                    {
+                        AppLogger.Error($"booklet.pdf missing after background build: {pdf}");
+                        if (!IsDisposed)
+                            BeginInvoke(() => AppendActivity($"[{id}] ERROR: booklet.pdf was not created"));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Error($"Background PDF for {id}: {ex.Message}", ex);
+                    if (!IsDisposed)
+                        BeginInvoke(() => AppendActivity($"[{id}] ERROR PDF: {ex.Message}"));
+                }
+
+                try
+                {
+                    queue?.SaveToQueue(rec);
+                    if (!IsDisposed)
+                    {
+                        BeginInvoke(() =>
+                        {
+                            AppendActivity($"[{id}] saved to upload queue");
+                            RefreshQueueView();
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Error($"Background queue save for {id}", ex);
+                    if (!IsDisposed)
+                        BeginInvoke(() => AppendActivity($"[{id}] ERROR queue save: {ex.Message}"));
+                }
+
+                try
+                {
+                    if (queue != null)
+                        await queue.TryUploadPendingAsync().ConfigureAwait(false);
+                    if (!IsDisposed)
+                        BeginInvoke(() => AppendActivity($"[{id}] background upload pass finished"));
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Error($"Background upload for {id}", ex);
+                    if (!IsDisposed)
+                        BeginInvoke(() => AppendActivity($"[{id}] ERROR upload: {ex.Message}"));
+                }
+            });
+        }
 
         // ── Page list view ────────────────────────────────────────────────────
 
@@ -2079,21 +2193,27 @@ namespace ScannerApp.Forms
                 item.SubItems.Add(r.RollNo);
                 item.SubItems.Add($"{r.TotalPagesScanned}/{r.TotalPagesExpected}");
                 item.SubItems.Add(r.Status);
+                item.SubItems.Add(FormatQueueDateTime(r.ScanStartedAt));
+                item.SubItems.Add(FormatQueueDateTime(r.ScanCompletedAt ?? r.CreatedAt));
+                item.SubItems.Add(FormatQueueDateTime(r.UploadedAt));
                 item.SubItems.Add(FormatDurationSeconds(r.ScanDurationMs));
                 item.SubItems.Add(FormatDurationSeconds(r.ProcessingDurationMs));
                 var nextUp = (r.Status == "Pending" || r.Status == "Failed")
                     ? FormatNextUploadHint(r, now)
                     : "—";
                 item.SubItems.Add(nextUp);
-                item.SubItems.Add(r.CreatedAt.ToString("dd-MM-yy HH:mm:ss"));
                 item.SubItems.Add(r.ErrorReason ?? "");
+                item.SubItems.Add("↻");
+                item.SubItems.Add("⬆");
                 item.ForeColor = StatusColor(r.Status);
                 item.Tag       = r.BookletId;
                 var sched = (r.UploadScheduleMode ?? "immediate").Trim();
                 var schedDetail = sched.Equals("custom", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(r.UploadScheduleParam)
                     ? $" ({r.UploadScheduleParam} min)"
                     : "";
-                item.ToolTipText = $"Upload schedule: {sched}{schedDetail}"
+                item.ToolTipText = $"Folder: {r.FolderPath}{Environment.NewLine}" +
+                    $"Upload schedule: {sched}{schedDetail}{Environment.NewLine}" +
+                    "Click ↻ to rebuild booklet.pdf from saved pages. Click ⬆ to upload now."
                     + (string.IsNullOrWhiteSpace(r.ErrorReason) ? "" : $"{Environment.NewLine}Last error: {r.ErrorReason}");
                 _lvQueue.Items.Add(item);
             }
@@ -2126,6 +2246,157 @@ namespace ScannerApp.Forms
         {
             if (!ms.HasValue || ms.Value < 0) return "—";
             return (ms.Value / 1000.0).ToString("0.0");
+        }
+
+        private static string FormatQueueDateTime(DateTime? dt) =>
+            dt.HasValue ? dt.Value.ToString("dd-MM-yy HH:mm") : "—";
+
+        private void LvQueue_MouseClick(object? sender, MouseEventArgs e)
+        {
+            if (_queue == null || e.Button != MouseButtons.Left) return;
+            var hi = _lvQueue.HitTest(e.Location);
+            if (hi.Item == null) return;
+
+            int col = hi.SubItem == null ? 0 : hi.Item.SubItems.IndexOf(hi.SubItem);
+            if (col != QColPdf && col != QColUp) return;
+
+            var id = hi.Item.Tag as string;
+            if (string.IsNullOrEmpty(id)) return;
+
+            if (col == QColPdf)
+                _ = RegenerateBookletPdfAsync(id);
+            else
+                _ = UploadQueueRowAsync(id);
+        }
+
+        private async Task RegenerateBookletPdfAsync(string bookletId)
+        {
+            if (_queue == null) return;
+            var rec = _queue.GetRecord(bookletId);
+            if (rec == null)
+            {
+                MessageBox.Show("Booklet not found in queue.", "PDF", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var folder = rec.FolderPath?.Trim() ?? "";
+            if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+            {
+                MessageBox.Show($"Folder not found:\n{folder}", "PDF", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            List<string> pageFiles = new();
+            try
+            {
+                var pages = JsonConvert.DeserializeObject<List<PageData>>(rec.PagesJson) ?? new List<PageData>();
+                pageFiles = pages
+                    .OrderBy(p => p.PageNumber)
+                    .Select(p => p.ImagePath)
+                    .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error($"Regenerate PDF: bad PagesJson for {bookletId}", ex);
+            }
+
+            if (pageFiles.Count == 0)
+            {
+                pageFiles = Directory.GetFiles(folder, "page_*.jpg", SearchOption.TopDirectoryOnly)
+                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            if (pageFiles.Count == 0)
+            {
+                MessageBox.Show("No page JPEGs found for this booklet.", "PDF", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var tmpl = _selectedTemplate ?? (_cboTemplate.SelectedItem as ScanTemplate);
+            if (tmpl == null)
+            {
+                MessageBox.Show("Select a scan template first (used for PDF quality / DPI).", "PDF",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var effective = ScanTemplate.CloneFrom(tmpl);
+            var pdfJpeg = effective.PdfJpegQuality > 0 ? effective.PdfJpegQuality : 85;
+            var opts = new PdfService.CompressionOptions(JpegQuality: pdfJpeg, MaxDpi: effective.PdfMaxDpi);
+            var pdfPath = Path.Combine(folder, "booklet.pdf");
+
+            SetStatus($"Rebuilding PDF — {bookletId}…", true);
+            AppendActivity($"PDF regenerate: {bookletId} ({pageFiles.Count} pages)…");
+            try
+            {
+                await Task.Run(() => PdfService.CreateBookletPdf(pdfPath, pageFiles, opts));
+                if (File.Exists(pdfPath))
+                {
+                    var kb = new FileInfo(pdfPath).Length / 1024;
+                    AppendActivity($"PDF regenerate OK — {kb} KB");
+                    AppLogger.Info($"Regenerate PDF OK: {pdfPath} ({pageFiles.Count} pages)");
+                    MessageBox.Show($"Saved:\n{pdfPath}\n({kb} KB)", "PDF", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    AppendActivity("PDF regenerate failed — output file missing.");
+                    MessageBox.Show("PDF was not created. See Activity log.", "PDF", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error($"Regenerate PDF failed: {bookletId}", ex);
+                AppendActivity($"PDF regenerate ERROR — {ex.Message}");
+                MessageBox.Show(ex.Message, "PDF", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                SetStatus("Ready", false);
+                RefreshQueueView();
+            }
+        }
+
+        private async Task UploadQueueRowAsync(string bookletId)
+        {
+            if (_queue == null) return;
+            if (!_api.IsAuthenticated)
+            {
+                MessageBox.Show("You must be logged in to upload.", "Upload", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            SetStatus($"Uploading {bookletId}…", true);
+            AppendActivity($"Manual upload: {bookletId}…");
+            try
+            {
+                var exId = (_cboExam.SelectedItem  as ExamInfo)?.ExamID  ?? 0;
+                var paId = (_cboPaper.SelectedItem as PaperInfo)?.PaperID ?? 0;
+                bool ok = await _queue.UploadBookletNowAsync(bookletId, exId, paId);
+                RefreshQueueView();
+                if (ok)
+                {
+                    AppendActivity($"Upload OK — {bookletId}");
+                    SetStatus($"Uploaded {bookletId}", false);
+                }
+                else
+                {
+                    AppendActivity($"Upload failed — {bookletId} (see Error column / log)");
+                    SetStatus($"Upload failed — {bookletId}", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error($"UploadQueueRowAsync: {bookletId}", ex);
+                AppendActivity($"Upload ERROR — {ex.Message}");
+                SetStatus("Ready", false);
+                _notifier?.Show("Upload error", ex.Message, ToolTipIcon.Error);
+            }
+            finally
+            {
+                _ = _queue.TryUploadPendingAsync();
+            }
         }
 
         private static string FormatNextUploadHint(LocalBookletRecord r, DateTime now)
@@ -2493,7 +2764,7 @@ namespace ScannerApp.Forms
         private void MiCopyError_Click(object? sender, EventArgs e)
         {
             if (_lvQueue.SelectedItems.Count == 0) return;
-            var errorText = _lvQueue.SelectedItems[0].SubItems[10].Text;
+            var errorText = _lvQueue.SelectedItems[0].SubItems[QColErr].Text;
             if (!string.IsNullOrEmpty(errorText))
             {
                 Clipboard.SetText(errorText);
@@ -2546,6 +2817,7 @@ namespace ScannerApp.Forms
             try { _pauseEvent.Set(); _pauseEvent.Dispose(); } catch { }
             try { _queue?.StopBackgroundUpload(); } catch { }
             try { _queue?.Dispose(); _queue = null; } catch { }
+            try { _notifier?.Dispose(); _notifier = null; } catch { }
             base.OnFormClosing(e);
         }
     }

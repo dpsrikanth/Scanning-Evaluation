@@ -75,6 +75,9 @@ namespace ScannerApp.Services
                 "ALTER TABLE LocalQueue ADD COLUMN UploadScheduleParam TEXT",
                 "ALTER TABLE LocalQueue ADD COLUMN ScanDurationMs INTEGER",
                 "ALTER TABLE LocalQueue ADD COLUMN ProcessingDurationMs INTEGER",
+                "ALTER TABLE LocalQueue ADD COLUMN ScanStartedAt TEXT",
+                "ALTER TABLE LocalQueue ADD COLUMN ScanCompletedAt TEXT",
+                "ALTER TABLE LocalQueue ADD COLUMN UploadedAt TEXT",
             })
             {
                 try { using var a = conn.CreateCommand(); a.CommandText = migration; a.ExecuteNonQuery(); }
@@ -93,11 +96,13 @@ namespace ScannerApp.Services
                     (BookletId, ExamId, PaperId, ExamCode, PaperCode, RollNo, Serial, FolderPath, PagesJson,
                      Status, ErrorReason, AttemptCount, LastAttempt, CreatedAt,
                      TotalPagesExpected, TotalPagesScanned, WorkstationId, LocationId,
-                     UploadScheduleMode, UploadScheduleParam, ScanDurationMs, ProcessingDurationMs)
+                     UploadScheduleMode, UploadScheduleParam, ScanDurationMs, ProcessingDurationMs,
+                     ScanStartedAt, ScanCompletedAt, UploadedAt)
                 VALUES
                     (@id, @examId, @paperId, @exam, @paper, @roll, @serial, @folder, @pages,
                      @status, @error, @attempts, @last, @created, @expected, @scanned, @ws, @loc,
-                     @schedMode, @schedParam, @scanMs, @procMs)";
+                     @schedMode, @schedParam, @scanMs, @procMs,
+                     @scanStarted, @scanCompleted, @uploadedAt)";
 
             cmd.Parameters.AddWithValue("@id",       record.BookletId);
             cmd.Parameters.AddWithValue("@examId",   record.ExamId);
@@ -121,7 +126,64 @@ namespace ScannerApp.Services
             cmd.Parameters.AddWithValue("@schedParam", (object?)record.UploadScheduleParam ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@scanMs", record.ScanDurationMs.HasValue ? (object)record.ScanDurationMs.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@procMs", record.ProcessingDurationMs.HasValue ? (object)record.ProcessingDurationMs.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@scanStarted", record.ScanStartedAt?.ToString("o") ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@scanCompleted", record.ScanCompletedAt?.ToString("o") ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@uploadedAt", record.UploadedAt?.ToString("o") ?? (object)DBNull.Value);
             cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>Loads a single queue row by booklet id, or null if missing.</summary>
+        public LocalBookletRecord? GetRecord(string bookletId)
+        {
+            if (string.IsNullOrWhiteSpace(bookletId)) return null;
+            using var conn = OpenConnection();
+            using var cmd  = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM LocalQueue WHERE BookletId = @id LIMIT 1";
+            cmd.Parameters.AddWithValue("@id", bookletId);
+            using var reader = cmd.ExecuteReader();
+            return reader.Read() ? ReadRecord(reader) : null;
+        }
+
+        /// <summary>Uploads one booklet immediately (ignores deferred schedule). Used by queue row action.</summary>
+        public async Task<bool> UploadBookletNowAsync(string bookletId, int fallbackExamId, int fallbackPaperId)
+        {
+            if (!_api.IsAuthenticated)
+            {
+                AppLogger.Warn($"UploadBookletNowAsync({bookletId}): not authenticated.");
+                return false;
+            }
+
+            var record = GetRecord(bookletId);
+            if (record == null)
+            {
+                AppLogger.Warn($"UploadBookletNowAsync: unknown bookletId={bookletId}");
+                return false;
+            }
+
+            if (record.AttemptCount >= 5)
+            {
+                AppLogger.Info($"UploadBookletNowAsync: {bookletId} had max attempts — resetting for manual retry.");
+                ResetForRetry(bookletId);
+                record = GetRecord(bookletId)!;
+            }
+
+            AppLogger.Info($"UploadBookletNowAsync: {bookletId} (manual) pages={record.TotalPagesScanned}");
+            UpdateStatus(record.BookletId, "Uploading");
+            try
+            {
+                bool success = await _api.UploadBookletAsync(record, fallbackExamId, fallbackPaperId);
+                var newStatus = success ? "Uploaded" : "Failed";
+                var reason    = success ? null : "Upload returned failure";
+                UpdateStatus(record.BookletId, newStatus, record.AttemptCount + 1, reason);
+                return success;
+            }
+            catch (Exception ex)
+            {
+                var reason = ex.Message.Length > 200 ? ex.Message[..200] + "…" : ex.Message;
+                AppLogger.Error($"UploadBookletNowAsync: {bookletId} EXCEPTION: {ex.Message}", ex);
+                UpdateStatus(record.BookletId, "Failed", record.AttemptCount + 1, reason);
+                return false;
+            }
         }
 
         public List<LocalBookletRecord> GetAllRecords()
@@ -174,12 +236,14 @@ namespace ScannerApp.Services
                 SET Status       = @status,
                     ErrorReason  = CASE WHEN @error IS NOT NULL THEN @error ELSE ErrorReason END,
                     AttemptCount = COALESCE(@count, AttemptCount),
-                    LastAttempt  = @last
+                    LastAttempt  = @last,
+                    UploadedAt   = CASE WHEN @status = 'Uploaded' THEN @uploadedAt ELSE UploadedAt END
                 WHERE BookletId = @id";
             cmd.Parameters.AddWithValue("@status", status);
             cmd.Parameters.AddWithValue("@error",  (object?)errorReason ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@count",  attemptCount.HasValue ? (object)attemptCount.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@last",   DateTime.Now.ToString("o"));
+            cmd.Parameters.AddWithValue("@uploadedAt", status == "Uploaded" ? DateTime.Now.ToString("o") : (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@id",     bookletId);
             cmd.ExecuteNonQuery();
 
@@ -199,7 +263,8 @@ namespace ScannerApp.Services
                 SET Status       = 'Pending',
                     ErrorReason  = NULL,
                     AttemptCount = 0,
-                    LastAttempt  = NULL
+                    LastAttempt  = NULL,
+                    UploadedAt   = NULL
                 WHERE BookletId = @id";
             cmd.Parameters.AddWithValue("@id", bookletId);
             cmd.ExecuteNonQuery();
@@ -342,6 +407,9 @@ namespace ScannerApp.Services
                 AttemptCount       = r["AttemptCount"] is DBNull ? 0 : Convert.ToInt32(r["AttemptCount"]),
                 LastAttempt        = r["LastAttempt"] is DBNull ? null : DateTime.Parse(r["LastAttempt"].ToString()!),
                 CreatedAt          = r["CreatedAt"] is DBNull ? DateTime.Now : DateTime.Parse(r["CreatedAt"].ToString()!),
+                ScanStartedAt      = TryGetOptionalDateTime(r, "ScanStartedAt"),
+                ScanCompletedAt    = TryGetOptionalDateTime(r, "ScanCompletedAt"),
+                UploadedAt         = TryGetOptionalDateTime(r, "UploadedAt"),
                 TotalPagesExpected = r["TotalPagesExpected"] is DBNull ? 0 : Convert.ToInt32(r["TotalPagesExpected"]),
                 TotalPagesScanned  = r["TotalPagesScanned"]  is DBNull ? 0 : Convert.ToInt32(r["TotalPagesScanned"]),
                 WorkstationId      = r["WorkstationId"] is DBNull ? 0 : Convert.ToInt32(r["WorkstationId"]),
@@ -351,6 +419,21 @@ namespace ScannerApp.Services
                 ScanDurationMs       = TryGetOptionalInt32(r, "ScanDurationMs"),
                 ProcessingDurationMs = TryGetOptionalInt32(r, "ProcessingDurationMs"),
             };
+        }
+
+        private static DateTime? TryGetOptionalDateTime(SqliteDataReader r, string column)
+        {
+            try
+            {
+                var v = r[column];
+                if (v is DBNull) return null;
+                var s = v?.ToString();
+                return string.IsNullOrWhiteSpace(s) ? null : DateTime.Parse(s);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static int? TryGetOptionalInt32(SqliteDataReader r, string column)

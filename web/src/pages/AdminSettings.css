@@ -111,6 +111,7 @@
 }
 .admin-data-table tbody tr:last-child td { border-bottom: none; }
 .admin-data-table tbody tr:hover td { background: #f8fafc; }
+.user-photo-na { color: var(--color-text-muted); font-size: 13px; }
 
 .user-cell { display: flex; align-items: center; gap: 10px; }
 .user-mini-avatar {

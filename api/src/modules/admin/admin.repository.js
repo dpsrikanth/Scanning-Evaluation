@@ -13,6 +13,7 @@ export default class AdminRepository {
     const [users] = await this.db.execute(
       `SELECT u.UserID, u.Username, u.FullName, u.Email, u.UserStatus,
               u.IsActive, u.IsFirstLogin, u.CreatedAt, u.PasswordChangedAt,
+              u.ProfilePhotoPath,
               r.RoleName, r.RoleID, l.LocationName, l.LocationID
        FROM Users u
        LEFT JOIN Roles r ON u.RoleID = r.RoleID
@@ -31,7 +32,7 @@ export default class AdminRepository {
   async getUserById(userId) {
     const [rows] = await this.db.execute(
       `SELECT u.UserID, u.Username, u.FullName, u.Email, u.UserStatus,
-              u.IsActive, u.IsFirstLogin, u.RoleID, u.LocationID,
+              u.IsActive, u.IsFirstLogin, u.RoleID, u.LocationID, u.ProfilePhotoPath,
               r.RoleName, l.LocationName
        FROM Users u
        LEFT JOIN Roles r ON u.RoleID = r.RoleID
