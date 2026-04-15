@@ -16,6 +16,7 @@ namespace ScannerApp.Forms
         // ── Services ──────────────────────────────────────────────────────────
         private readonly ApiService      _api;
         private readonly BarcodeService  _barcode;
+        private readonly ServerBarcodeApiService _serverBarcode;
         private IScannerService          _scanner;
         private LocalQueueService?       _queue;
         private DesktopNotifier?         _notifier;
@@ -29,6 +30,8 @@ namespace ScannerApp.Forms
         private CancellationTokenSource? _scanCts;
         private bool                     _isScanning;
         private bool                     _isPaused;
+        private volatile bool            _cancelRequested;
+        private int                      _scanSessionId;
 
         // ── Pause / resume gate ──────────────────────────────────────────────
         private ManualResetEventSlim     _pauseEvent = new(true);
@@ -36,6 +39,7 @@ namespace ScannerApp.Forms
         // ── Real-time barcode collection ─────────────────────────────────────
         private readonly ConcurrentDictionary<int, string?> _pageBarcodesRealtime = new();
         private volatile bool            _barcodeFailureDetected;
+        private const string BookletNameZoneKey = "bookletname";
 
         // ── Connectivity polling ─────────────────────────────────────────────
         private System.Windows.Forms.Timer? _connectivityTimer;
@@ -52,6 +56,8 @@ namespace ScannerApp.Forms
         private Button     _btnViewLog           = null!;
         private CheckBox   _chkDeskewTrim   = null!;
         private CheckBox   _chkTwainUi      = null!;
+        private CheckBox   _chkUseServerBarcode = null!;
+        private TextBox    _txtServerBarcodeUrl = null!;
         private Label      _lblQcRescan     = null!;
         private TextBox    _txtQcRescanId   = null!;
         private TextBox    _txtTemplateDetail = null!;
@@ -64,6 +70,8 @@ namespace ScannerApp.Forms
         private ListView   _lvPages         = null!;
         private ImageList  _pageImages      = null!;
         private PictureBox _picPreview      = null!;
+        private Label      _lblScanPreviewMeta = null!;
+        private Label      _lblBatchInfo    = null!;
 
         // ── Bottom panel controls ─────────────────────────────────────────────
         private ListView   _lvQueue         = null!;
@@ -100,23 +108,35 @@ namespace ScannerApp.Forms
         private Panel      _logCard         = null!;
         private TableLayoutPanel _bottomOuter = null!;
         private TableLayoutPanel _mainTable  = null!;
+        private ImageList?       _queueRowHeightImages;
+        private Panel?           _leftScrollHost;
+        private TableLayoutPanel? _leftConfigStack;
 
-        // ── Colors ────────────────────────────────────────────────────────────
-        private static readonly Color ColorPrimary    = Color.FromArgb(13, 110, 74);
-        private static readonly Color ColorSurface    = Color.FromArgb(245, 247, 250);
-        private static readonly Color ColorCard       = Color.White;
-        private static readonly Color ColorBorder     = Color.FromArgb(220, 225, 235);
-        private static readonly Color ColorText       = Color.FromArgb(20, 30, 50);
-        private static readonly Color ColorMuted      = Color.FromArgb(100, 115, 130);
-        private static readonly Color ColorAccent     = Color.FromArgb(30, 80, 200);
-        private static readonly Color ColorDanger     = Color.FromArgb(200, 50, 50);
+        // ── Design system (enterprise) ───────────────────────────────────────
+        private static readonly Color ColorPrimary       = Color.FromArgb(0x3F, 0x51, 0xB5);
+        private static readonly Color ColorPrimaryDark   = Color.FromArgb(0x30, 0x3F, 0x9F);
+        private static readonly Color ColorSurface       = Color.FromArgb(0xF5, 0xF7, 0xFA);
+        private static readonly Color ColorCard          = Color.White;
+        private static readonly Color ColorBorder        = Color.FromArgb(0xE5, 0xE7, 0xEB);
+        private static readonly Color ColorText          = Color.FromArgb(0x1F, 0x29, 0x37);
+        private static readonly Color ColorMuted         = Color.FromArgb(0x6B, 0x72, 0x80);
+        private static readonly Color ColorSuccess       = Color.FromArgb(0x10, 0xB9, 0x81);
+        private static readonly Color ColorDanger        = Color.FromArgb(0xEF, 0x44, 0x44);
+        private static readonly Color ColorWarning       = Color.FromArgb(0xF5, 0x9E, 0x0B);
+        private static readonly Color ColorQueueHeaderBg = Color.FromArgb(0xF3, 0xF4, 0xF6);
+        private static readonly Color ColorInputBg       = Color.FromArgb(0xF9, 0xFA, 0xFB);
+        private static readonly Color ColorAccent        = ColorPrimary;
+        private static readonly string LocalSettingsPath =
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScannerApp", "desktop-settings.json");
 
         public MainForm(ApiService api)
         {
             _api     = api;
             _barcode = new BarcodeService();
+            _serverBarcode = new ServerBarcodeApiService();
             _scanner = new ScannerService();   // default WIA; may swap to TWAIN after workstation load
             InitializeComponent();
+            LoadDesktopSettings();
             Load += MainForm_Load;
         }
 
@@ -129,7 +149,7 @@ namespace ScannerApp.Forms
             MinimumSize     = new Size(1024, 700);
             StartPosition   = FormStartPosition.CenterScreen;
             BackColor       = ColorSurface;
-            Font            = new Font("Segoe UI", 9);
+            Font            = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point);
             FormBorderStyle = FormBorderStyle.Sizable;
 
             BuildMainLayout();
@@ -137,48 +157,104 @@ namespace ScannerApp.Forms
             _headerPanel.BringToFront();
         }
 
+        private void LoadDesktopSettings()
+        {
+            try
+            {
+                if (!File.Exists(LocalSettingsPath)) return;
+                var json = File.ReadAllText(LocalSettingsPath);
+                var obj = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                if (obj == null) return;
+
+                if (obj.TryGetValue("useServerBarcode", out var useSrv))
+                    _serverBarcode.Enabled = useSrv.Equals("true", StringComparison.OrdinalIgnoreCase);
+                if (obj.TryGetValue("serverBarcodeUrl", out var srvUrl) && !string.IsNullOrWhiteSpace(srvUrl))
+                    _serverBarcode.BaseUrl = srvUrl.Trim().TrimEnd('/');
+            }
+            catch
+            {
+                // ignore local settings load failures
+            }
+        }
+
+        private void SaveDesktopSettings()
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(LocalSettingsPath);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
+
+                Dictionary<string, string> obj = new();
+                if (File.Exists(LocalSettingsPath))
+                {
+                    try
+                    {
+                        obj = JsonConvert.DeserializeObject<Dictionary<string, string>>(
+                            File.ReadAllText(LocalSettingsPath)) ?? new Dictionary<string, string>();
+                    }
+                    catch
+                    {
+                        obj = new Dictionary<string, string>();
+                    }
+                }
+
+                obj["useServerBarcode"] = _serverBarcode.Enabled ? "true" : "false";
+                obj["serverBarcodeUrl"] = _serverBarcode.BaseUrl;
+                File.WriteAllText(LocalSettingsPath, JsonConvert.SerializeObject(obj, Formatting.Indented));
+            }
+            catch
+            {
+                // ignore local settings save failures
+            }
+        }
+
         private void BuildHeader()
         {
             _headerPanel = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 52,
-                BackColor = Color.FromArgb(20, 40, 80),
-                Padding   = new Padding(12, 0, 12, 0),
+                Height    = 56,
+                BackColor = ColorPrimaryDark,
+                Padding   = new Padding(16, 8, 16, 8),
             };
 
             _lblAppTitle = new Label
             {
-                Text      = "📄  Scanning Station",
-                Font      = new Font("Segoe UI", 12, FontStyle.Bold),
+                Text      = "Scanning Station",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Left,
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false,
-                Width     = 280,
+                Width     = 220,
             };
 
             _lblOperator = new Label
             {
-                Text      = "",
-                Font      = new Font("Segoe UI", 9),
-                ForeColor = Color.FromArgb(190, 210, 240),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false,
+                Text         = "",
+                Font         = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor    = Color.White,
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.MiddleCenter,
+                AutoSize     = false,
+                AutoEllipsis = true,
             };
 
             _btnLogout = new Button
             {
                 Text      = "Logout",
-                Width     = 80,
+                Width     = 88,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(180, 50, 50),
+                BackColor = Color.Transparent,
                 ForeColor = Color.White,
                 Cursor    = Cursors.Hand,
                 Dock      = DockStyle.Right,
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnLogout.FlatAppearance.BorderSize = 0;
+            _btnLogout.FlatAppearance.BorderColor = Color.FromArgb(180, 190, 220);
+            _btnLogout.FlatAppearance.BorderSize = 1;
             _btnLogout.Click += (_, _) =>
             {
                 _queue?.StopBackgroundUpload();
@@ -192,28 +268,34 @@ namespace ScannerApp.Forms
 
             _btnChangePath = new Button
             {
-                Text      = "📁 Storage",
-                Width     = 100,
+                Text      = "Storage",
+                Width     = 96,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(40, 60, 100),
+                BackColor = Color.Transparent,
                 ForeColor = Color.White,
                 Cursor    = Cursors.Hand,
                 Dock      = DockStyle.Right,
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnChangePath.FlatAppearance.BorderSize = 0;
+            _btnChangePath.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
+            _btnChangePath.FlatAppearance.BorderSize = 1;
             _btnChangePath.Click += BtnChangePath_Click;
 
             _btnViewLog = new Button
             {
-                Text      = "📋 Log",
-                Width     = 80,
+                Text      = "Log",
+                Width     = 72,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(40, 60, 100),
+                BackColor = Color.Transparent,
                 ForeColor = Color.White,
                 Cursor    = Cursors.Hand,
                 Dock      = DockStyle.Right,
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnViewLog.FlatAppearance.BorderSize = 0;
+            _btnViewLog.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
+            _btnViewLog.FlatAppearance.BorderSize = 1;
             _btnViewLog.Click += (_, _) =>
             {
                 var logPath = AppLogger.TodayLogPath;
@@ -232,23 +314,25 @@ namespace ScannerApp.Forms
             {
                 Text      = "QC rejected…",
                 Width     = 118,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(40, 60, 100),
+                BackColor = Color.Transparent,
                 ForeColor = Color.White,
                 Cursor    = Cursors.Hand,
                 Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 8.5f),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnQcRejected.FlatAppearance.BorderSize = 0;
+            _btnQcRejected.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
+            _btnQcRejected.FlatAppearance.BorderSize = 1;
             _btnQcRejected.Click += BtnQcRejected_Click;
 
             _lblServerStatus = new Label
             {
                 Text      = "● Server: …",
-                Font      = new Font("Segoe UI", 8f),
-                ForeColor = Color.FromArgb(180, 180, 180),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
                 Dock      = DockStyle.Right,
-                Width     = 110,
+                Width     = 124,
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize  = false,
             };
@@ -256,10 +340,10 @@ namespace ScannerApp.Forms
             _lblScannerStatus = new Label
             {
                 Text      = "● Scanner: …",
-                Font      = new Font("Segoe UI", 8f),
-                ForeColor = Color.FromArgb(180, 180, 180),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
                 Dock      = DockStyle.Right,
-                Width     = 120,
+                Width     = 132,
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize  = false,
             };
@@ -267,15 +351,17 @@ namespace ScannerApp.Forms
             _btnToggleQueue = new Button
             {
                 Text      = "Queue ▾",
-                Width     = 70,
+                Width     = 84,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(40, 60, 100),
+                BackColor = Color.Transparent,
                 ForeColor = Color.White,
                 Cursor    = Cursors.Hand,
                 Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 7.5f),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnToggleQueue.FlatAppearance.BorderSize = 0;
+            _btnToggleQueue.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
+            _btnToggleQueue.FlatAppearance.BorderSize = 1;
             _btnToggleQueue.Click += (_, _) =>
             {
                 bool show = !_queueCard.Visible;
@@ -287,15 +373,17 @@ namespace ScannerApp.Forms
             _btnToggleActivity = new Button
             {
                 Text      = "Activity ▾",
-                Width     = 75,
+                Width     = 92,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(40, 60, 100),
+                BackColor = Color.Transparent,
                 ForeColor = Color.White,
                 Cursor    = Cursors.Hand,
                 Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 7.5f),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnToggleActivity.FlatAppearance.BorderSize = 0;
+            _btnToggleActivity.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
+            _btnToggleActivity.FlatAppearance.BorderSize = 1;
             _btnToggleActivity.Click += (_, _) =>
             {
                 bool show = !_logCard.Visible;
@@ -316,103 +404,224 @@ namespace ScannerApp.Forms
             _mainTable = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
-                ColumnCount = 2,
+                ColumnCount = 3,
                 RowCount    = 2,
-                Padding     = new Padding(8),
+                Padding     = new Padding(16),
                 BackColor   = ColorSurface,
             };
-            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260));
-            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            _mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            _mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 268));
+            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 24f));
+            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 26f));
+            _mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            _mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 280f));
 
             _mainTable.Controls.Add(BuildLeftPanel(), 0, 0);
-            _mainTable.Controls.Add(BuildCenterPanel(), 1, 0);
-            _mainTable.Controls.Add(BuildBottomPanel(), 0, 1);
-            _mainTable.SetColumnSpan(_mainTable.GetControlFromPosition(0, 1)!, 2);
+            _mainTable.Controls.Add(BuildCenterPreviewPanel(), 1, 0);
+            _mainTable.Controls.Add(BuildRightPanel(), 2, 0);
+            var bottom = BuildBottomPanel();
+            _mainTable.Controls.Add(bottom, 0, 1);
+            _mainTable.SetColumnSpan(bottom, 3);
 
             Controls.Add(_mainTable);
         }
 
+        private static Panel CreateSectionCard(string title, out TableLayoutPanel body)
+        {
+            var card = new Panel
+            {
+                Dock         = DockStyle.Top,
+                Margin       = new Padding(0, 0, 0, 16),
+                BackColor    = ColorCard,
+                Padding      = new Padding(16),
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            };
+            card.Paint += PaintCardBorder;
+
+            var stack = new TableLayoutPanel
+            {
+                Dock          = DockStyle.Top,
+                ColumnCount   = 1,
+                RowCount      = 2,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+            };
+            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var lblTitle = new Label
+            {
+                Text      = title,
+                Font      = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
+                Dock      = DockStyle.Fill,
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 10),
+            };
+
+            body = new TableLayoutPanel
+            {
+                Dock         = DockStyle.Fill,
+                ColumnCount  = 1,
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            };
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            stack.Controls.Add(lblTitle, 0, 0);
+            stack.Controls.Add(body, 0, 1);
+            card.Controls.Add(stack);
+            return card;
+        }
+
+        private static int AddCardRow(TableLayoutPanel body, Control c, int row)
+        {
+            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            body.Controls.Add(c, 0, row);
+            return row + 1;
+        }
+
         private Panel BuildLeftPanel()
         {
-            var panel = new Panel
+            var scrollHost = new Panel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = ColorCard,
-                Padding   = new Padding(14, 14, 14, 14),
+                Dock       = DockStyle.Fill,
+                BackColor  = ColorSurface,
                 AutoScroll = true,
+                Padding    = new Padding(0, 0, 8, 0),
             };
-            panel.Paint += PaintCardBorder;
 
-            int y = 14;
+            var stack = new TableLayoutPanel
+            {
+                Dock         = DockStyle.Top,
+                ColumnCount  = 1,
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding      = new Padding(0),
+            };
+            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            // Workstation info
-            _lblWorkstation = MakeLabel("— Workstation loading… —", 9, FontStyle.Bold, ColorPrimary, 14, y); y += 22;
-            _lblDriverMode  = MakeLabel("Driver: WIA", 8, FontStyle.Regular, ColorMuted, 14, y); y += 30;
+            int row = 0;
 
-            AddSectionLabel(panel, "EXAM", 14, y); y += 22;
-            _cboExam = MakeComboBox(14, y, 228); y += 34;
+            // Workstation strip (card)
+            var wsCard = new Panel
+            {
+                Dock         = DockStyle.Top,
+                Margin       = new Padding(0, 0, 0, 16),
+                BackColor    = ColorCard,
+                Padding      = new Padding(16),
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            };
+            wsCard.Paint += PaintCardBorder;
+            _lblWorkstation = new Label
+            {
+                Text      = "— Workstation loading… —",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = ColorPrimary,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+            };
+            _lblDriverMode = new Label
+            {
+                Text      = "Driver: WIA",
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+                Margin    = new Padding(0, 8, 0, 0),
+            };
+            wsCard.Controls.Add(_lblWorkstation);
+            wsCard.Controls.Add(_lblDriverMode);
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.Controls.Add(wsCard, 0, row++);
+
+            // 1. Exam details
+            var examCard = CreateSectionCard("EXAM DETAILS", out var examBody);
+            _cboExam = MakeComboBox(0, 0, 200);
+            _cboExam.Dock = DockStyle.Top;
+            _cboExam.Margin = new Padding(0, 0, 0, 12);
             _cboExam.SelectedIndexChanged += CboExam_Changed;
+            int er = 0;
+            er = AddCardRow(examBody, _cboExam, er);
 
-            AddSectionLabel(panel, "PAPER", 14, y); y += 22;
-            _cboPaper = MakeComboBox(14, y, 228); y += 34;
+            _cboPaper = MakeComboBox(0, 0, 200);
+            _cboPaper.Dock = DockStyle.Top;
+            _cboPaper.Margin = new Padding(0, 0, 0, 12);
             _cboPaper.SelectedIndexChanged += (_, _) => SyncQueueUploadFallback();
+            er = AddCardRow(examBody, _cboPaper, er);
 
-            AddSectionLabel(panel, "SCAN TEMPLATE", 14, y); y += 22;
-            _cboTemplate = MakeComboBox(14, y, 228); y += 34;
+            _cboTemplate = MakeComboBox(0, 0, 200);
+            _cboTemplate.Dock = DockStyle.Top;
+            _cboTemplate.Margin = new Padding(0, 0, 0, 12);
             _cboTemplate.SelectedIndexChanged += CboTemplate_Changed;
+            er = AddCardRow(examBody, _cboTemplate, er);
 
             _txtTemplateDetail = new TextBox
             {
-                Location      = new Point(14, y),
-                Width         = 228,
-                Height        = 168,
-                Font          = new Font("Segoe UI", 7.5f),
-                ForeColor     = ColorText,
-                BackColor     = Color.FromArgb(252, 252, 254),
-                BorderStyle   = BorderStyle.FixedSingle,
-                Multiline     = true,
-                ReadOnly      = true,
-                ScrollBars    = ScrollBars.Vertical,
-                WordWrap      = false,
-                TabStop       = false,
-                Cursor        = Cursors.Default,
-                Text          = "Select a template above",
+                Dock        = DockStyle.Top,
+                Height      = 140,
+                Font        = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor   = ColorText,
+                BackColor   = ColorInputBg,
+                BorderStyle = BorderStyle.FixedSingle,
+                Multiline   = true,
+                ReadOnly    = true,
+                ScrollBars  = ScrollBars.Vertical,
+                WordWrap    = false,
+                TabStop     = false,
+                Cursor      = Cursors.Default,
+                Text        = "Select a template above",
             };
-            y += 172;
+            AddCardRow(examBody, _txtTemplateDetail, er);
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.Controls.Add(examCard, 0, row++);
 
-            AddSectionLabel(panel, "SCANNER", 14, y); y += 22;
-
-            var scannerRow = new Panel { Location = new Point(14, y), Width = 228, Height = 28 };
+            // 2. Scanner settings
+            var scanCard = CreateSectionCard("SCANNER SETTINGS", out var scanBody);
+            var scannerRow = new TableLayoutPanel
+            {
+                Dock         = DockStyle.Top,
+                ColumnCount  = 2,
+                Height       = 36,
+                AutoSize     = false,
+                Margin       = new Padding(0, 0, 0, 12),
+            };
+            scannerRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            scannerRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 88f));
             _cboScanner = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width         = 148,
-                Dock          = DockStyle.Left,
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
+            };
+            var btnRow = new FlowLayoutPanel
+            {
+                Dock         = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents = false,
+                AutoSize     = true,
             };
             _btnRefresh = new Button
             {
                 Text      = "⟳",
-                Width     = 36,
-                Height    = 26,
+                Width     = 40,
+                Height    = 32,
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                BackColor = ColorSurface,
+                Margin    = new Padding(4, 0, 0, 0),
             };
-            _btnRefresh.FlatAppearance.BorderColor = ColorBorder;
+            StyleOutlineButton(_btnRefresh);
             _btnRefresh.Click += (_, _) => LoadScanners();
             _btnSetDefaultScanner = new Button
             {
-                Text      = "★",
-                Width     = 36,
-                Height    = 26,
+                Text   = "★",
+                Width  = 40,
+                Height = 32,
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                BackColor = ColorSurface,
-                Font      = new Font("Segoe UI", 9),
+                Font   = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
-            _btnSetDefaultScanner.FlatAppearance.BorderColor = ColorBorder;
+            StyleOutlineButton(_btnSetDefaultScanner);
             _btnSetDefaultScanner.Click += (_, _) =>
             {
                 if (_cboScanner.SelectedItem is string name)
@@ -421,19 +630,24 @@ namespace ScannerApp.Forms
                     SetStatus($"Default scanner set: {name}", false);
                 }
             };
-            ToolTip tt = new ToolTip();
+            var tt = new ToolTip();
             tt.SetToolTip(_btnSetDefaultScanner, "Set as default scanner");
-            scannerRow.Controls.AddRange(new Control[] { _cboScanner, _btnSetDefaultScanner, _btnRefresh });
-            y += 38;
+            btnRow.Controls.Add(_btnRefresh);
+            btnRow.Controls.Add(_btnSetDefaultScanner);
+            scannerRow.Controls.Add(_cboScanner, 0, 0);
+            scannerRow.Controls.Add(btnRow, 1, 0);
+            int sr = 0;
+            sr = AddCardRow(scanBody, scannerRow, sr);
 
             _chkDeskewTrim = new CheckBox
             {
                 Text      = "Deskew & trim borders (software)",
-                Location  = new Point(14, y),
-                Width     = 228,
+                Dock      = DockStyle.Top,
                 AutoSize  = true,
                 Checked   = true,
                 ForeColor = ColorText,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
+                Margin    = new Padding(0, 0, 0, 8),
             };
             _chkDeskewTrim.CheckedChanged += (_, _) => RefreshTemplateDetailView();
             var ttDeskew = new ToolTip();
@@ -441,74 +655,144 @@ namespace ScannerApp.Forms
                 "When on: grayscale → binarize → Hough line deskew (Emgu CV) with AForge fallback, " +
                 "then largest-contour crop and edge trim before saving JPEGs. When off: save scans as captured. " +
                 "The booklet PDF uses these saved JPEGs.");
-            y += 28;
+            sr = AddCardRow(scanBody, _chkDeskewTrim, sr);
 
             _chkTwainUi = new CheckBox
             {
                 Text      = "Show TWAIN scanner UI (driver)",
-                Location  = new Point(14, y),
-                Width     = 228,
+                Dock      = DockStyle.Top,
                 AutoSize  = true,
                 Visible   = false,
                 ForeColor = ColorText,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
             };
             _chkTwainUi.CheckedChanged += (_, _) => SyncTwainScannerUiFlag();
             var ttTw = new ToolTip();
             ttTw.SetToolTip(_chkTwainUi, "Opens the scanner vendor’s dialog for one scan (cover open, colour, etc.). TWAIN only.");
-            y += 28;
+            sr = AddCardRow(scanBody, _chkTwainUi, sr);
 
+            _chkUseServerBarcode = new CheckBox
+            {
+                Text      = "Use server barcode API (ZXing-WASM)",
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+                ForeColor = ColorText,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
+                Margin    = new Padding(0, 8, 0, 6),
+                Checked   = _serverBarcode.Enabled,
+            };
+            _chkUseServerBarcode.CheckedChanged += (_, _) =>
+            {
+                _serverBarcode.Enabled = _chkUseServerBarcode.Checked;
+                _txtServerBarcodeUrl.Enabled = _chkUseServerBarcode.Checked;
+                SaveDesktopSettings();
+                SetStatus(_chkUseServerBarcode.Checked
+                    ? "Barcode mode: server API"
+                    : "Barcode mode: local reader", false);
+            };
+            sr = AddCardRow(scanBody, _chkUseServerBarcode, sr);
+
+            _txtServerBarcodeUrl = new TextBox
+            {
+                Dock        = DockStyle.Top,
+                Height      = 32,
+                Font        = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor   = ColorText,
+                BackColor   = ColorInputBg,
+                BorderStyle = BorderStyle.FixedSingle,
+                Text        = _serverBarcode.BaseUrl,
+                Enabled     = _serverBarcode.Enabled,
+            };
+            _txtServerBarcodeUrl.Leave += (_, _) =>
+            {
+                var url = (_txtServerBarcodeUrl.Text ?? "").Trim().TrimEnd('/');
+                _serverBarcode.BaseUrl = string.IsNullOrWhiteSpace(url) ? "http://localhost:8787" : url;
+                _txtServerBarcodeUrl.Text = _serverBarcode.BaseUrl;
+                SaveDesktopSettings();
+            };
+            var ttSrv = new ToolTip();
+            ttSrv.SetToolTip(_txtServerBarcodeUrl, "Example: http://localhost:8787");
+            AddCardRow(scanBody, _txtServerBarcodeUrl, sr);
+
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.Controls.Add(scanCard, 0, row++);
+
+            // QC rescan (compact, still in left column)
+            var qcCard = new Panel
+            {
+                Dock         = DockStyle.Top,
+                Margin       = new Padding(0, 0, 0, 16),
+                BackColor    = ColorCard,
+                Padding      = new Padding(16),
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            };
+            qcCard.Paint += PaintCardBorder;
             _lblQcRescan = new Label
             {
-                Text     = "Server BookletID (QC rescan)",
-                Location = new Point(14, y),
-                Width    = 228,
-                Height   = 28,
-                Font     = new Font("Segoe UI", 8f),
+                Text      = "QC rescan — Booklet ID",
+                Font      = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = ColorMuted,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
             };
-            y += 30;
             _txtQcRescanId = new TextBox
             {
-                Location = new Point(14, y),
-                Width    = 228,
-                Font     = new Font("Segoe UI", 9f),
+                Dock        = DockStyle.Top,
+                Height      = 32,
+                Margin      = new Padding(0, 10, 0, 0),
+                Font        = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor   = ColorInputBg,
             };
             var ttRescan = new ToolTip();
             ttRescan.SetToolTip(_txtQcRescanId,
                 "Optional. Enter the BookletID already stored on the server for a booklet that QC rejected. " +
                 "The next scan uses this ID as the folder name and upload key so the server replaces the same booklet (upsert). " +
                 "Use “QC rejected…” to pick one from the list.");
-            y += 30;
+            qcCard.Controls.Add(_lblQcRescan);
+            qcCard.Controls.Add(_txtQcRescanId);
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.Controls.Add(qcCard, 0, row++);
 
-            // Scan button
+            // 3. Action
+            var actionCard = CreateSectionCard("ACTION", out var actBody);
             _btnScan = new Button
             {
                 Text      = "SCAN BOOKLET",
-                Location  = new Point(14, y),
-                Width     = 228,
-                Height    = 50,
+                Dock      = DockStyle.Top,
+                Height    = 48,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = ColorPrimary,
                 ForeColor = Color.White,
-                Font      = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Point),
                 Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 0, 12),
             };
             _btnScan.FlatAppearance.BorderSize = 0;
             _btnScan.Click += BtnScan_Click;
-            y += 56;
+            int ar = 0;
+            ar = AddCardRow(actBody, _btnScan, ar);
 
-            // Pause / Cancel row (visible only during scanning)
-            var flowRow = new Panel { Location = new Point(14, y), Width = 228, Height = 32, Visible = false };
+            var flowRow = new Panel
+            {
+                Dock     = DockStyle.Top,
+                Height   = 36,
+                Visible  = false,
+                Margin   = new Padding(0, 0, 0, 12),
+                Name     = "scanFlowRow",
+                Tag      = "scanFlowRow",
+            };
             _btnPause = new Button
             {
-                Text      = "⏸ PAUSE",
-                Width     = 110,
-                Height    = 30,
+                Text      = "Pause",
+                Width     = 120,
+                Height    = 34,
                 Dock      = DockStyle.Left,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(230, 160, 30),
+                BackColor = ColorWarning,
                 ForeColor = Color.White,
-                Font      = new Font("Segoe UI", 9, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point),
                 Cursor    = Cursors.Hand,
             };
             _btnPause.FlatAppearance.BorderSize = 0;
@@ -516,92 +800,182 @@ namespace ScannerApp.Forms
 
             _btnCancel = new Button
             {
-                Text      = "✕ CANCEL",
-                Width     = 110,
-                Height    = 30,
+                Text      = "Cancel",
+                Width     = 120,
+                Height    = 34,
                 Dock      = DockStyle.Right,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = ColorDanger,
                 ForeColor = Color.White,
-                Font      = new Font("Segoe UI", 9, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point),
                 Cursor    = Cursors.Hand,
             };
             _btnCancel.FlatAppearance.BorderSize = 0;
             _btnCancel.Click += BtnCancel_Click;
 
             flowRow.Controls.AddRange(new Control[] { _btnPause, _btnCancel });
-            flowRow.Tag = "scanFlowRow";
-            y += 38;
+            ar = AddCardRow(actBody, flowRow, ar);
 
             _progressBar = new ProgressBar
             {
-                Location = new Point(14, y),
-                Width    = 228,
-                Height   = 8,
+                Dock     = DockStyle.Top,
+                Height   = 6,
                 Style    = ProgressBarStyle.Marquee,
                 Visible  = false,
+                Margin   = new Padding(0, 0, 0, 8),
             };
-            y += 16;
+            ar = AddCardRow(actBody, _progressBar, ar);
 
             _lblStatus = new Label
             {
-                Location  = new Point(14, y),
-                Width     = 228,
-                Height    = 30,
-                Font      = new Font("Segoe UI", 8),
+                Dock      = DockStyle.Top,
+                Height    = 40,
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
                 ForeColor = ColorMuted,
                 Text      = "Ready",
-                AutoSize  = false,
+                TextAlign = ContentAlignment.TopLeft,
+            };
+            AddCardRow(actBody, _lblStatus, ar);
+
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.Controls.Add(actionCard, 0, row++);
+
+            _leftScrollHost   = scrollHost;
+            _leftConfigStack  = stack;
+            scrollHost.Resize += (_, _) => SyncLeftConfigColumnWidth();
+            scrollHost.HandleCreated += (_, _) => SyncLeftConfigColumnWidth();
+
+            scrollHost.Controls.Add(stack);
+            return scrollHost;
+        }
+
+        /// <summary>
+        /// Auto-sized <see cref="TableLayoutPanel"/> with <see cref="DockStyle.Top"/> does not receive the parent
+        /// width automatically; match the scroll host client width so controls fill the column and vertical scroll works.
+        /// </summary>
+        private void SyncLeftConfigColumnWidth()
+        {
+            if (_leftScrollHost == null || _leftConfigStack == null) return;
+            int w = _leftScrollHost.ClientSize.Width - _leftScrollHost.Padding.Horizontal;
+            if (w < 120) w = 120;
+            if (_leftConfigStack.Width != w)
+                _leftConfigStack.Width = w;
+        }
+
+        private static void StyleOutlineButton(Button b)
+        {
+            b.FlatStyle = FlatStyle.Flat;
+            b.BackColor = ColorCard;
+            b.ForeColor = ColorText;
+            b.FlatAppearance.BorderColor = ColorBorder;
+            b.Cursor = Cursors.Hand;
+        }
+
+        private Panel BuildCenterPreviewPanel()
+        {
+            var panel = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(16) };
+            panel.Paint += PaintCardBorder;
+
+            var layout = new TableLayoutPanel
+            {
+                Dock         = DockStyle.Fill,
+                ColumnCount  = 1,
+                RowCount     = 2,
+            };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            var titleRow = new FlowLayoutPanel
+            {
+                Dock         = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize     = true,
+                Margin       = new Padding(0, 0, 0, 12),
+            };
+            var lblTitle = new Label
+            {
+                Text      = "Scan preview",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = ColorText,
+                AutoSize  = true,
+            };
+            _lblScanPreviewMeta = new Label
+            {
+                Text      = "No scan yet",
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
+                AutoSize  = true,
+                Margin    = new Padding(16, 4, 0, 0),
+            };
+            titleRow.Controls.Add(lblTitle);
+            titleRow.Controls.Add(_lblScanPreviewMeta);
+
+            _picPreview = new PictureBox
+            {
+                Dock      = DockStyle.Fill,
+                SizeMode  = PictureBoxSizeMode.Zoom,
+                BackColor = ColorInputBg,
+                BorderStyle = BorderStyle.FixedSingle,
             };
 
-            panel.Controls.AddRange(new Control[]
-            {
-                _lblWorkstation, _lblDriverMode,
-                _cboExam, _cboPaper, _cboTemplate, _txtTemplateDetail,
-                scannerRow, _chkDeskewTrim, _chkTwainUi, _lblQcRescan, _txtQcRescanId, _btnScan, flowRow, _progressBar, _lblStatus,
-            });
-
-            // Add all section labels manually
+            layout.Controls.Add(titleRow, 0, 0);
+            layout.Controls.Add(_picPreview, 0, 1);
+            panel.Controls.Add(layout);
             return panel;
         }
 
-        private Panel BuildCenterPanel()
+        private Panel BuildRightPanel()
         {
-            var panel = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(8) };
-            panel.Paint += PaintCardBorder;
-
-            var splitContainer = new SplitContainer
+            var panel = new Panel { Dock = DockStyle.Fill, BackColor = ColorSurface, Padding = new Padding(8, 0, 0, 0) };
+            var card = new Panel
             {
-                Dock          = DockStyle.Fill,
-                Orientation   = Orientation.Vertical,
-                Panel1MinSize = 60,
-                Panel2MinSize = 120,
-                FixedPanel    = FixedPanel.None,
-                BackColor     = ColorCard,
+                Dock      = DockStyle.Fill,
+                BackColor = ColorCard,
+                Padding   = new Padding(16),
             };
-            // SplitterDistance must be set AFTER min-size properties and only once parent
-            // has a real size; defer to Layout event to avoid InvalidOperationException.
-            splitContainer.Layout += (_, _) =>
+            card.Paint += PaintCardBorder;
+
+            var layout = new TableLayoutPanel
             {
-                try
-                {
-                    if (splitContainer.Width > 200 && splitContainer.SplitterDistance < 120)
-                        splitContainer.SplitterDistance = 200;
-                }
-                catch { }
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 3,
+            };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            var hdr = new Label
+            {
+                Text      = "Pages",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = ColorText,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 8),
+            };
+            _lblBatchInfo = new Label
+            {
+                Text      = "Current booklet · 0 pages",
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 12),
             };
 
-            // Left of split: page thumbnails (list view)
-            _pageImages = new ImageList { ImageSize = new Size(80, 106), ColorDepth = ColorDepth.Depth32Bit };
+            _pageImages = new ImageList { ImageSize = new Size(72, 96), ColorDepth = ColorDepth.Depth32Bit };
             _lvPages = new ListView
             {
                 Dock             = DockStyle.Fill,
                 View             = View.LargeIcon,
                 LargeImageList   = _pageImages,
-                BackColor        = ColorCard,
-                BorderStyle      = BorderStyle.None,
+                BackColor        = ColorInputBg,
+                BorderStyle      = BorderStyle.FixedSingle,
                 MultiSelect      = false,
                 ShowItemToolTips = true,
+                Font             = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
             };
             _lvPages.SelectedIndexChanged += LvPages_SelectedChanged;
             var ctxPages = new ContextMenuStrip();
@@ -609,18 +983,12 @@ namespace ScannerApp.Forms
             miDecode.Click += MiDecodeBarcodes_Click;
             ctxPages.Items.Add(miDecode);
             _lvPages.ContextMenuStrip = ctxPages;
-            splitContainer.Panel1.Controls.Add(_lvPages);
 
-            // Right of split: large preview
-            _picPreview = new PictureBox
-            {
-                Dock     = DockStyle.Fill,
-                SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.FromArgb(230, 235, 242),
-            };
-            splitContainer.Panel2.Controls.Add(_picPreview);
-
-            panel.Controls.Add(splitContainer);
+            layout.Controls.Add(hdr, 0, 0);
+            layout.Controls.Add(_lblBatchInfo, 0, 1);
+            layout.Controls.Add(_lvPages, 0, 2);
+            card.Controls.Add(layout);
+            panel.Controls.Add(card);
             return panel;
         }
 
@@ -646,7 +1014,7 @@ namespace ScannerApp.Forms
             var headerRow = new Panel
             {
                 Dock   = DockStyle.Top,
-                Height = 26,
+                Height = 32,
             };
 
             _lblQueueHeader = new Label
@@ -697,17 +1065,23 @@ namespace ScannerApp.Forms
             headerRow.Controls.Add(_btnRetryFailed);
             headerRow.Controls.Add(_lblQueueHeader);
 
+            _queueRowHeightImages ??= CreateQueueRowHeightImageList();
             _lvQueue = new ListView
             {
                 Dock               = DockStyle.Fill,
                 View               = View.Details,
                 FullRowSelect      = true,
-                GridLines          = true,
+                GridLines          = false,
                 BackColor          = ColorCard,
                 BorderStyle        = BorderStyle.None,
-                Font               = new Font("Segoe UI", 8.5f),
+                Font               = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
                 ShowItemToolTips   = true,
+                OwnerDraw          = true,
+                HideSelection      = false,
+                SmallImageList     = _queueRowHeightImages,
             };
+            _lvQueue.DrawColumnHeader += LvQueue_DrawColumnHeader;
+            _lvQueue.DrawSubItem += LvQueue_DrawSubItem;
             _lvQueue.Columns.AddRange(new[]
             {
                 new ColumnHeader { Text = "Booklet ID",         Width = 160 },
@@ -767,8 +1141,9 @@ namespace ScannerApp.Forms
                 Multiline   = true,
                 ReadOnly    = true,
                 ScrollBars  = ScrollBars.Vertical,
-                Font        = new Font("Consolas", 8f),
-                BackColor   = Color.FromArgb(250, 251, 253),
+                Font        = new Font("Consolas", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor   = ColorText,
+                BackColor   = ColorInputBg,
                 BorderStyle = BorderStyle.FixedSingle,
                 TabStop     = false,
                 WordWrap    = false,
@@ -826,7 +1201,7 @@ namespace ScannerApp.Forms
                 }
                 catch (Exception ex)
                 {
-                    SetStatus($"Settings unavailable: {ex.Message}", false);
+                    SetStatus($"Settings unavailable: {ex.Message}", false, isError: true);
                 }
 
                 // 4. Auto-select workstation
@@ -842,7 +1217,7 @@ namespace ScannerApp.Forms
 
                 // 5. Hardware scanners
                 try { LoadScanners(); }
-                catch { SetStatus("Could not enumerate scanners", false); }
+                catch { SetStatus("Could not enumerate scanners", false, isWarning: true); }
 
                 // 6. Server + scanner connectivity polling
                 StartConnectivityPolling();
@@ -854,11 +1229,12 @@ namespace ScannerApp.Forms
                 _queue.StartBackgroundUpload();
                 RefreshQueueView();
 
+                SyncLeftConfigColumnWidth();
                 SetStatus("Ready", false);
             }
             catch (Exception ex)
             {
-                SetStatus($"Startup error: {ex.Message}", false);
+                SetStatus($"Startup error: {ex.Message}", false, isError: true);
                 MessageBox.Show($"Startup error:\n{ex.Message}", "Warning",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 // Still allow the form to remain open — queue is initialized above
@@ -1094,7 +1470,7 @@ namespace ScannerApp.Forms
             }
             else
             {
-                SetStatus("No scanners detected. Connect a scanner and click ⟳", false);
+                SetStatus("No scanners detected. Connect a scanner and click ⟳", false, isWarning: true);
                 _lblScannerStatus.Text      = "● Scanner: None";
                 _lblScannerStatus.ForeColor = Color.FromArgb(255, 180, 60);
             }
@@ -1195,6 +1571,7 @@ namespace ScannerApp.Forms
             try { _picPreview.Image?.Dispose(); } catch { }
             _picPreview.Image = (Bitmap)rawBmp.Clone();
             SetStatus($"Page {pageNum} scanned (processing…)", true);
+            UpdateScanWorkspaceLabels();
         }
 
         /// <summary>Replaces the thumbnail and preview with the processed (deskewed/trimmed) image.</summary>
@@ -1240,6 +1617,7 @@ namespace ScannerApp.Forms
             }
 
             SetStatus($"Page {pageNum} processed ({_currentPages.Count} total)", true);
+            UpdateScanWorkspaceLabels();
         }
 
         /// <summary>Background pipeline: raw JPEG, optional deskew/trim, decode, ordered UI flush.</summary>
@@ -1249,12 +1627,15 @@ namespace ScannerApp.Forms
             string folder,
             ScanTemplate tmpl,
             bool deskewTrim,
-            SemaphoreSlim sem)
+            SemaphoreSlim sem,
+            CancellationToken ct,
+            int sessionId)
         {
             sem.Wait();
             var sw = Stopwatch.StartNew();
             try
             {
+                ct.ThrowIfCancellationRequested();
                 string rawPath = Path.Combine(folder, $"page_{pageNum:D3}_raw.jpg");
                 string finalPath = Path.Combine(folder, $"page_{pageNum:D3}.jpg");
 
@@ -1264,6 +1645,7 @@ namespace ScannerApp.Forms
                 BeginInvoke(() => AppendActivity($"P{pageNum}: saving raw JPEG ({srcW}x{srcH} {srcFmt})…"));
                 try
                 {
+                    ct.ThrowIfCancellationRequested();
                     ImageHelper.SaveAsJpeg(sourceBmp, rawPath, tmpl.JpegQuality);
                     var rawSize = new FileInfo(rawPath).Length / 1024;
                     BeginInvoke(() => AppendActivity($"P{pageNum}: raw JPEG saved ({rawSize} KB)"));
@@ -1280,6 +1662,7 @@ namespace ScannerApp.Forms
                 BeginInvoke(() => AppendActivity($"P{pageNum}: {deskewLabel} started…"));
                 try
                 {
+                    ct.ThrowIfCancellationRequested();
                     if (deskewTrim)
                     {
                         using var processed = ImageHelper.AutoTrimAndDeskew(sourceBmp, true);
@@ -1317,11 +1700,17 @@ namespace ScannerApp.Forms
 
                 var finalSize = File.Exists(finalPath) ? new FileInfo(finalPath).Length / 1024 : 0;
                 sw.Stop();
+                ct.ThrowIfCancellationRequested();
                 BeginInvoke(() =>
                 {
+                    if (!_isScanning || _scanSessionId != sessionId || _cancelRequested) return;
                     UpdateProcessedPageInUi(pageNum, finalPath, hash);
                     AppendActivity($"P{pageNum}: processed OK ({finalSize} KB, {sw.ElapsedMilliseconds} ms)");
                 });
+            }
+            catch (OperationCanceledException)
+            {
+                BeginInvoke(() => AppendActivity($"P{pageNum}: processing cancelled"));
             }
             catch (Exception ex)
             {
@@ -1357,6 +1746,14 @@ namespace ScannerApp.Forms
 
             // Build effective template with local overrides
             var effectiveTemplate = ScanTemplate.CloneFrom(template);
+            if (!ValidateMandatoryTemplateZones(effectiveTemplate, out var zoneError))
+            {
+                SetStatus("Scan blocked — template is missing required barcode zones", false, isError: true);
+                MessageBox.Show(zoneError, "Template configuration error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                AppLogger.Error($"Template '{effectiveTemplate.TemplateName}' rejected: {zoneError}");
+                return;
+            }
 
             // Derive scan source from server-configured template (no local dropdown)
             var scanSrc = effectiveTemplate.DuplexMode.Equals("Duplex", StringComparison.OrdinalIgnoreCase)
@@ -1373,10 +1770,13 @@ namespace ScannerApp.Forms
                            $"workstationDriver={_myWorkstation?.DriverType ?? "n/a"} deskewTrim={_chkDeskewTrim.Checked}");
 
             // UI: enter scanning state
+            _cancelRequested = false;
+            int sessionId = Interlocked.Increment(ref _scanSessionId);
             _currentPages.Clear();
             _lvPages.Items.Clear();
             _pageImages.Images.Clear();
             _picPreview.Image = null;
+            UpdateScanWorkspaceLabels();
 
             _scanCts = new CancellationTokenSource();
             EnterScanningState();
@@ -1438,9 +1838,9 @@ namespace ScannerApp.Forms
 
                 var c = clone!;
                 int n = pageNum;
-                pageTasks.Add(Task.Run(() => RunPagePipeline(c, n, pendingFolder, effectiveTemplate, deskewTrim, pipelineSem)));
+                pageTasks.Add(Task.Run(() => RunPagePipeline(c, n, pendingFolder, effectiveTemplate, deskewTrim, pipelineSem, _scanCts!.Token, sessionId)));
                 AppendActivity($"P{pageNum}: scan received, queued for processing");
-                SetStatus($"Scanning — page {pageNum} captured…", true);
+                SetStatus($"Scanning page {pageNum}…", true);
             });
 
             var scanSw = Stopwatch.StartNew();
@@ -1462,7 +1862,7 @@ namespace ScannerApp.Forms
                         // ignore
                     }
 
-                    SetStatus("No pages scanned — feeder may be empty", false);
+                    SetStatus("No pages scanned — feeder may be empty", false, isWarning: true);
                     AppendActivity("Scan finished — no pages.");
                     return;
                 }
@@ -1488,7 +1888,7 @@ namespace ScannerApp.Forms
 
                         int n = page1;
                         var bb = b;
-                        pageTasks.Add(Task.Run(() => RunPagePipeline(bb, n, pendingFolder, effectiveTemplate, deskewTrim, pipelineSem!)));
+                        pageTasks.Add(Task.Run(() => RunPagePipeline(bb, n, pendingFolder, effectiveTemplate, deskewTrim, pipelineSem!, _scanCts!.Token, sessionId)));
                     }
                 }
 
@@ -1499,14 +1899,20 @@ namespace ScannerApp.Forms
 
                 // ── Parallel barcode reading (each thread gets its own BarcodeService) ──
                 SetStatus($"Reading barcodes in parallel…", true);
-                int maxWorkers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
-                AppendActivity($"Barcode scan: starting parallel read ({maxWorkers} workers)…");
 
                 int failedAtPage = 0;
                 var ct = _scanCts!.Token;
                 int barcodeStart = effectiveTemplate.BarcodeStartPage;
                 string? zonesJson = effectiveTemplate.BarcodeZonesJson;
                 int totalPages = bitmaps.Count;
+                bool useServerBarcode = _serverBarcode.Enabled;
+                // Local IronBarcode is CPU-bound — keep a small pool. Server API is I/O-bound; a low cap
+                // serializes dozens of HTTP posts and inflates per-page wall time (scanner log: tail pages 10–40s).
+                int maxWorkers = useServerBarcode
+                    ? Math.Clamp(totalPages, 12, 32)
+                    : Math.Clamp(Environment.ProcessorCount, 2, 6);
+                AppendActivity($"Barcode scan: starting parallel read ({maxWorkers} workers)…");
+                AppendActivity($"Barcode provider: {(useServerBarcode ? $"server ({_serverBarcode.BaseUrl})" : "local (inbuilt)")}");
 
                 await Task.Run(() =>
                 {
@@ -1535,6 +1941,7 @@ namespace ScannerApp.Forms
                             }
 
                             var bc = _barcode;
+                            var sbc = _serverBarcode;
                             var pageSw = Stopwatch.StartNew();
                             try
                             {
@@ -1545,39 +1952,60 @@ namespace ScannerApp.Forms
                                 // Load bitmap via MemoryStream to release the file lock immediately.
                                 // new Bitmap(filePath) keeps the file locked until the bitmap is disposed.
                                 int decW = 0, decH = 0;
-                                Bitmap? decBmp = null;
                                 try
                                 {
-                                    var imgBytes = File.ReadAllBytes(fpFinal);
-                                    using var imgMs = new System.IO.MemoryStream(imgBytes);
-                                    decBmp = new Bitmap(imgMs);
+                                    using var decBmp = new Bitmap(fpFinal);
                                     decW = decBmp.Width; decH = decBmp.Height;
 
                                     if (pageNum < barcodeStart)
                                     {
-                                        try { (lin, qr) = bc.ReadLinearAndQrParallel(decBmp); }
+                                        try
+                                        {
+                                            if (useServerBarcode)
+                                            {
+                                                var srv = sbc.ReadLinearAndQrParallelAsync(decBmp, ct).GetAwaiter().GetResult();
+                                                lin = srv.LinearText;
+                                                qr = srv.QrText;
+                                                if (!string.IsNullOrWhiteSpace(srv.Diag))
+                                                    diagInfo = $"[server pass1 {decW}x{decH}] {srv.Diag}";
+                                            }
+                                            else
+                                            {
+                                                (lin, qr) = bc.ReadLinearAndQrParallel(decBmp);
+                                            }
+                                        }
                                         catch (Exception ex) { AppLogger.Error($"P{pageNum}: ReadLinearAndQr: {ex.Message}", ex); }
                                     }
                                     else
                                     {
-                                        var (r1, d1) = bc.ReadPageSerialOrFooterWithDiag(decBmp, pageNum, barcodeStart, zonesJson);
+                                        (string? r1, string d1) = useServerBarcode
+                                            ? sbc.ReadPageSerialOrFooterWithDiagAsync(decBmp, pageNum, barcodeStart, zonesJson, ct).GetAwaiter().GetResult()
+                                            : bc.ReadPageSerialOrFooterWithDiag(decBmp, pageNum, barcodeStart, zonesJson);
                                         footer = r1;
-                                        diagInfo = $"[pass1 {decW}x{decH}] {d1}";
+                                        diagInfo = useServerBarcode
+                                            ? $"[server pass1 {decW}x{decH}] {d1}"
+                                            : $"[pass1 {decW}x{decH}] {d1}";
                                     }
                                 }
-                                finally { decBmp?.Dispose(); }
+                                catch (Exception ex)
+                                {
+                                    diagInfo += $"\nerror loading final JPEG: {ex.Message}";
+                                    AppLogger.Error($"P{pageNum}: load final JPEG for barcode failed: {ex.Message}", ex);
+                                }
 
                                 if (pageNum >= barcodeStart && string.IsNullOrEmpty(footer) && File.Exists(fpRaw))
                                 {
                                     BeginInvoke(() => AppendActivity($"P{pageNum}: barcode retry (raw)…"));
                                     try
                                     {
-                                        var rawBytes = File.ReadAllBytes(fpRaw);
-                                        using var rawMs = new System.IO.MemoryStream(rawBytes);
-                                        using var rawBmp = new Bitmap(rawMs);
-                                        var (r2, d2) = bc.ReadPageSerialOrFooterWithDiag(rawBmp, pageNum, barcodeStart, zonesJson);
+                                        using var rawBmp = new Bitmap(fpRaw);
+                                        (string? r2, string d2) = useServerBarcode
+                                            ? sbc.ReadPageSerialOrFooterWithDiagAsync(rawBmp, pageNum, barcodeStart, zonesJson, ct).GetAwaiter().GetResult()
+                                            : bc.ReadPageSerialOrFooterWithDiag(rawBmp, pageNum, barcodeStart, zonesJson);
                                         footer = r2;
-                                        diagInfo += $"\n[pass2-raw] {d2}";
+                                        diagInfo += useServerBarcode
+                                            ? $"\n[server pass2-raw] {d2}"
+                                            : $"\n[pass2-raw] {d2}";
                                     }
                                     catch (Exception ex)
                                     {
@@ -1604,7 +2032,8 @@ namespace ScannerApp.Forms
                                     {
                                         Interlocked.CompareExchange(ref failedAtPage, pageNum, 0);
                                         _barcodeFailureDetected = true;
-                                        AppLogger.Warn($"P{pageNum}: *** BARCODE FAILED ***\n{diagInfo}");
+                                        AppLogger.Warn(
+                                            $"P{pageNum}: *** BARCODE FAILED (key={PageSerialZoneHelper.PrimaryZoneKey}) ***\n{diagInfo}");
                                         BeginInvoke(() => AppendActivity($"P{pageNum}: *** BARCODE MISSING / UNREADABLE ***"));
                                         loopState.Stop();
                                     }
@@ -1658,7 +2087,7 @@ namespace ScannerApp.Forms
                     _pageImages.Images.Clear();
                     try { _picPreview.Image?.Dispose(); } catch { }
                     _picPreview.Image = null;
-                    _picPreview.BackColor = Color.FromArgb(230, 235, 242);
+                    _picPreview.BackColor = ColorInputBg;
                     _pageBarcodesRealtime.Clear();
 
                     MessageBox.Show(
@@ -1668,7 +2097,7 @@ namespace ScannerApp.Forms
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
 
                     _barcodeFailureDetected = false;
-                    SetStatus("Ready — re-scan required", false);
+                    SetStatus("Ready — re-scan required", false, isWarning: true);
                     AppendActivity("Reset complete — ready for new scan");
                     return;
                 }
@@ -1707,7 +2136,7 @@ namespace ScannerApp.Forms
                         "Scan Failed — Barcode Validation",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                    SetStatus("Scan failed — barcode validation error", false);
+                    SetStatus("Scan failed — barcode validation error", false, isError: true);
                     return;
                 }
 
@@ -1881,12 +2310,8 @@ namespace ScannerApp.Forms
                         }
                         catch { }
 
-                        _currentPages.Clear();
-                        _lvPages.Items.Clear();
-                        _pageImages.Images.Clear();
-                        try { _picPreview.Image?.Dispose(); } catch { }
-                        _picPreview.Image = null;
-                        SetStatus("Scan cancelled", false);
+                        ClearScanWorkspaceForNextBooklet();
+                        SetStatus("Scan cancelled", false, isWarning: true);
                     }
                 }
                 catch (Exception ex)
@@ -1895,7 +2320,7 @@ namespace ScannerApp.Forms
                     try { await Task.WhenAll(pageTasks); } catch { }
 
                     AppLogger.Error($"Scan exception: {ex.Message}", ex);
-                    SetStatus($"Scan error: {ex.Message}", false);
+                    SetStatus($"Scan error: {ex.Message}", false, isError: true);
                     var wiaHint = ex.Message.Contains("0x80004005", StringComparison.OrdinalIgnoreCase)
                         ? "\n\nWIA tip: generic scanner failure — check USB/cable, close other apps using the scanner, power-cycle the device, or try Windows Fax and Scan once to confirm the driver."
                         : "";
@@ -1909,6 +2334,7 @@ namespace ScannerApp.Forms
                 ExitScanningState();
                 _scanCts?.Dispose();
                 _scanCts = null;
+                _cancelRequested = false;
             }
         }
 
@@ -1921,7 +2347,7 @@ namespace ScannerApp.Forms
             _barcodeFailureDetected = false;
             _pageBarcodesRealtime.Clear();
             _pauseEvent.Set();
-            _picPreview.BackColor = Color.FromArgb(230, 235, 242);
+            _picPreview.BackColor = ColorInputBg;
 
             _btnScan.Enabled     = false;
             _progressBar.Visible = true;
@@ -1987,9 +2413,20 @@ namespace ScannerApp.Forms
         private void BtnCancel_Click(object? sender, EventArgs e)
         {
             if (!_isScanning) return;
+
+            var confirm = MessageBox.Show(
+                "Cancel current scan?\n\nThis will stop all scan/background processing for this session and clear scanned previews.",
+                "Confirm Cancel",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+            if (confirm != DialogResult.Yes) return;
+
+            _cancelRequested = true;
             _scanCts?.Cancel();
             _pauseEvent.Set();
-            AppendActivity("Cancel requested — stopping scan…");
+            ClearScanWorkspaceForNextBooklet();
+            SetStatus("Scan cancelled", false, isWarning: true);
+            AppendActivity("Cancel requested — stopping scan and clearing workspace…");
         }
 
         /// <summary>Clears page list, preview, and barcode UI so another booklet can be scanned.</summary>
@@ -2001,8 +2438,9 @@ namespace ScannerApp.Forms
             try { _picPreview.Image?.Dispose(); }
             catch { /* ignore */ }
             _picPreview.Image = null;
-            _picPreview.BackColor = Color.FromArgb(230, 235, 242);
+            _picPreview.BackColor = ColorInputBg;
             _pageBarcodesRealtime.Clear();
+            UpdateScanWorkspaceLabels();
         }
 
         /// <summary>Builds PDF, persists queue row, and runs upload pass without blocking the UI thread.</summary>
@@ -2110,6 +2548,8 @@ namespace ScannerApp.Forms
                 _lvPages.Items[0].Selected = true;
                 _picPreview.Image = bitmaps[0];
             }
+
+            UpdateScanWorkspaceLabels();
         }
 
         private void LvPages_SelectedChanged(object? sender, EventArgs e)
@@ -2127,6 +2567,8 @@ namespace ScannerApp.Forms
                 }
                 catch { }
             }
+
+            UpdateScanWorkspaceLabels();
         }
 
         private void MiDecodeBarcodes_Click(object? sender, EventArgs e)
@@ -2174,6 +2616,161 @@ namespace ScannerApp.Forms
 
         // ── Upload queue view ─────────────────────────────────────────────────
 
+        private void UpdateScanWorkspaceLabels()
+        {
+            if (_lblScanPreviewMeta == null || _lblBatchInfo == null) return;
+
+            int n = _currentPages.Count;
+            var examCode = _cboExam?.SelectedItem is ExamInfo xe ? xe.ExamCode : "—";
+            var paperCode = _cboPaper?.SelectedItem is PaperInfo pp ? pp.PaperCode : "—";
+            var tplName = _selectedTemplate?.TemplateName
+                ?? (_cboTemplate?.SelectedItem as ScanTemplate)?.TemplateName
+                ?? "—";
+
+            _lblBatchInfo.Text = $"Current booklet · {examCode} / {paperCode} · {tplName} · {n} page(s)";
+
+            if (n == 0)
+            {
+                _lblScanPreviewMeta.Text = _isScanning ? "Waiting for first page…" : "No scan yet";
+                return;
+            }
+
+            var lastPage = _currentPages[^1].PageNumber;
+            var expected = _selectedTemplate?.PageCount
+                ?? (_cboTemplate?.SelectedItem as ScanTemplate)?.PageCount;
+            _lblScanPreviewMeta.Text = expected is > 0
+                ? $"{n} / {expected} page(s) · last: P{lastPage}"
+                : $"{n} page(s) · last: P{lastPage}";
+        }
+
+        /// <summary>
+        /// Placeholder images so queue rows get a comfortable height. The bitmap must remain valid:
+        /// ImageList takes ownership — never add a bitmap that is then disposed (e.g. via <c>using</c> on the same instance).
+        /// </summary>
+        private static ImageList CreateQueueRowHeightImageList()
+        {
+            // Width ≥ 2 avoids rare native ImageList failures; height ~ target row size.
+            var il = new ImageList { ImageSize = new Size(16, 28), ColorDepth = ColorDepth.Depth32Bit };
+            var bmp = new Bitmap(il.ImageSize.Width, il.ImageSize.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+                g.Clear(Color.FromArgb(0, 255, 255, 255));
+            il.Images.Add(bmp);
+            return il;
+        }
+
+        private void LvQueue_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            var font = e.Font ?? _lvQueue?.Font ?? SystemFonts.MessageBoxFont;
+            using (var brush = new SolidBrush(ColorQueueHeaderBg))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+            var textRect = Rectangle.Inflate(e.Bounds, -6, 0);
+            TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", font, textRect, ColorText,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+            using var line = new Pen(ColorBorder);
+            e.Graphics.DrawLine(line, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+        }
+
+        private void LvQueue_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e)
+        {
+            if (e.SubItem == null || e.Item == null) return;
+
+            bool selected = (e.ItemState & ListViewItemStates.Selected) != 0;
+            bool activeSel = selected && _lvQueue.Focused;
+
+            Color bg;
+            Color fg;
+            if (selected)
+            {
+                if (activeSel)
+                {
+                    bg = ColorPrimary;
+                    fg = Color.White;
+                }
+                else
+                {
+                    bg = Color.FromArgb(221, 226, 238);
+                    fg = ColorText;
+                }
+            }
+            else
+            {
+                var status = e.Item.SubItems.Count > QColStatus ? e.Item.SubItems[QColStatus].Text : "";
+                bg = QueueRowBackColor(status);
+                fg = QueueRowForeColor(status);
+                if (e.ColumnIndex is QColPdf or QColUp)
+                    fg = ColorPrimary;
+            }
+
+            using (var brush = new SolidBrush(bg))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+
+            var pad = Rectangle.Inflate(e.Bounds, -6, 0);
+            var rowFont = _lvQueue?.Font ?? SystemFonts.MessageBoxFont;
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, rowFont, pad, fg,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+        }
+
+        private static Color QueueRowBackColor(string status) => status switch
+        {
+            "Uploaded"  => Color.FromArgb(236, 253, 245),
+            "Failed"    => Color.FromArgb(254, 226, 226),
+            "Pending"   => Color.FromArgb(254, 249, 195),
+            "Uploading" => Color.FromArgb(224, 231, 255),
+            _           => ColorCard,
+        };
+
+        private static Color QueueRowForeColor(string status) => status switch
+        {
+            "Uploaded"  => Color.FromArgb(4, 120, 87),
+            "Failed"    => Color.FromArgb(185, 28, 28),
+            "Pending"   => Color.FromArgb(146, 64, 14),
+            "Uploading" => Color.FromArgb(67, 56, 202),
+            _           => ColorText,
+        };
+
+        private static bool ValidateMandatoryTemplateZones(ScanTemplate template, out string error)
+        {
+            var tmplName = string.IsNullOrWhiteSpace(template.TemplateName) ? "(unnamed)" : template.TemplateName;
+            if (string.IsNullOrWhiteSpace(template.BarcodeZonesJson))
+            {
+                error = $"Template '{tmplName}' is missing barcode zones. Required keys: '{BookletNameZoneKey}', '{PageSerialZoneHelper.PrimaryZoneKey}'.";
+                return false;
+            }
+
+            List<TemplateBarcodeZone>? zones;
+            try
+            {
+                zones = JsonConvert.DeserializeObject<List<TemplateBarcodeZone>>(template.BarcodeZonesJson);
+            }
+            catch (Exception ex)
+            {
+                error = $"Template '{tmplName}' has invalid BarcodeZonesJson: {ex.Message}";
+                return false;
+            }
+
+            if (zones == null || zones.Count == 0)
+            {
+                error = $"Template '{tmplName}' has empty barcode zones. Required keys: '{BookletNameZoneKey}', '{PageSerialZoneHelper.PrimaryZoneKey}'.";
+                return false;
+            }
+
+            bool hasBookletName = zones.Any(z => !string.IsNullOrWhiteSpace(z.ZoneName) &&
+                z.ZoneName.Trim().Equals(BookletNameZoneKey, StringComparison.OrdinalIgnoreCase));
+            bool hasPageSerial = zones.Any(z => PageSerialZoneHelper.IsReservedPageSerialName(z.ZoneName));
+
+            if (hasBookletName && hasPageSerial)
+            {
+                error = "";
+                return true;
+            }
+
+            var missing = new List<string>();
+            if (!hasBookletName) missing.Add(BookletNameZoneKey);
+            if (!hasPageSerial) missing.Add(PageSerialZoneHelper.PrimaryZoneKey);
+            error = $"Template '{tmplName}' is missing mandatory zone key(s): {string.Join(", ", missing)}.";
+            return false;
+        }
+
         private void RefreshQueueView()
         {
             if (_queue == null) return;
@@ -2205,7 +2802,7 @@ namespace ScannerApp.Forms
                 item.SubItems.Add(r.ErrorReason ?? "");
                 item.SubItems.Add("↻");
                 item.SubItems.Add("⬆");
-                item.ForeColor = StatusColor(r.Status);
+                item.ImageIndex = 0;
                 item.Tag       = r.BookletId;
                 var sched = (r.UploadScheduleMode ?? "immediate").Trim();
                 var schedDetail = sched.Equals("custom", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(r.UploadScheduleParam)
@@ -2383,7 +2980,7 @@ namespace ScannerApp.Forms
                 else
                 {
                     AppendActivity($"Upload failed — {bookletId} (see Error column / log)");
-                    SetStatus($"Upload failed — {bookletId}", false);
+                    SetStatus($"Upload failed — {bookletId}", false, isError: true);
                 }
             }
             catch (Exception ex)
@@ -2633,14 +3230,22 @@ namespace ScannerApp.Forms
                     && _lvPages.SelectedItems[0].Tag is int selIdx && selIdx == imgIdx;
                 bool isLast = pageNum == _currentPages.Count;
                 if (isSelected || isLast)
-                    _picPreview.BackColor = Color.FromArgb(255, 230, 230);
+                    _picPreview.BackColor = Color.FromArgb(254, 226, 226);
             }
         }
 
-        private void SetStatus(string text, bool busy)
+        private void SetStatus(string text, bool busy, bool isError = false, bool isWarning = false)
         {
             _lblStatus.Text      = text;
             _progressBar.Visible = busy;
+            if (busy)
+                _lblStatus.ForeColor = ColorText;
+            else if (isError)
+                _lblStatus.ForeColor = ColorDanger;
+            else if (isWarning)
+                _lblStatus.ForeColor = ColorWarning;
+            else
+                _lblStatus.ForeColor = ColorMuted;
         }
 
         private void AdjustBottomPanelLayout()
@@ -2687,14 +3292,6 @@ namespace ScannerApp.Forms
             _bottomOuter.PerformLayout();
             _mainTable.PerformLayout();
         }
-
-        private static Color StatusColor(string status) => status switch
-        {
-            "Uploaded"   => Color.FromArgb(13, 110, 74),
-            "Uploading"  => Color.FromArgb(30, 100, 200),
-            "Failed"     => Color.FromArgb(200, 50, 50),
-            _            => Color.FromArgb(100, 115, 130),
-        };
 
         /// <summary>Load vendor/customer QC rejections and optionally set the rescan booklet ID field.</summary>
         private async void BtnQcRejected_Click(object? sender, EventArgs e)

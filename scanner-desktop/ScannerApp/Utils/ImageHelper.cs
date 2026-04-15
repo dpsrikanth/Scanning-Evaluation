@@ -84,10 +84,22 @@ namespace ScannerApp.Utils
             rgb = CoerceToRgb24ForLockBits(rgb, src);
 
             Bitmap cropped = CropToContent(rgb);
-            if (!ReferenceEquals(rgb, src)) rgb.Dispose();
-
             Bitmap trimmed = TrimBottomWhiteMargin(cropped);
-            if (!ReferenceEquals(trimmed, cropped)) cropped.Dispose();
+
+            // Never dispose `cropped` when it is the caller's `src` — they still own that bitmap.
+            if (!ReferenceEquals(trimmed, cropped) && !ReferenceEquals(cropped, src))
+                cropped.Dispose();
+
+            // If CropToContent returned the same object as `rgb`, disposing `rgb` here would invalidate
+            // `cropped` before TrimBottomWhiteMargin (scanner log: "Parameter is not valid" on Width).
+            bool rgbDisposedViaCropped =
+                !ReferenceEquals(trimmed, cropped)
+                && ReferenceEquals(cropped, rgb)
+                && !ReferenceEquals(cropped, src);
+
+            if (!ReferenceEquals(rgb, src) && !ReferenceEquals(trimmed, rgb) && !rgbDisposedViaCropped)
+                rgb.Dispose();
+
             return trimmed;
         }
 

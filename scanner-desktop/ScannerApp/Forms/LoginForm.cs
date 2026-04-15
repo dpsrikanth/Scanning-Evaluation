@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Threading;
 using ScannerApp.Services;
 using ScannerApp.Utils;
@@ -33,22 +34,25 @@ namespace ScannerApp.Forms
 
         private System.Windows.Forms.Timer? _connPollTimer;
         private int _connectivityGeneration;
+        private float _loginDpiScale = 1f;
 
         // ── Layout constants ──────────────────────────────────────────────────
-        private const int FormWidthCollapsed  = 420;
-        private const int FormHeightCollapsed = 520;
-        private const int SettingsPanelHeight = 150;
+        private const int FormWidthCollapsed  = 440;
+        private const int FormHeightCollapsed = 560;
 
-        // ── Colors ────────────────────────────────────────────────────────────
-        private static readonly Color C_BrandBg     = Color.FromArgb(15, 40, 80);
-        private static readonly Color C_CardBg      = Color.FromArgb(250, 251, 253);
-        private static readonly Color C_Primary     = Color.FromArgb(13, 110, 74);
-        private static readonly Color C_PrimaryHov  = Color.FromArgb(10, 90, 60);
-        private static readonly Color C_Danger      = Color.FromArgb(190, 40, 40);
-        private static readonly Color C_Border      = Color.FromArgb(200, 210, 225);
-        private static readonly Color C_Muted       = Color.FromArgb(110, 120, 140);
-        private static readonly Color C_SettingsBg  = Color.FromArgb(240, 244, 250);
-        private static readonly Color C_SettingsBorder = Color.FromArgb(180, 195, 220);
+        // ── Colors (match main app design system) ─────────────────────────────
+        private static readonly Color C_PrimaryDark = Color.FromArgb(0x30, 0x3F, 0x9F);
+        private static readonly Color C_Primary     = Color.FromArgb(0x3F, 0x51, 0xB5);
+        private static readonly Color C_Surface     = Color.FromArgb(0xF5, 0xF7, 0xFA);
+        private static readonly Color C_Card        = Color.White;
+        private static readonly Color C_InputBg     = Color.FromArgb(0xF9, 0xFA, 0xFB);
+        private static readonly Color C_Text        = Color.FromArgb(0x1F, 0x29, 0x37);
+        private static readonly Color C_Muted       = Color.FromArgb(0x6B, 0x72, 0x80);
+        private static readonly Color C_Success     = Color.FromArgb(0x10, 0xB9, 0x81);
+        private static readonly Color C_Danger      = Color.FromArgb(0xEF, 0x44, 0x44);
+        private static readonly Color C_Border      = Color.FromArgb(0xE5, 0xE7, 0xEB);
+        private static readonly Color C_SettingsBg  = Color.FromArgb(0xF3, 0xF4, 0xF6);
+        private static readonly Color C_SettingsBorder = C_Border;
 
         public LoginForm(ApiService api)
         {
@@ -63,13 +67,11 @@ namespace ScannerApp.Forms
 
         private void BuildForm()
         {
-            // DPI-aware sizing: scale the fixed 420×520 base by the system DPI factor
-            float dpiScale;
-            using (var g = CreateGraphics())
-                dpiScale = g.DpiX / 96f;
-            dpiScale = Math.Max(1f, dpiScale); // never shrink below 100 %
+            using var g = CreateGraphics();
+            float dpiScale = Math.Max(1f, g.DpiX / 96f);
+            _loginDpiScale = dpiScale;
 
-            int w = (int)(FormWidthCollapsed  * dpiScale);
+            int w = (int)(FormWidthCollapsed * dpiScale);
             int h = (int)(FormHeightCollapsed * dpiScale);
 
             Text            = $"Scanning Station — Login — {AppVersion.GetTitleSuffix()}";
@@ -78,183 +80,236 @@ namespace ScannerApp.Forms
             StartPosition   = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox     = false;
-            BackColor       = C_CardBg;
-            Font            = new Font("Segoe UI", 9.5f * dpiScale);
+            BackColor       = C_Surface;
+            Font            = new Font("Segoe UI", 10f * dpiScale, FontStyle.Regular, GraphicsUnit.Point);
 
-            // ── Brand strip ───────────────────────────────────────────────────
-            var brandPanel = new Panel
+            var root = new TableLayoutPanel
             {
-                Dock      = DockStyle.Top,
-                Height    = 90,
-                BackColor = C_BrandBg,
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 2,
+                BackColor   = C_Surface,
             };
-            brandPanel.Paint += (_, e) =>
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, (int)(70 * dpiScale)));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            var header = new Panel
             {
-                // Green accent bar on the right
-                e.Graphics.FillRectangle(
-                    new SolidBrush(C_Primary),
-                    brandPanel.Width - 6, 0, 6, brandPanel.Height);
-
-                // Icon background circle
-                using var brush = new SolidBrush(C_Primary);
-                e.Graphics.FillEllipse(brush, 18, 18, 52, 52);
-
-                // Icon lines (document symbol)
-                using var penW = new Pen(Color.White, 2.5f);
-                e.Graphics.DrawLine(penW, 30, 32, 58, 32);
-                e.Graphics.DrawLine(penW, 30, 40, 58, 40);
-                e.Graphics.DrawLine(penW, 30, 48, 50, 48);
-                using var penB = new Pen(Color.FromArgb(100, 200, 255), 2f);
-                e.Graphics.DrawRectangle(penB, 24, 22, 40, 46);
+                Dock      = DockStyle.Fill,
+                BackColor = C_PrimaryDark,
+                Padding   = new Padding((int)(20 * dpiScale), 14, 20, 10),
+            };
+            header.Paint += (_, e) =>
+            {
+                using var line = new Pen(C_Primary, 2);
+                e.Graphics.DrawLine(line, 0, header.Height - 1, header.Width, header.Height - 1);
             };
 
+            var hdrInner = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount    = 2,
+                BackColor   = Color.Transparent,
+            };
+            hdrInner.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            hdrInner.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var lblTitle = new Label
             {
                 Text      = "Scanning Station",
-                Font      = new Font("Segoe UI", 15, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 14f * dpiScale, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = Color.White,
-                Location  = new Point(82, 16),
-                Size      = new Size(310, 30),
-                AutoSize  = false,
+                AutoSize  = true,
             };
             var lblSub = new Label
             {
-                Text      = "Answer Sheet Digitisation System",
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Color.FromArgb(160, 190, 230),
-                Location  = new Point(83, 50),
-                Size      = new Size(310, 20),
-                AutoSize  = false,
-            };
-            var lblVersion = new Label
-            {
-                Text      = AppVersion.GetTitleSuffix(),
-                Font      = new Font("Segoe UI", 7.5f),
-                ForeColor = Color.FromArgb(100, 140, 190),
-                Location  = new Point(83, 68),
+                Text      = $"Answer sheet digitisation · {AppVersion.GetTitleSuffix()}",
+                Font      = new Font("Segoe UI", 9f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = Color.FromArgb(200, 210, 235),
                 AutoSize  = true,
+                Margin    = new Padding(0, 4, 0, 0),
             };
-            brandPanel.Controls.AddRange(new Control[] { lblTitle, lblSub, lblVersion });
-            Controls.Add(brandPanel);
+            hdrInner.Controls.Add(lblTitle, 0, 0);
+            hdrInner.Controls.Add(lblSub, 0, 1);
+            header.Controls.Add(hdrInner);
 
-            // ── Card area ─────────────────────────────────────────────────────
-            const int cardH = 320;
+            var body = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount    = 5,
+                BackColor   = C_Surface,
+                Padding     = new Padding((int)(16 * dpiScale), (int)(16 * dpiScale), (int)(16 * dpiScale), (int)(12 * dpiScale)),
+            };
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 38f));
+            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 62f));
+
+            int cardW = (int)(360 * dpiScale);
+            int innerW = cardW - (int)(40 * dpiScale);
+
             var card = new Panel
             {
-                Location  = new Point(30, 108),
-                Size      = new Size(360, cardH),
-                BackColor = Color.White,
+                Width    = cardW,
+                Height   = (int)(400 * dpiScale),
+                BackColor = C_Card,
+                Padding  = new Padding((int)(20 * dpiScale)),
             };
             card.Paint += PaintRoundedBorder;
+
+            var cardStack = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                AutoSize    = true,
+                ColumnCount = 1,
+            };
+            cardStack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            void AddCardRow(Control c, int bottomMargin = 10)
+            {
+                c.Margin = new Padding(0, 0, 0, bottomMargin);
+                c.Dock   = DockStyle.Top;
+                int idx  = cardStack.RowCount++;
+                cardStack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                cardStack.Controls.Add(c, 0, idx);
+            }
 
             var lblWelcome = new Label
             {
                 Text      = "Sign in to your account",
-                Font      = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.FromArgb(20, 30, 60),
-                Location  = new Point(20, 18),
+                Font      = new Font("Segoe UI", 11f * dpiScale, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = C_Text,
                 AutoSize  = true,
             };
+            AddCardRow(lblWelcome, 12);
 
+            var statusRow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                AutoSize      = true,
+            };
             _lblServerConn = new Label
             {
                 Text      = "● Server: …",
-                Location  = new Point(20, 44),
-                Size      = new Size(320, 20),
-                Font      = new Font("Segoe UI", 8.25f),
+                AutoSize  = true,
+                Font      = new Font("Segoe UI", 8.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
                 ForeColor = C_Muted,
-                AutoSize  = false,
+                Margin    = new Padding(0, 0, (int)(16 * dpiScale), 0),
             };
-
             _lblScannerConn = new Label
             {
                 Text      = "● Scanner: …",
-                Location  = new Point(20, 66),
-                Size      = new Size(320, 40),
-                Font      = new Font("Segoe UI", 8.25f),
+                AutoSize  = true,
+                Font      = new Font("Segoe UI", 8.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
                 ForeColor = C_Muted,
-                AutoSize  = false,
             };
+            statusRow.Controls.Add(_lblServerConn);
+            statusRow.Controls.Add(_lblScannerConn);
+            AddCardRow(statusRow, 16);
 
-            // Username
-            var lblUser = MakeFieldLabel("Username", 20, 112);
-            _txtUsername = MakeTextBox(20, 132, 320, false);
+            AddCardRow(MakeFieldLabel("Username", dpiScale), 6);
+            _txtUsername = MakeLoginTextBox(false, innerW, dpiScale);
             _txtUsername.Text = "operator1";
+            AddCardRow(_txtUsername, 14);
 
-            // Password
-            var lblPass = MakeFieldLabel("Password", 20, 170);
-            _txtPassword = MakeTextBox(20, 190, 320, true);
+            AddCardRow(MakeFieldLabel("Password", dpiScale), 6);
+            _txtPassword = MakeLoginTextBox(true, innerW, dpiScale);
             _txtPassword.Text = "password123";
+            AddCardRow(_txtPassword, 12);
 
             _chkRememberUser = new CheckBox
             {
                 Text      = "Remember username",
-                Location  = new Point(20, 228),
                 AutoSize  = true,
                 ForeColor = C_Muted,
-                Font      = new Font("Segoe UI", 8.5f),
+                Font      = new Font("Segoe UI", 9f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
             };
+            AddCardRow(_chkRememberUser, 16);
 
-            _btnLogin = MakeButton("Login", C_Primary, 20, 256, 150);
+            var btnRow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                AutoSize      = true,
+            };
+            int btnW = (int)(150 * dpiScale);
+            int btnH = (int)(36 * dpiScale);
+            _btnLogin = new Button
+            {
+                Text      = "Login",
+                Width     = btnW,
+                Height    = btnH,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = C_Primary,
+                ForeColor = Color.White,
+                Font      = new Font("Segoe UI", 10f * dpiScale, FontStyle.Bold, GraphicsUnit.Point),
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, (int)(10 * dpiScale), 0),
+            };
+            _btnLogin.FlatAppearance.BorderSize = 0;
             _btnLogin.Click += BtnLogin_Click;
 
-            _btnClose = MakeButton("Close", C_Danger, 190, 256, 150);
+            _btnClose = new Button
+            {
+                Text      = "Close",
+                Width     = btnW,
+                Height    = btnH,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = C_Card,
+                ForeColor = C_Danger,
+                Font      = new Font("Segoe UI", 10f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+                Cursor    = Cursors.Hand,
+            };
+            _btnClose.FlatAppearance.BorderColor = Color.FromArgb(252, 165, 165);
+            _btnClose.FlatAppearance.BorderSize  = 1;
             _btnClose.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+
+            btnRow.Controls.Add(_btnLogin);
+            btnRow.Controls.Add(_btnClose);
+            AddCardRow(btnRow, 8);
 
             _lblStatus = new Label
             {
                 Text      = "",
-                Location  = new Point(20, 292),
-                Width     = 320,
-                Height    = 22,
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = C_Danger,
+                Height    = (int)(24 * dpiScale),
                 AutoSize  = false,
+                Dock      = DockStyle.Top,
+                Width     = innerW,
+                Font      = new Font("Segoe UI", 9f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = C_Danger,
             };
+            AddCardRow(_lblStatus, 0);
 
-            card.Controls.AddRange(new Control[]
-            {
-                lblWelcome,
-                _lblServerConn,
-                _lblScannerConn,
-                lblUser,    _txtUsername,
-                lblPass,    _txtPassword,
-                _chkRememberUser,
-                _btnLogin,  _btnClose,
-                _lblStatus,
-            });
-            Controls.Add(card);
+            card.Controls.Add(cardStack);
 
-            int cardBottom = card.Location.Y + card.Height;
-
-            // ── Settings toggle button ────────────────────────────────────────
             _btnSettings = new Button
             {
-                Text      = "⚙  Settings",
-                Location  = new Point(30, cardBottom + 10),
-                Size      = new Size(360, 36),
+                Text      = "Settings",
+                Width     = cardW,
+                Height    = (int)(38 * dpiScale),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = C_SettingsBg,
                 ForeColor = C_Muted,
-                Font      = new Font("Segoe UI", 9),
+                Font      = new Font("Segoe UI", 9.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
                 Cursor    = Cursors.Hand,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(10, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleCenter,
             };
             _btnSettings.FlatAppearance.BorderColor = C_SettingsBorder;
             _btnSettings.FlatAppearance.BorderSize  = 1;
             _btnSettings.Click += BtnSettings_Click;
-            Controls.Add(_btnSettings);
 
-            // ── Settings panel (hidden by default) ────────────────────────────
-            int settingsTop = _btnSettings.Location.Y + _btnSettings.Height + 10;
             _settingsPanel = new Panel
             {
-                Location  = new Point(30, settingsTop),
-                Size      = new Size(360, SettingsPanelHeight),
+                Width     = cardW,
                 BackColor = C_SettingsBg,
                 Visible   = false,
-                Padding   = new Padding(12, 10, 12, 10),
+                Padding   = new Padding((int)(12 * dpiScale), (int)(10 * dpiScale), (int)(12 * dpiScale), (int)(10 * dpiScale)),
             };
             _settingsPanel.Paint += (s, e) =>
             {
@@ -263,38 +318,51 @@ namespace ScannerApp.Forms
                     C_SettingsBorder, ButtonBorderStyle.Solid);
             };
 
-            int sy = 12;
-
-            var lblUrl = MakeFieldLabel("API Server URL", 12, sy);
-            sy += 20;
-            _txtServerUrl = MakeTextBox(12, sy, 336, false);
+            int sy = (int)(8 * dpiScale);
+            var lblUrl = MakeFieldLabel("API Server URL", dpiScale);
+            lblUrl.Location = new Point(_settingsPanel.Padding.Left, sy);
+            lblUrl.AutoSize = true;
+            sy += (int)(22 * dpiScale);
+            int settingsInnerW = cardW - _settingsPanel.Padding.Horizontal;
+            _txtServerUrl = MakeSettingsTextBox(settingsInnerW, dpiScale);
+            _txtServerUrl.Location = new Point(_settingsPanel.Padding.Left, sy);
             _txtServerUrl.Text = "http://localhost:4000";
-            sy += 36;
+            sy += (int)(40 * dpiScale);
 
-            var lblPath = MakeFieldLabel("Local Storage Path", 12, sy);
-            sy += 20;
-            _txtStoragePath = MakeTextBox(12, sy, 292, false);
-            _btnBrowsePath  = new Button
+            var lblPath = MakeFieldLabel("Local Storage Path", dpiScale);
+            lblPath.Location = new Point(_settingsPanel.Padding.Left, sy);
+            lblPath.AutoSize = true;
+            sy += (int)(22 * dpiScale);
+            int pathFieldW = Math.Max(120, settingsInnerW - (int)(46 * dpiScale));
+            _txtStoragePath = MakeSettingsTextBox(pathFieldW, dpiScale);
+            _txtStoragePath.Location = new Point(_settingsPanel.Padding.Left, sy);
+            _btnBrowsePath = new Button
             {
                 Text      = "…",
-                Location  = new Point(310, sy - 1),
-                Size      = new Size(38, 28),
+                Location  = new Point(_settingsPanel.Padding.Left + pathFieldW + 4, sy - 1),
+                Size      = new Size((int)(38 * dpiScale), (int)(32 * dpiScale)),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(220, 228, 242),
-                ForeColor = Color.FromArgb(30, 60, 120),
+                BackColor = C_InputBg,
+                ForeColor = C_Text,
             };
             _btnBrowsePath.FlatAppearance.BorderColor = C_Border;
             _btnBrowsePath.Click += BtnBrowsePath_Click;
-            sy += 36;
+            sy += (int)(44 * dpiScale);
 
-            _settingsPanel.Height = sy + 16;
+            _settingsPanel.Height = sy + (int)(12 * dpiScale);
             _settingsPanel.Controls.AddRange(new Control[]
             {
                 lblUrl, _txtServerUrl,
                 lblPath, _txtStoragePath, _btnBrowsePath,
             });
 
-            Controls.Add(_settingsPanel);
+            body.Controls.Add(card, 1, 1);
+            body.Controls.Add(_btnSettings, 1, 2);
+            body.Controls.Add(_settingsPanel, 1, 3);
+
+            root.Controls.Add(header, 0, 0);
+            root.Controls.Add(body, 0, 1);
+            Controls.Add(root);
 
             AcceptButton = _btnLogin;
 
@@ -325,18 +393,19 @@ namespace ScannerApp.Forms
         {
             _settingsVisible = !_settingsVisible;
 
+            int baseH = (int)(FormHeightCollapsed * _loginDpiScale);
             if (_settingsVisible)
             {
-                Height = FormHeightCollapsed + _settingsPanel.Height + 10;
                 _settingsPanel.Visible = true;
-                _btnSettings.Text      = "⚙  Settings  ▲";
+                Height              = baseH + _settingsPanel.Height + (int)(16 * _loginDpiScale);
+                _btnSettings.Text   = "Settings  ▲";
                 _ = CheckConnectivityAsync();
             }
             else
             {
                 _settingsPanel.Visible = false;
-                Height = FormHeightCollapsed;
-                _btnSettings.Text      = "⚙  Settings";
+                Height            = baseH;
+                _btnSettings.Text = "Settings";
             }
         }
 
@@ -371,7 +440,7 @@ namespace ScannerApp.Forms
                     if (gen != Volatile.Read(ref _connectivityGeneration)) return;
                     if (IsDisposed) return;
                     _lblServerConn.Text      = ok ? "● Server: Online" : "● Server: Offline";
-                    _lblServerConn.ForeColor = ok ? C_Primary : C_Danger;
+                    _lblServerConn.ForeColor = ok ? C_Success : C_Danger;
                 }
                 catch
                 {
@@ -409,7 +478,7 @@ namespace ScannerApp.Forms
             if (gen != Volatile.Read(ref _connectivityGeneration)) return;
             if (IsDisposed) return;
 
-            var warnOrange = Color.FromArgb(190, 130, 20);
+            var warnOrange = Color.FromArgb(0xF5, 0x9E, 0x0B);
             if (scanResult.ok)
             {
                 string line2 = string.IsNullOrWhiteSpace(scanResult.firstName)
@@ -418,7 +487,7 @@ namespace ScannerApp.Forms
                 _lblScannerConn.Text = string.IsNullOrEmpty(line2)
                     ? "● Scanner: Ready"
                     : $"● Scanner: Ready{Environment.NewLine}{line2}";
-                _lblScannerConn.ForeColor = C_Primary;
+                _lblScannerConn.ForeColor = C_Success;
             }
             else
             {
@@ -472,7 +541,7 @@ namespace ScannerApp.Forms
                     StoragePathDialog.SaveDefaultPath(storagePath);
                 }
 
-                SetStatus($"Welcome, {_api.CurrentUser?.FullName}", C_Primary);
+                SetStatus($"Welcome, {_api.CurrentUser?.FullName}", C_Success);
                 await Task.Delay(400);
 
                 DialogResult = DialogResult.OK;
@@ -556,35 +625,33 @@ namespace ScannerApp.Forms
         //  Helpers
         // ─────────────────────────────────────────────────────────────────────
 
-        private static Label MakeFieldLabel(string text, int x, int y) => new Label
+        private static Label MakeFieldLabel(string text, float dpiScale) => new Label
         {
             Text      = text,
-            Font      = new Font("Segoe UI", 8, FontStyle.Bold),
-            ForeColor = Color.FromArgb(70, 85, 110),
-            Location  = new Point(x, y),
+            Font      = new Font("Segoe UI", 9f * dpiScale, FontStyle.Bold, GraphicsUnit.Point),
+            ForeColor = Color.FromArgb(55, 65, 81),
             AutoSize  = true,
         };
 
-        private static TextBox MakeTextBox(int x, int y, int w, bool password) => new TextBox
+        private static TextBox MakeLoginTextBox(bool password, int width, float dpiScale) => new TextBox
         {
-            Location     = new Point(x, y),
-            Size         = new Size(w, 28),
-            Font         = new Font("Segoe UI", 10),
-            PasswordChar = password ? '●' : '\0',
+            Height       = (int)(32 * dpiScale),
+            Width        = width,
+            Font         = new Font("Segoe UI", 10f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
             BorderStyle  = BorderStyle.FixedSingle,
-            BackColor    = Color.White,
+            BackColor    = C_InputBg,
+            ForeColor    = C_Text,
+            PasswordChar = password ? '●' : '\0',
         };
 
-        private static Button MakeButton(string text, Color bg, int x, int y, int w) => new Button
+        private static TextBox MakeSettingsTextBox(int width, float dpiScale) => new TextBox
         {
-            Text      = text,
-            Location  = new Point(x, y),
-            Size      = new Size(w, 36),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = bg,
-            ForeColor = Color.White,
-            Font      = new Font("Segoe UI", 10, FontStyle.Bold),
-            Cursor    = Cursors.Hand,
+            Height      = (int)(32 * dpiScale),
+            Width       = width,
+            Font        = new Font("Segoe UI", 10f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor   = C_InputBg,
+            ForeColor   = C_Text,
         };
 
         private static void PaintRoundedBorder(object? sender, PaintEventArgs e)
@@ -592,7 +659,7 @@ namespace ScannerApp.Forms
             if (sender is Control c)
                 ControlPaint.DrawBorder(e.Graphics,
                     new Rectangle(0, 0, c.Width, c.Height),
-                    Color.FromArgb(210, 220, 235), ButtonBorderStyle.Solid);
+                    C_Border, ButtonBorderStyle.Solid);
         }
     }
 }

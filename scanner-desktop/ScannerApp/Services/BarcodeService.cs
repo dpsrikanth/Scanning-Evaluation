@@ -15,6 +15,11 @@ namespace ScannerApp.Services
     /// </summary>
     public class BarcodeService
     {
+        private static readonly ImageCodecInfo JpegEncoder =
+            ImageCodecInfo.GetImageEncoders().First(c => c.MimeType == "image/jpeg");
+        private static readonly double[] BottomFractions = { 0.10, 0.15, 0.20, 0.28, 0.40, 0.50 };
+        private static readonly double[] BottomFractionsUpsample = { 0.15, 0.25, 0.40 };
+
         // ── Option factories (new instance per call — avoids any IronBarcode internal state issues) ──
 
         private static BarcodeReaderOptions MakeOptsFast() => new()
@@ -61,13 +66,11 @@ namespace ScannerApp.Services
             try
             {
                 using var ms = new System.IO.MemoryStream();
-                // JPEG is smaller and faster to encode than PNG; IronBarcode handles it fine
-                var jpegEncoder = System.Drawing.Imaging.ImageCodecInfo.GetImageEncoders()
-                    .First(c => c.MimeType == "image/jpeg");
+                // JPEG is smaller and faster to encode than PNG; cache encoder lookup for hot path.
                 using var encParams = new System.Drawing.Imaging.EncoderParameters(1);
                 encParams.Param[0] = new System.Drawing.Imaging.EncoderParameter(
-                    System.Drawing.Imaging.Encoder.Quality, 90L);
-                bmp.Save(ms, jpegEncoder, encParams);
+                    System.Drawing.Imaging.Encoder.Quality, 80L);
+                bmp.Save(ms, JpegEncoder, encParams);
                 ms.Position = 0;
                 return BarcodeReader.Read(ms, opts);
             }
@@ -199,7 +202,9 @@ namespace ScannerApp.Services
             if (zone != null && PageSerialZoneHelper.ShouldApplyPageSerialZone(zone, pageNumber1Based, barcodeStartPage1Based))
             {
                 var rect = ZoneToRectangle(image, zone);
-                diag.Append($" | zone {rect.X},{rect.Y} {rect.Width}x{rect.Height}");
+                diag.Append($" | key={PageSerialZoneHelper.PrimaryZoneKey}");
+                diag.Append($" | zone% x={zone.XPct:0.##} y={zone.YPct:0.##} w={zone.WPct:0.##} h={zone.HPct:0.##}");
+                diag.Append($" | zonePx x={rect.X} y={rect.Y} w={rect.Width} h={rect.Height}");
 
                 foreach (bool up in new[] { false, true })
                 {
@@ -231,18 +236,20 @@ namespace ScannerApp.Services
             }
 
             // 2. Bottom strips — multiple fractions
-            foreach (var frac in new[] { 0.10, 0.15, 0.20, 0.28, 0.40, 0.50 })
+            foreach (var frac in BottomFractions)
             {
                 var (t, raw) = TryDecodeBottomStripWithRaw(image, frac, false);
-                diag.Append($" | bot-{frac:0.##}={raw ?? "null"}");
+                var rectTxt = BottomStripRectText(image, frac);
+                diag.Append($" | bot-{frac:0.##}({rectTxt})={raw ?? "null"}");
                 if (t != null) return (t, diag.ToString());
             }
 
             // 3. Same fractions with 2x upsample (low-DPI rescue)
-            foreach (var frac in new[] { 0.15, 0.25, 0.40 })
+            foreach (var frac in BottomFractionsUpsample)
             {
                 var (t, raw) = TryDecodeBottomStripWithRaw(image, frac, true);
-                diag.Append($" | bot-{frac:0.##}-2x={raw ?? "null"}");
+                var rectTxt = BottomStripRectText(image, frac);
+                diag.Append($" | bot-{frac:0.##}-2x({rectTxt})={raw ?? "null"}");
                 if (t != null) return (t, diag.ToString());
             }
 
@@ -365,6 +372,13 @@ namespace ScannerApp.Services
                 finally { upscaled?.Dispose(); }
             }
             catch { return null; }
+        }
+
+        private static string BottomStripRectText(Bitmap image, double frac)
+        {
+            int stripH = Math.Max(32, (int)(image.Height * frac));
+            int y0 = Math.Max(0, image.Height - stripH);
+            return $"x=0 y={y0} w={image.Width} h={stripH}";
         }
 
         private static Rectangle ZoneToRectangle(Bitmap bmp, TemplateBarcodeZone z)

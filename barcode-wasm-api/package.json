@@ -1,0 +1,25 @@
+{
+  "name": "barcode-wasm-api",
+  "version": "1.0.0",
+  "description": "ZXing-WASM barcode decode API",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "barcode",
+    "zxing",
+    "wasm",
+    "api"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "cors": "*",
+    "express": "*",
+    "jpeg-js": "^0.4.4",
+    "sharp": "^0.33.5",
+    "zxing-wasm": "*"
+  }
+}
