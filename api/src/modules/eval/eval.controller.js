@@ -112,6 +112,30 @@ export default class EvalController {
     }
   };
 
+  getBookletSharedAnnotations = async (req, res, next) => {
+    try {
+      const result = await this.service.getBookletSharedAnnotations(req.params.bookletId);
+      return ok(res, result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  saveBookletSharedAnnotations = async (req, res, next) => {
+    try {
+      const { pageNumber, items } = req.body || {};
+      const result = await this.service.saveBookletSharedAnnotationsPage(
+        req.params.bookletId,
+        pageNumber,
+        items,
+        req.user.userId
+      );
+      return ok(res, result, 'Shared booklet stamps saved');
+    } catch (err) {
+      next(err);
+    }
+  };
+
   saveCapturedPhoto = async (req, res, next) => {
     try {
       if (!req.file) throw Object.assign(new Error('No photo uploaded'), { statusCode: 400 });

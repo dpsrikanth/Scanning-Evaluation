@@ -21,8 +21,10 @@ namespace ScannerApp.Forms
         private Button  _btnClose     = null!;
         private Label   _lblStatus    = null!;
         private Button  _btnSettings  = null!;
-        private Label   _lblServerConn  = null!;
-        private Label   _lblScannerConn = null!;
+        private Panel   _pnlConnStatus = null!;
+        private Label   _lblServerValue = null!;
+        private Label   _lblScannerValue = null!;
+        private Label   _lblScannerDetail = null!;
 
         // ── Settings panel controls ───────────────────────────────────────────
         private Panel   _settingsPanel   = null!;
@@ -33,7 +35,9 @@ namespace ScannerApp.Forms
         private bool    _settingsVisible  = false;
 
         private System.Windows.Forms.Timer? _connPollTimer;
+        private System.Windows.Forms.Timer? _scannerHotplugTimer;
         private int _connectivityGeneration;
+        private int _scannerUiGeneration;
         private float _loginDpiScale = 1f;
 
         // ── Layout constants ──────────────────────────────────────────────────
@@ -137,7 +141,7 @@ namespace ScannerApp.Forms
             {
                 Dock        = DockStyle.Fill,
                 ColumnCount = 3,
-                RowCount    = 5,
+                RowCount    = 6,
                 BackColor   = C_Surface,
                 Padding     = new Padding((int)(16 * dpiScale), (int)(16 * dpiScale), (int)(16 * dpiScale), (int)(12 * dpiScale)),
             };
@@ -146,6 +150,7 @@ namespace ScannerApp.Forms
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             body.RowStyles.Add(new RowStyle(SizeType.Percent, 38f));
             body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, (int)(24 * dpiScale)));
             body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             body.RowStyles.Add(new RowStyle(SizeType.Percent, 62f));
@@ -188,30 +193,89 @@ namespace ScannerApp.Forms
             };
             AddCardRow(lblWelcome, 12);
 
-            var statusRow = new FlowLayoutPanel
+            _pnlConnStatus = new Panel
             {
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                AutoSize      = true,
-            };
-            _lblServerConn = new Label
-            {
-                Text      = "● Server: …",
+                Width     = innerW,
                 AutoSize  = true,
-                Font      = new Font("Segoe UI", 8.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
-                ForeColor = C_Muted,
-                Margin    = new Padding(0, 0, (int)(16 * dpiScale), 0),
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = C_InputBg,
+                Padding   = new Padding((int)(12 * dpiScale), (int)(10 * dpiScale), (int)(12 * dpiScale), (int)(10 * dpiScale)),
             };
-            _lblScannerConn = new Label
+            _pnlConnStatus.Paint += (s, e) =>
             {
-                Text      = "● Scanner: …",
-                AutoSize  = true,
-                Font      = new Font("Segoe UI", 8.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
-                ForeColor = C_Muted,
+                using var pen = new Pen(C_Border, 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, _pnlConnStatus.Width - 1, _pnlConnStatus.Height - 1);
             };
-            statusRow.Controls.Add(_lblServerConn);
-            statusRow.Controls.Add(_lblScannerConn);
-            AddCardRow(statusRow, 16);
+            var connGrid = new TableLayoutPanel
+            {
+                Dock         = DockStyle.Top,
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount  = 2,
+                RowCount     = 3,
+                BackColor    = Color.Transparent,
+                Width        = innerW,
+            };
+            connGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, (int)(72 * dpiScale)));
+            connGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            connGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            connGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            connGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var hdrServer = new Label
+            {
+                Text      = "Server",
+                Font      = new Font("Segoe UI", 8f * dpiScale, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = C_Muted,
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
+                Margin    = new Padding(0, 2, 0, 0),
+            };
+            _lblServerValue = new Label
+            {
+                Text      = "Checking…",
+                Font      = new Font("Segoe UI", 9.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = C_Muted,
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
+                Margin    = new Padding(0, 0, 0, (int)(6 * dpiScale)),
+            };
+
+            var hdrScanner = new Label
+            {
+                Text      = "Scanner",
+                Font      = new Font("Segoe UI", 8f * dpiScale, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = C_Muted,
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
+                Margin    = new Padding(0, 2, 0, 0),
+            };
+            _lblScannerValue = new Label
+            {
+                Text      = "Checking…",
+                Font      = new Font("Segoe UI", 9.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = C_Muted,
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
+            };
+            _lblScannerDetail = new Label
+            {
+                Text      = "",
+                Font      = new Font("Segoe UI", 8.25f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = C_Muted,
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
+                Margin    = new Padding(0, 2, 0, 0),
+            };
+
+            connGrid.Controls.Add(hdrServer, 0, 0);
+            connGrid.Controls.Add(_lblServerValue, 1, 0);
+            connGrid.Controls.Add(hdrScanner, 0, 1);
+            connGrid.Controls.Add(_lblScannerValue, 1, 1);
+            connGrid.Controls.Add(_lblScannerDetail, 0, 2);
+            connGrid.SetColumnSpan(_lblScannerDetail, 2);
+            _pnlConnStatus.Controls.Add(connGrid);
+            AddCardRow(_pnlConnStatus, 18);
 
             AddCardRow(MakeFieldLabel("Username", dpiScale), 6);
             _txtUsername = MakeLoginTextBox(false, innerW, dpiScale);
@@ -272,7 +336,7 @@ namespace ScannerApp.Forms
 
             btnRow.Controls.Add(_btnLogin);
             btnRow.Controls.Add(_btnClose);
-            AddCardRow(btnRow, 8);
+            AddCardRow(btnRow, (int)(20 * dpiScale));
 
             _lblStatus = new Label
             {
@@ -302,6 +366,7 @@ namespace ScannerApp.Forms
             };
             _btnSettings.FlatAppearance.BorderColor = C_SettingsBorder;
             _btnSettings.FlatAppearance.BorderSize  = 1;
+            _btnSettings.Margin = new Padding(0, (int)(8 * dpiScale), 0, (int)(6 * dpiScale));
             _btnSettings.Click += BtnSettings_Click;
 
             _settingsPanel = new Panel
@@ -327,6 +392,7 @@ namespace ScannerApp.Forms
             _txtServerUrl = MakeSettingsTextBox(settingsInnerW, dpiScale);
             _txtServerUrl.Location = new Point(_settingsPanel.Padding.Left, sy);
             _txtServerUrl.Text = "http://localhost:4000";
+            _txtServerUrl.Leave += async (_, _) => await CheckConnectivityAsync();
             sy += (int)(40 * dpiScale);
 
             var lblPath = MakeFieldLabel("Local Storage Path", dpiScale);
@@ -356,9 +422,16 @@ namespace ScannerApp.Forms
                 lblPath, _txtStoragePath, _btnBrowsePath,
             });
 
+            var spacerBelowCard = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+            };
+
             body.Controls.Add(card, 1, 1);
-            body.Controls.Add(_btnSettings, 1, 2);
-            body.Controls.Add(_settingsPanel, 1, 3);
+            body.Controls.Add(spacerBelowCard, 1, 2);
+            body.Controls.Add(_btnSettings, 1, 3);
+            body.Controls.Add(_settingsPanel, 1, 4);
 
             root.Controls.Add(header, 0, 0);
             root.Controls.Add(body, 0, 1);
@@ -374,6 +447,12 @@ namespace ScannerApp.Forms
                     _connPollTimer.Dispose();
                     _connPollTimer = null;
                 }
+                if (_scannerHotplugTimer != null)
+                {
+                    _scannerHotplugTimer.Stop();
+                    _scannerHotplugTimer.Dispose();
+                    _scannerHotplugTimer = null;
+                }
             };
 
             Load += async (_, _) =>
@@ -381,6 +460,9 @@ namespace ScannerApp.Forms
                 _connPollTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
                 _connPollTimer.Tick += async (_, _) => await CheckConnectivityAsync();
                 _connPollTimer.Start();
+                _scannerHotplugTimer = new System.Windows.Forms.Timer { Interval = 3_000 };
+                _scannerHotplugTimer.Tick += async (_, _) => await RefreshScannerStatusAsync();
+                _scannerHotplugTimer.Start();
                 await CheckConnectivityAsync();
             };
         }
@@ -409,25 +491,80 @@ namespace ScannerApp.Forms
             }
         }
 
+        private readonly record struct ScannerUiSnapshot(bool Ok, ScannerDevice? Primary, bool NetworkSourcesOnly);
+
+        private static ScannerUiSnapshot QueryScannerSnapshot()
+        {
+            try
+            {
+                var svc = new ScannerService();
+                var all = svc.GetScannerDevices();
+                var pick = svc.EnumerateScannersPreferPhysical();
+                if (pick.Count == 0) return new ScannerUiSnapshot(false, null, false);
+                var primary = pick[0];
+                bool netOnly = all.Count > 0 && all.TrueForAll(d => ScannerService.IsNetworkStyleWiaDevice(d.DeviceId));
+                return new ScannerUiSnapshot(true, primary, netOnly);
+            }
+            catch
+            {
+                return new ScannerUiSnapshot(false, null, false);
+            }
+        }
+
+        private void ApplyScannerLabels(ScannerUiSnapshot snap)
+        {
+            var warnOrange = Color.FromArgb(0xF5, 0x9E, 0x0B);
+            if (!snap.Ok || snap.Primary is null)
+            {
+                _lblScannerValue.Text = "Not detected";
+                _lblScannerValue.ForeColor = warnOrange;
+                _lblScannerDetail.Text =
+                    "Plug in a USB scanner, or add a network scanner in Windows (WSD).";
+            }
+            else
+            {
+                _lblScannerValue.Text = "Ready";
+                _lblScannerValue.ForeColor = C_Success;
+                _lblScannerDetail.Text = snap.NetworkSourcesOnly
+                    ? $"Network · {snap.Primary.Name}"
+                    : $"USB / local · {snap.Primary.Name}";
+            }
+        }
+
+        private async Task RefreshScannerStatusAsync()
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+            int gen = Interlocked.Increment(ref _scannerUiGeneration);
+            _lblScannerValue.Text = "Checking…";
+            _lblScannerValue.ForeColor = C_Muted;
+            _lblScannerDetail.Text = "";
+            var snap = await Task.Run(QueryScannerSnapshot).ConfigureAwait(true);
+            if (gen != Volatile.Read(ref _scannerUiGeneration)) return;
+            if (IsDisposed) return;
+            ApplyScannerLabels(snap);
+        }
+
         private async Task CheckConnectivityAsync()
         {
             if (IsDisposed || !IsHandleCreated) return;
 
             int gen = Interlocked.Increment(ref _connectivityGeneration);
+            Interlocked.Increment(ref _scannerUiGeneration);
 
             var url = _txtServerUrl?.Text?.Trim().TrimEnd('/') ?? "";
 
-            _lblServerConn.Text      = "● Server: checking…";
-            _lblServerConn.ForeColor = C_Muted;
-            _lblScannerConn.Text      = "● Scanner: checking…";
-            _lblScannerConn.ForeColor = C_Muted;
+            _lblServerValue.Text = "Checking…";
+            _lblServerValue.ForeColor = C_Muted;
+            _lblScannerValue.Text = "Checking…";
+            _lblScannerValue.ForeColor = C_Muted;
+            _lblScannerDetail.Text = "";
 
             if (string.IsNullOrWhiteSpace(url))
             {
                 if (gen != Volatile.Read(ref _connectivityGeneration)) return;
                 if (IsDisposed) return;
-                _lblServerConn.Text      = "● Server: (configure URL in Settings)";
-                _lblServerConn.ForeColor = C_Muted;
+                _lblServerValue.Text = "Not configured";
+                _lblServerValue.ForeColor = C_Muted;
             }
             else
             {
@@ -439,61 +576,32 @@ namespace ScannerApp.Forms
                     _api.BaseUrl = saved;
                     if (gen != Volatile.Read(ref _connectivityGeneration)) return;
                     if (IsDisposed) return;
-                    _lblServerConn.Text      = ok ? "● Server: Online" : "● Server: Offline";
-                    _lblServerConn.ForeColor = ok ? C_Success : C_Danger;
+                    _lblServerValue.Text = ok ? "Online" : "Offline";
+                    _lblServerValue.ForeColor = ok ? C_Success : C_Danger;
                 }
                 catch
                 {
                     if (gen != Volatile.Read(ref _connectivityGeneration)) return;
                     if (IsDisposed) return;
-                    _lblServerConn.Text      = "● Server: Offline";
-                    _lblServerConn.ForeColor = C_Danger;
+                    _lblServerValue.Text = "Offline";
+                    _lblServerValue.ForeColor = C_Danger;
                 }
             }
 
-            (bool ok, string firstName) scanResult;
+            ScannerUiSnapshot snap;
             try
             {
-                scanResult = await Task.Run(() =>
-                {
-                    try
-                    {
-                        var svc = new ScannerService();
-                        bool ok = svc.IsConnected();
-                        var scanners = svc.GetAvailableScanners();
-                        string name = scanners.Count > 0 ? scanners[0] : "";
-                        return (ok, name);
-                    }
-                    catch
-                    {
-                        return (false, "");
-                    }
-                }).ConfigureAwait(true);
+                snap = await Task.Run(QueryScannerSnapshot).ConfigureAwait(true);
             }
             catch
             {
-                scanResult = (false, "");
+                snap = new ScannerUiSnapshot(false, null, false);
             }
 
             if (gen != Volatile.Read(ref _connectivityGeneration)) return;
             if (IsDisposed) return;
 
-            var warnOrange = Color.FromArgb(0xF5, 0x9E, 0x0B);
-            if (scanResult.ok)
-            {
-                string line2 = string.IsNullOrWhiteSpace(scanResult.firstName)
-                    ? ""
-                    : scanResult.firstName;
-                _lblScannerConn.Text = string.IsNullOrEmpty(line2)
-                    ? "● Scanner: Ready"
-                    : $"● Scanner: Ready{Environment.NewLine}{line2}";
-                _lblScannerConn.ForeColor = C_Success;
-            }
-            else
-            {
-                _lblScannerConn.Text      = "● Scanner: Not detected";
-                _lblScannerConn.ForeColor = warnOrange;
-            }
+            ApplyScannerLabels(snap);
         }
 
         private void BtnBrowsePath_Click(object? sender, EventArgs e)

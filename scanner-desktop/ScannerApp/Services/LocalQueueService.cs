@@ -215,6 +215,34 @@ namespace ScannerApp.Services
             return results;
         }
 
+        /// <summary>
+        /// Returns rows whose <see cref="LocalBookletRecord.Status"/> is in <paramref name="statuses"/>.
+        /// Empty <paramref name="statuses"/> yields an empty list. When all known statuses are included,
+        /// uses the same ordering as <see cref="GetAllRecords"/>.
+        /// </summary>
+        public List<LocalBookletRecord> GetFilteredRecordsByStatuses(IReadOnlyCollection<string> statuses)
+        {
+            if (statuses == null || statuses.Count == 0)
+                return new List<LocalBookletRecord>();
+
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in statuses)
+            {
+                if (string.IsNullOrWhiteSpace(s)) continue;
+                set.Add(s.Trim());
+            }
+
+            if (set.Count == 0)
+                return new List<LocalBookletRecord>();
+
+            bool coversAll = set.Contains("Pending") && set.Contains("Uploading")
+                && set.Contains("Uploaded") && set.Contains("Failed");
+            if (coversAll)
+                return GetAllRecords();
+
+            return GetAllRecords().Where(r => set.Contains(r.Status)).ToList();
+        }
+
         public List<LocalBookletRecord> GetPendingItems()
         {
             using var conn = OpenConnection();

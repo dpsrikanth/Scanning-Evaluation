@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,7 +47,8 @@ namespace ScannerApp.Forms
 
         // ── Left panel controls ───────────────────────────────────────────────
         private Label      _lblOperator     = null!;
-        private Label      _lblWorkstation  = null!;
+        private Label      _lblWorkstationCode = null!;
+        private Label      _lblWorkstationName = null!;
         private Label      _lblDriverMode   = null!;
         private ComboBox   _cboExam         = null!;
         private ComboBox   _cboPaper        = null!;
@@ -80,8 +82,25 @@ namespace ScannerApp.Forms
         private const int QColErr    = 12;
         private const int QColPdf   = 13;
         private const int QColUp    = 14;
+        private const int QColCount = 15;
+        private static readonly float[] QColWeight =
+        {
+            16f, 7f, 7f, 8f, 5f, 10f, 9f, 9f, 9f, 5f, 5f, 9f, 22f, 4f, 4f,
+        };
+        private static readonly int[] QColMinW =
+        {
+            120, 44, 44, 56, 40, 72, 92, 92, 92, 36, 36, 88, 96, 36, 40,
+        };
+        private bool _queueFilterUiProgrammatic;
         private Label      _lblQueueHeader  = null!;
-        private ComboBox   _cboQueueFilter  = null!;
+        private Button     _btnQueueFilter  = null!;
+        /// <summary>DB status tokens: Pending, Uploading, Uploaded, Failed.</summary>
+        private readonly HashSet<string> _queueFilterDbStatuses = new(StringComparer.OrdinalIgnoreCase) { "Pending" };
+        private ToolStripDropDown? _queueFilterDropDown;
+        private CheckBox? _qfPending;
+        private CheckBox? _qfUploaded;
+        private CheckBox? _qfFailed;
+        private CheckBox? _qfProcessing;
         private Button     _btnQcRejected   = null!;
         private Button     _btnRetryFailed  = null!;
         private TextBox    _txtActivityLog  = null!;
@@ -170,10 +189,29 @@ namespace ScannerApp.Forms
                     _serverBarcode.Enabled = useSrv.Equals("true", StringComparison.OrdinalIgnoreCase);
                 if (obj.TryGetValue("serverBarcodeUrl", out var srvUrl) && !string.IsNullOrWhiteSpace(srvUrl))
                     _serverBarcode.BaseUrl = srvUrl.Trim().TrimEnd('/');
+
+                if (obj.TryGetValue("activityPanelVisible", out var apv) && _logCard != null)
+                    _logCard.Visible = apv.Equals("true", StringComparison.OrdinalIgnoreCase);
+
+                if (obj.TryGetValue("queueFilterStatuses", out var qfs) && !string.IsNullOrWhiteSpace(qfs))
+                {
+                    _queueFilterDbStatuses.Clear();
+                    foreach (var part in qfs.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    {
+                        if (IsKnownQueueDbStatus(part))
+                            _queueFilterDbStatuses.Add(part);
+                    }
+                    if (_queueFilterDbStatuses.Count == 0)
+                        _queueFilterDbStatuses.Add("Pending");
+                }
             }
             catch
             {
                 // ignore local settings load failures
+            }
+            finally
+            {
+                SyncBottomPanelTogglesFromState();
             }
         }
 
@@ -201,12 +239,370 @@ namespace ScannerApp.Forms
 
                 obj["useServerBarcode"] = _serverBarcode.Enabled ? "true" : "false";
                 obj["serverBarcodeUrl"] = _serverBarcode.BaseUrl;
+                if (_logCard != null)
+                    obj["activityPanelVisible"] = _logCard.Visible ? "true" : "false";
+                obj["queueFilterStatuses"] = string.Join("|",
+                    _queueFilterDbStatuses.OrderBy(s => s, StringComparer.OrdinalIgnoreCase));
                 File.WriteAllText(LocalSettingsPath, JsonConvert.SerializeObject(obj, Formatting.Indented));
             }
             catch
             {
                 // ignore local settings save failures
             }
+        }
+
+        private static bool IsKnownQueueDbStatus(string s) =>
+            s.Equals("Pending", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("Uploading", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("Uploaded", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("Failed", StringComparison.OrdinalIgnoreCase);
+
+        private void SyncBottomPanelTogglesFromState()
+        {
+            try
+            {
+                if (_btnToggleActivity != null && _logCard != null)
+                    UpdateHeaderNavToggleVisual(_btnToggleActivity, _logCard.Visible);
+                if (_btnToggleQueue != null && _queueCard != null)
+                    UpdateHeaderNavToggleVisual(_btnToggleQueue, _queueCard.Visible);
+                UpdateQueueFilterButtonCaption();
+                AdjustBottomPanelLayout();
+                LayoutQueueListViewColumns();
+            }
+            catch
+            {
+                // partially constructed UI (designer / early init)
+            }
+        }
+
+        private static void UpdateHeaderNavToggleVisual(Button b, bool open) =>
+            b.BackColor = open ? Color.FromArgb(58, 255, 255, 255) : Color.Transparent;
+
+        private void UpdateQueueFilterButtonCaption()
+        {
+            if (_btnQueueFilter == null) return;
+            int n = _queueFilterDbStatuses.Count;
+            const int allFour = 4;
+            _btnQueueFilter.Text = n == 0
+                ? "Status: (none)"
+                : n >= allFour ? "Status: All" : $"{n} selected";
+        }
+
+        private void EnsureQueueFilterDropDown()
+        {
+            if (_queueFilterDropDown != null) return;
+
+            var host = new FlowLayoutPanel
+            {
+                FlowDirection  = FlowDirection.TopDown,
+                WrapContents   = false,
+                AutoSize       = true,
+                Padding        = new Padding(10, 8, 10, 8),
+                MinimumSize    = new Size(210, 0),
+                MaximumSize    = new Size(280, 480),
+            };
+
+            _qfPending = new CheckBox
+            {
+                Text     = "Pending",
+                AutoSize = true,
+                Margin   = new Padding(0, 0, 0, 4),
+            };
+            _qfUploaded = new CheckBox { Text = "Uploaded", AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+            _qfFailed = new CheckBox { Text = "Failed", AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+            _qfProcessing = new CheckBox
+            {
+                Text     = "Processing (uploading)",
+                AutoSize = true,
+                Margin   = new Padding(0, 0, 0, 8),
+            };
+
+            void onFilterCheckChanged(object? s, EventArgs e)
+            {
+                if (_queueFilterUiProgrammatic) return;
+                _queueFilterDbStatuses.Clear();
+                if (_qfPending!.Checked) _queueFilterDbStatuses.Add("Pending");
+                if (_qfUploaded!.Checked) _queueFilterDbStatuses.Add("Uploaded");
+                if (_qfFailed!.Checked) _queueFilterDbStatuses.Add("Failed");
+                if (_qfProcessing!.Checked) _queueFilterDbStatuses.Add("Uploading");
+                UpdateQueueFilterButtonCaption();
+                SaveDesktopSettings();
+                RefreshQueueView();
+            }
+
+            foreach (var cb in new[] { _qfPending, _qfUploaded, _qfFailed, _qfProcessing })
+                cb!.CheckedChanged += onFilterCheckChanged;
+
+            var linkRow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                AutoSize      = true,
+                WrapContents  = false,
+            };
+            var llAll = new LinkLabel
+            {
+                Text      = "Select all",
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 16, 0),
+                LinkColor = ColorPrimary,
+            };
+            llAll.Click += (_, _) =>
+            {
+                _queueFilterUiProgrammatic = true;
+                try
+                {
+                    _qfPending!.Checked = true;
+                    _qfUploaded!.Checked = true;
+                    _qfFailed!.Checked = true;
+                    _qfProcessing!.Checked = true;
+                }
+                finally
+                {
+                    _queueFilterUiProgrammatic = false;
+                }
+
+                _queueFilterDbStatuses.Clear();
+                _queueFilterDbStatuses.Add("Pending");
+                _queueFilterDbStatuses.Add("Uploaded");
+                _queueFilterDbStatuses.Add("Failed");
+                _queueFilterDbStatuses.Add("Uploading");
+                UpdateQueueFilterButtonCaption();
+                SaveDesktopSettings();
+                RefreshQueueView();
+            };
+            var llClr = new LinkLabel { Text = "Clear all", AutoSize = true, LinkColor = ColorPrimary };
+            llClr.Click += (_, _) =>
+            {
+                _queueFilterUiProgrammatic = true;
+                try
+                {
+                    _qfPending!.Checked = false;
+                    _qfUploaded!.Checked = false;
+                    _qfFailed!.Checked = false;
+                    _qfProcessing!.Checked = false;
+                }
+                finally
+                {
+                    _queueFilterUiProgrammatic = false;
+                }
+
+                _queueFilterDbStatuses.Clear();
+                UpdateQueueFilterButtonCaption();
+                SaveDesktopSettings();
+                RefreshQueueView();
+            };
+            linkRow.Controls.Add(llAll);
+            linkRow.Controls.Add(llClr);
+
+            host.Controls.Add(_qfPending);
+            host.Controls.Add(_qfUploaded);
+            host.Controls.Add(_qfFailed);
+            host.Controls.Add(_qfProcessing);
+            host.Controls.Add(linkRow);
+
+            var tsHost = new ToolStripControlHost(host)
+            {
+                AutoSize = true,
+                Padding  = Padding.Empty,
+                Margin   = Padding.Empty,
+            };
+            _queueFilterDropDown = new ToolStripDropDown
+            {
+                Padding              = Padding.Empty,
+                Margin               = Padding.Empty,
+                DropShadowEnabled    = true,
+                AutoSize             = true,
+                AutoClose            = true,
+            };
+            _queueFilterDropDown.Items.Add(tsHost);
+        }
+
+        private void SyncQueueFilterCheckboxesFromModel()
+        {
+            EnsureQueueFilterDropDown();
+            if (_qfPending == null) return;
+            _queueFilterUiProgrammatic = true;
+            try
+            {
+                _qfPending.Checked = _queueFilterDbStatuses.Contains("Pending");
+                _qfUploaded!.Checked = _queueFilterDbStatuses.Contains("Uploaded");
+                _qfFailed!.Checked = _queueFilterDbStatuses.Contains("Failed");
+                _qfProcessing!.Checked = _queueFilterDbStatuses.Contains("Uploading");
+            }
+            finally
+            {
+                _queueFilterUiProgrammatic = false;
+            }
+        }
+
+        private void BtnQueueFilter_Click(object? sender, EventArgs e)
+        {
+            EnsureQueueFilterDropDown();
+            SyncQueueFilterCheckboxesFromModel();
+            if (_queueFilterDropDown == null || _btnQueueFilter == null) return;
+            _queueFilterDropDown.Show(_btnQueueFilter, new Point(0, _btnQueueFilter.Height));
+        }
+
+        private static GraphicsPath CreateRoundedRectPath(Rectangle bounds, int radius)
+        {
+            int d = Math.Min(radius * 2, Math.Min(bounds.Width, bounds.Height));
+            if (d <= 0)
+            {
+                var p0 = new GraphicsPath();
+                p0.AddRectangle(bounds);
+                return p0;
+            }
+
+            var path = new GraphicsPath();
+            path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
+            path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
+            path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        private void LayoutQueueListViewColumns()
+        {
+            if (_lvQueue == null || !_lvQueue.IsHandleCreated || _lvQueue.Columns.Count != QColCount)
+                return;
+
+            int avail = _lvQueue.ClientSize.Width;
+            if (avail < 360) avail = 360;
+
+            float sumW = 0f;
+            foreach (var w in QColWeight)
+                sumW += w;
+
+            var widths = new int[QColCount];
+            int total = 0;
+            for (int i = 0; i < QColCount; i++)
+            {
+                int w = (int)Math.Round(avail * (QColWeight[i] / sumW));
+                if (w < QColMinW[i])
+                    w = QColMinW[i];
+                widths[i] = w;
+                total += w;
+            }
+
+            int slack = avail - total;
+            if (slack != 0)
+                widths[QColErr] = Math.Max(QColMinW[QColErr], widths[QColErr] + slack);
+
+            for (int i = 0; i < QColCount; i++)
+                _lvQueue.Columns[i].Width = widths[i];
+        }
+
+        private static Bitmap? CreateMdi2GlyphBitmap(char codePoint, Color fg, int sizePx)
+        {
+            try
+            {
+                var bmp = new Bitmap(sizePx, sizePx, PixelFormat.Format32bppArgb);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.Transparent);
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                    using var font = new Font("Segoe MDL2 Assets", sizePx * 0.72f, FontStyle.Regular, GraphicsUnit.Pixel);
+                    var s = codePoint.ToString();
+                    var sz = TextRenderer.MeasureText(g, s, font, Size.Empty, TextFormatFlags.NoPadding);
+                    int x = Math.Max(0, (sizePx - sz.Width) / 2);
+                    int y = Math.Max(0, (sizePx - sz.Height) / 2);
+                    TextRenderer.DrawText(g, s, font, new Point(x, y), fg,
+                        TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                }
+
+                return bmp;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private void WireRetryFailedButtonChrome()
+        {
+            var soft = Color.FromArgb(255, 254, 226, 226);
+            var softHover = Color.FromArgb(255, 252, 201, 201);
+            var disabledBg = Color.FromArgb(248, 250, 252);
+            var fg = Color.FromArgb(0x99, 0x1B, 0x1B);
+
+            _btnRetryFailed.Text = "Retry Failed";
+            _btnRetryFailed.TextImageRelation = TextImageRelation.ImageBeforeText;
+            _btnRetryFailed.ImageAlign = ContentAlignment.MiddleLeft;
+            _btnRetryFailed.Padding = new Padding(10, 0, 12, 0);
+            _btnRetryFailed.FlatStyle = FlatStyle.Flat;
+            _btnRetryFailed.FlatAppearance.BorderSize = 0;
+            _btnRetryFailed.Font = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point);
+            _btnRetryFailed.ForeColor = fg;
+            _btnRetryFailed.BackColor = soft;
+            _btnRetryFailed.Cursor = Cursors.Hand;
+            _btnRetryFailed.Width = 132;
+            _btnRetryFailed.Height = 30;
+
+            var syncBmp = CreateMdi2GlyphBitmap('\uE72C', fg, 16);
+            if (syncBmp != null)
+                _btnRetryFailed.Image = syncBmp;
+
+            void ApplyRegion()
+            {
+                if (_btnRetryFailed.Width <= 1 || _btnRetryFailed.Height <= 1) return;
+                var r = new Rectangle(0, 0, _btnRetryFailed.Width - 1, _btnRetryFailed.Height - 1);
+                using var path = CreateRoundedRectPath(r, 5);
+                _btnRetryFailed.Region?.Dispose();
+                _btnRetryFailed.Region = new Region(path);
+            }
+
+            _btnRetryFailed.SizeChanged += (_, _) => ApplyRegion();
+            _btnRetryFailed.HandleCreated += (_, _) => ApplyRegion();
+            _btnRetryFailed.EnabledChanged += (_, _) =>
+            {
+                _btnRetryFailed.BackColor = _btnRetryFailed.Enabled ? soft : disabledBg;
+                _btnRetryFailed.ForeColor = _btnRetryFailed.Enabled ? fg : ColorMuted;
+            };
+            _btnRetryFailed.MouseEnter += (_, _) =>
+            {
+                if (_btnRetryFailed.Enabled)
+                    _btnRetryFailed.BackColor = softHover;
+            };
+            _btnRetryFailed.MouseLeave += (_, _) =>
+            {
+                if (_btnRetryFailed.Enabled)
+                    _btnRetryFailed.BackColor = soft;
+            };
+        }
+
+        private static void StyleGhostHeaderButton(Button b, char mdl2Glyph, string caption, int width)
+        {
+            b.Text = caption;
+            b.Width = width;
+            b.Height = 32;
+            b.FlatStyle = FlatStyle.Flat;
+            b.ForeColor = Color.White;
+            b.Cursor = Cursors.Hand;
+            b.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
+            b.FlatAppearance.BorderSize = 1;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 255, 255, 255);
+            b.BackColor = Color.Transparent;
+            b.Font = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
+            b.TextImageRelation = TextImageRelation.ImageBeforeText;
+            b.ImageAlign = ContentAlignment.MiddleLeft;
+            b.TextAlign = ContentAlignment.MiddleRight;
+            b.Padding = new Padding(6, 0, 10, 0);
+            var img = CreateMdi2GlyphBitmap(mdl2Glyph, Color.White, 16);
+            if (img != null)
+                b.Image = img;
+        }
+
+        private void WireHeaderToggleHover(Button b, Func<bool> isOpen)
+        {
+            b.MouseEnter += (_, _) =>
+            {
+                b.BackColor = isOpen() ? Color.FromArgb(72, 255, 255, 255) : Color.FromArgb(40, 255, 255, 255);
+            };
+            b.MouseLeave += (_, _) =>
+            {
+                b.BackColor = isOpen() ? Color.FromArgb(58, 255, 255, 255) : Color.Transparent;
+            };
         }
 
         private void BuildHeader()
@@ -266,36 +662,12 @@ namespace ScannerApp.Forms
                 Application.Restart();
             };
 
-            _btnChangePath = new Button
-            {
-                Text      = "Storage",
-                Width     = 96,
-                Height    = 32,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Cursor    = Cursors.Hand,
-                Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
-            };
-            _btnChangePath.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
-            _btnChangePath.FlatAppearance.BorderSize = 1;
+            _btnChangePath = new Button { Dock = DockStyle.Right };
+            StyleGhostHeaderButton(_btnChangePath, '\uE8B7', "Storage", 112);
             _btnChangePath.Click += BtnChangePath_Click;
 
-            _btnViewLog = new Button
-            {
-                Text      = "Log",
-                Width     = 72,
-                Height    = 32,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Cursor    = Cursors.Hand,
-                Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
-            };
-            _btnViewLog.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
-            _btnViewLog.FlatAppearance.BorderSize = 1;
+            _btnViewLog = new Button { Dock = DockStyle.Right };
+            StyleGhostHeaderButton(_btnViewLog, '\uE8A5', "Log", 84);
             _btnViewLog.Click += (_, _) =>
             {
                 var logPath = AppLogger.TodayLogPath;
@@ -310,20 +682,8 @@ namespace ScannerApp.Forms
                     });
             };
 
-            _btnQcRejected = new Button
-            {
-                Text      = "QC rejected…",
-                Width     = 118,
-                Height    = 32,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Cursor    = Cursors.Hand,
-                Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
-            };
-            _btnQcRejected.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
-            _btnQcRejected.FlatAppearance.BorderSize = 1;
+            _btnQcRejected = new Button { Dock = DockStyle.Right };
+            StyleGhostHeaderButton(_btnQcRejected, '\uE7BA', "QC rejected", 128);
             _btnQcRejected.Click += BtnQcRejected_Click;
 
             _lblServerStatus = new Label
@@ -348,49 +708,26 @@ namespace ScannerApp.Forms
                 AutoSize  = false,
             };
 
-            _btnToggleQueue = new Button
-            {
-                Text      = "Queue ▾",
-                Width     = 84,
-                Height    = 32,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Cursor    = Cursors.Hand,
-                Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
-            };
-            _btnToggleQueue.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
-            _btnToggleQueue.FlatAppearance.BorderSize = 1;
+            _btnToggleQueue = new Button { Dock = DockStyle.Right };
+            StyleGhostHeaderButton(_btnToggleQueue, '\uE8FD', "Queue", 100);
             _btnToggleQueue.Click += (_, _) =>
             {
-                bool show = !_queueCard.Visible;
-                _queueCard.Visible = show;
-                _btnToggleQueue.Text = show ? "Queue ▾" : "Queue ▸";
+                _queueCard.Visible = !_queueCard.Visible;
+                UpdateHeaderNavToggleVisual(_btnToggleQueue, _queueCard.Visible);
                 AdjustBottomPanelLayout();
             };
+            WireHeaderToggleHover(_btnToggleQueue, () => _queueCard.Visible);
 
-            _btnToggleActivity = new Button
-            {
-                Text      = "Activity ▾",
-                Width     = 92,
-                Height    = 32,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Cursor    = Cursors.Hand,
-                Dock      = DockStyle.Right,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
-            };
-            _btnToggleActivity.FlatAppearance.BorderColor = Color.FromArgb(120, 140, 200);
-            _btnToggleActivity.FlatAppearance.BorderSize = 1;
+            _btnToggleActivity = new Button { Dock = DockStyle.Right };
+            StyleGhostHeaderButton(_btnToggleActivity, '\uE7ED', "Activity", 108);
             _btnToggleActivity.Click += (_, _) =>
             {
-                bool show = !_logCard.Visible;
-                _logCard.Visible = show;
-                _btnToggleActivity.Text = show ? "Activity ▾" : "Activity ▸";
+                _logCard.Visible = !_logCard.Visible;
+                UpdateHeaderNavToggleVisual(_btnToggleActivity, _logCard.Visible);
                 AdjustBottomPanelLayout();
+                SaveDesktopSettings();
             };
+            WireHeaderToggleHover(_btnToggleActivity, () => _logCard.Visible);
 
             _headerPanel.Controls.AddRange(new Control[]
                 { _lblAppTitle, _lblOperator,
@@ -504,24 +841,45 @@ namespace ScannerApp.Forms
 
             int row = 0;
 
+            var lblConfigColumn = new Label
+            {
+                Text      = "Configuration",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Point),
+                ForeColor = ColorText,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 8),
+            };
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            stack.Controls.Add(lblConfigColumn, 0, row++);
+
             // Workstation strip (card)
             var wsCard = new Panel
             {
                 Dock         = DockStyle.Top,
                 Margin       = new Padding(0, 0, 0, 16),
                 BackColor    = ColorCard,
-                Padding      = new Padding(16),
+                Padding      = new Padding(12, 12, 12, 12),
                 AutoSize     = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
             };
             wsCard.Paint += PaintCardBorder;
-            _lblWorkstation = new Label
+            _lblWorkstationCode = new Label
             {
-                Text      = "— Workstation loading… —",
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold, GraphicsUnit.Point),
+                Text      = "—",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = ColorPrimary,
                 Dock      = DockStyle.Top,
                 AutoSize  = true,
+            };
+            _lblWorkstationName = new Label
+            {
+                Text      = "Workstation loading…",
+                Font      = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
+                ForeColor = ColorMuted,
+                Dock      = DockStyle.Top,
+                AutoSize  = true,
+                Margin    = new Padding(0, 4, 0, 0),
             };
             _lblDriverMode = new Label
             {
@@ -530,9 +888,10 @@ namespace ScannerApp.Forms
                 ForeColor = ColorMuted,
                 Dock      = DockStyle.Top,
                 AutoSize  = true,
-                Margin    = new Padding(0, 8, 0, 0),
+                Margin    = new Padding(0, 10, 0, 0),
             };
-            wsCard.Controls.Add(_lblWorkstation);
+            wsCard.Controls.Add(_lblWorkstationCode);
+            wsCard.Controls.Add(_lblWorkstationName);
             wsCard.Controls.Add(_lblDriverMode);
             stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             stack.Controls.Add(wsCard, 0, row++);
@@ -768,7 +1127,14 @@ namespace ScannerApp.Forms
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Point),
                 Cursor    = Cursors.Hand,
                 Margin    = new Padding(0, 0, 0, 12),
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                ImageAlign        = ContentAlignment.MiddleLeft,
+                TextAlign         = ContentAlignment.MiddleCenter,
+                Padding           = new Padding(14, 0, 14, 0),
             };
+            var scanGlyph = CreateMdi2GlyphBitmap('\uE722', Color.White, 22);
+            if (scanGlyph != null)
+                _btnScan.Image = scanGlyph;
             _btnScan.FlatAppearance.BorderSize = 0;
             _btnScan.Click += BtnScan_Click;
             int ar = 0;
@@ -873,6 +1239,7 @@ namespace ScannerApp.Forms
 
         private Panel BuildCenterPreviewPanel()
         {
+            var outer = new Panel { Dock = DockStyle.Fill, BackColor = ColorSurface, Padding = new Padding(8, 0, 8, 0) };
             var panel = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(16) };
             panel.Paint += PaintCardBorder;
 
@@ -922,7 +1289,8 @@ namespace ScannerApp.Forms
             layout.Controls.Add(titleRow, 0, 0);
             layout.Controls.Add(_picPreview, 0, 1);
             panel.Controls.Add(layout);
-            return panel;
+            outer.Controls.Add(panel);
+            return outer;
         }
 
         private Panel BuildRightPanel()
@@ -948,7 +1316,7 @@ namespace ScannerApp.Forms
 
             var hdr = new Label
             {
-                Text      = "Pages",
+                Text      = "Current booklet",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = ColorText,
                 Dock      = DockStyle.Top,
@@ -1036,32 +1404,23 @@ namespace ScannerApp.Forms
                 TextAlign = ContentAlignment.MiddleLeft,
             };
 
-            _cboQueueFilter = new ComboBox
+            _btnQueueFilter = new Button
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Width         = 110,
                 Dock          = DockStyle.Right,
-                Font          = new Font("Segoe UI", 8.5f),
+                Width         = 128,
+                Height        = 28,
+                Font          = new Font("Segoe UI", 8.5f, FontStyle.Regular, GraphicsUnit.Point),
+                TextAlign     = ContentAlignment.MiddleCenter,
+                Cursor        = Cursors.Hand,
             };
-            _cboQueueFilter.Items.AddRange(new object[] { "Pending", "Uploaded", "Failed", "All" });
-            _cboQueueFilter.SelectedIndex = 0; // default: Pending
-            _cboQueueFilter.SelectedIndexChanged += (_, _) => RefreshQueueView();
+            StyleOutlineButton(_btnQueueFilter);
+            _btnQueueFilter.Click += BtnQueueFilter_Click;
 
-            _btnRetryFailed = new Button
-            {
-                Text      = "⟳ Retry Failed",
-                Width     = 105,
-                Dock      = DockStyle.Right,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = Color.FromArgb(180, 60, 20),
-                BackColor = ColorCard,
-                Cursor    = Cursors.Hand,
-            };
-            _btnRetryFailed.FlatAppearance.BorderColor = Color.FromArgb(180, 60, 20);
+            _btnRetryFailed = new Button { Dock = DockStyle.Right, Cursor = Cursors.Hand };
+            WireRetryFailedButtonChrome();
             _btnRetryFailed.Click += BtnRetryFailed_Click;
 
-            headerRow.Controls.Add(_cboQueueFilter);
+            headerRow.Controls.Add(_btnQueueFilter);
             headerRow.Controls.Add(_btnRetryFailed);
             headerRow.Controls.Add(_lblQueueHeader);
 
@@ -1100,7 +1459,9 @@ namespace ScannerApp.Forms
                 new ColumnHeader { Text = "PDF",              Width = 44  },
                 new ColumnHeader { Text = "Upload",           Width = 52  },
             });
+            LayoutQueueListViewColumns();
             _lvQueue.MouseClick += LvQueue_MouseClick;
+            _lvQueue.SizeChanged += (_, _) => LayoutQueueListViewColumns();
 
             // Right-click context menu for queue rows
             var ctxQueue = new ContextMenuStrip();
@@ -1115,7 +1476,9 @@ namespace ScannerApp.Forms
                 var selStatus = hasSelection
                     ? _lvQueue.SelectedItems[0].SubItems[QColStatus].Text
                     : "";
-                miRetryOne.Enabled  = hasSelection && (selStatus == "Failed" || selStatus == "Pending" || selStatus == "Uploaded");
+                miRetryOne.Enabled  = hasSelection
+                    && selStatus != "Uploading"
+                    && (selStatus == "Failed" || selStatus == "Pending" || selStatus == "Uploaded");
                 miCopyError.Enabled = hasSelection && !string.IsNullOrEmpty(_lvQueue.SelectedItems[0].SubItems[QColErr].Text);
             };
             _lvQueue.ContextMenuStrip = ctxQueue;
@@ -1124,7 +1487,7 @@ namespace ScannerApp.Forms
             queueCard.Controls.Add(_lblNextUpload);
             queueCard.Controls.Add(headerRow);
 
-            var logCard = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(4) };
+            var logCard = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(4), Visible = false };
             _logCard = logCard;
             logCard.Paint += PaintCardBorder;
             var logLabel = new Label
@@ -1408,13 +1771,19 @@ namespace ScannerApp.Forms
         {
             if (_myWorkstation == null)
             {
-                _lblWorkstation.Text = "No workstation assigned";
-                _lblWorkstation.ForeColor = ColorDanger;
+                _lblWorkstationCode.Text = "—";
+                _lblWorkstationName.Text = "No workstation assigned";
+                _lblWorkstationCode.ForeColor = ColorDanger;
+                _lblWorkstationName.ForeColor = ColorMuted;
                 return;
             }
 
-            _lblWorkstation.Text      = $"{_myWorkstation.WorkstationCode} — {_myWorkstation.WorkstationName}";
-            _lblWorkstation.ForeColor = ColorPrimary;
+            _lblWorkstationCode.Text = (_myWorkstation.WorkstationCode ?? "—").Trim();
+            _lblWorkstationName.Text = string.IsNullOrWhiteSpace(_myWorkstation.WorkstationName)
+                ? "Workstation"
+                : _myWorkstation.WorkstationName.Trim();
+            _lblWorkstationCode.ForeColor = ColorPrimary;
+            _lblWorkstationName.ForeColor = ColorMuted;
 
             var driverType = _myWorkstation.DriverType ?? "WIA";
             _lblDriverMode.Text = $"Driver: {driverType}  |  Printer: {_myWorkstation.PrinterProfileName ?? "Default"}";
@@ -1451,7 +1820,7 @@ namespace ScannerApp.Forms
         private void LoadScanners()
         {
             _cboScanner.Items.Clear();
-            var scanners = _scanner.GetAvailableScanners();
+            var scanners = _scanner.GetAvailableScannersPreferPhysical();
             foreach (var name in scanners)
                 _cboScanner.Items.Add(name);
 
@@ -2650,7 +3019,7 @@ namespace ScannerApp.Forms
         private static ImageList CreateQueueRowHeightImageList()
         {
             // Width ≥ 2 avoids rare native ImageList failures; height ~ target row size.
-            var il = new ImageList { ImageSize = new Size(16, 28), ColorDepth = ColorDepth.Depth32Bit };
+            var il = new ImageList { ImageSize = new Size(16, 32), ColorDepth = ColorDepth.Depth32Bit };
             var bmp = new Bitmap(il.ImageSize.Width, il.ImageSize.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
             using (var g = Graphics.FromImage(bmp))
                 g.Clear(Color.FromArgb(0, 255, 255, 255));
@@ -2658,15 +3027,69 @@ namespace ScannerApp.Forms
             return il;
         }
 
+        private static void DrawQueueStatusBadge(Graphics g, Rectangle bounds, string status, Font font,
+            bool selected, bool activeSel)
+        {
+            string label = string.IsNullOrEmpty(status) ? "—" : status;
+            Color fill;
+            Color text;
+            if (selected && activeSel)
+            {
+                fill = Color.FromArgb(210, 255, 255, 255);
+                text = ColorPrimary;
+            }
+            else if (selected)
+            {
+                fill = Color.FromArgb(230, 236, 244);
+                text = QueueRowForeColor(status);
+            }
+            else
+            {
+                fill = status switch
+                {
+                    "Uploaded"  => Color.FromArgb(255, 209, 250, 229),
+                    "Failed"    => Color.FromArgb(255, 254, 202, 202),
+                    "Pending"   => Color.FromArgb(255, 254, 240, 138),
+                    "Uploading" => Color.FromArgb(255, 199, 210, 254),
+                    _           => Color.FromArgb(240, 243, 246),
+                };
+                text = QueueRowForeColor(status);
+            }
+
+            var sz = TextRenderer.MeasureText(g, label, font, Size.Empty, TextFormatFlags.NoPadding);
+            int pillH = Math.Max(18, Math.Min(bounds.Height - 4, font.Height + 6));
+            int pillW = Math.Min(bounds.Width - 8, Math.Max(40, sz.Width + 16));
+            int x = bounds.X;
+            int y = bounds.Y + (bounds.Height - pillH) / 2;
+            var pillRect = new Rectangle(x, y, pillW, pillH);
+            using (var path = CreateRoundedRectPath(pillRect, 4))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using var b = new SolidBrush(fill);
+                g.FillPath(b, path);
+                if (selected && activeSel)
+                {
+                    using var pen = new Pen(Color.FromArgb(200, 255, 255, 255), 1f);
+                    g.DrawPath(pen, path);
+                }
+            }
+
+            var tr = new Rectangle(pillRect.X + 6, pillRect.Y, pillRect.Width - 12, pillRect.Height);
+            TextRenderer.DrawText(g, label, font, tr, text,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine
+                | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        }
+
         private void LvQueue_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
         {
-            var font = e.Font ?? _lvQueue?.Font ?? SystemFonts.MessageBoxFont;
+            var baseFont = e.Font ?? _lvQueue?.Font ?? SystemFonts.MessageBoxFont;
+            using var font = new Font(baseFont!, FontStyle.Bold);
             using (var brush = new SolidBrush(ColorQueueHeaderBg))
                 e.Graphics.FillRectangle(brush, e.Bounds);
-            var textRect = Rectangle.Inflate(e.Bounds, -6, 0);
+            var textRect = Rectangle.Inflate(e.Bounds, -8, 0);
             TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", font, textRect, ColorText,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-            using var line = new Pen(ColorBorder);
+            using var line = new Pen(Color.FromArgb(230, 233, 239));
             e.Graphics.DrawLine(line, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
         }
 
@@ -2706,6 +3129,13 @@ namespace ScannerApp.Forms
 
             var pad = Rectangle.Inflate(e.Bounds, -6, 0);
             var rowFont = _lvQueue?.Font ?? SystemFonts.MessageBoxFont;
+            if (e.ColumnIndex == QColStatus)
+            {
+                var st = e.Item.SubItems.Count > QColStatus ? e.Item.SubItems[QColStatus].Text : "";
+                DrawQueueStatusBadge(e.Graphics, pad, st, rowFont!, selected, activeSel);
+                return;
+            }
+
             TextRenderer.DrawText(e.Graphics, e.SubItem.Text, rowFont, pad, fg,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
@@ -2775,10 +3205,7 @@ namespace ScannerApp.Forms
         {
             if (_queue == null) return;
 
-            var filterText = _cboQueueFilter?.SelectedItem?.ToString() ?? "Pending";
-            var items = filterText == "All"
-                ? _queue.GetAllRecords()
-                : _queue.GetFilteredRecords(filterText);
+            var items = _queue.GetFilteredRecordsByStatuses(_queueFilterDbStatuses.ToList());
 
             var now = DateTime.Now;
             _lvQueue.Items.Clear();

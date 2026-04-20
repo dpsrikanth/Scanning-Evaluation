@@ -108,6 +108,15 @@ router.get('/booklets/pending', controller.pendingBooklets);
  *       404:
  *         description: Booklet not found or not allocated to this evaluator
  */
+router.get(
+  '/booklet/:bookletId/shared-annotations',
+  controller.getBookletSharedAnnotations
+);
+router.put(
+  '/booklet/:bookletId/shared-annotations',
+  controller.saveBookletSharedAnnotations
+);
+
 router.get('/booklet/:bookletId', controller.openBooklet);
 
 /**

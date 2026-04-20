@@ -67,6 +67,9 @@ namespace ScannerApp.Services
             return names;
         }
 
+        /// <inheritdoc />
+        public IList<string> GetAvailableScannersPreferPhysical() => GetAvailableScanners();
+
         // ── IScannerService: scan booklet ─────────────────────────────────────
 
         public async Task<IList<Bitmap>> ScanBookletAsync(

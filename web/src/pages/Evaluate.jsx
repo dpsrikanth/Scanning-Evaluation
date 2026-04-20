@@ -25,6 +25,18 @@ const ANNOTATION_TOOLS = [
 
 const DRAWING_TOOL_IDS = new Set(['pencil', 'tick_draw']);
 
+/** Booklet-level (server JSON) — visible to all evaluator roles; not tied to one evaluation session */
+const SHARED_STAMP_IDS = new Set(['stamp_blank', 'stamp_page_crossed']);
+const SHARED_STAMP_TOOLS = [
+  { id: 'stamp_blank', label: 'BLANK', title: 'Blank answer sheet (stamp)', color: '#475569' },
+  {
+    id: 'stamp_page_crossed',
+    label: '✕ Page',
+    title: 'Student crossed entire page (diagonal marks)',
+    color: '#b91c1c',
+  },
+];
+
 /** Normalise MySQL / API field casing for question scheme rows */
 function normalizeSchemeRow(q) {
   if (!q) return null;
@@ -73,6 +85,9 @@ export default function Evaluate() {
   const [currentPage, setCurrentPage] = useState(1);
   const [marks, setMarks] = useState({});                  // { schemeId: marksAwarded }
   const [annotations, setAnnotations] = useState({});      // { pageNumber: [{ type, x, y, note }] }
+  /** { pageNumber: [{ id, type, x, y, w, h, fullPage? }] } — saved on server per booklet */
+  const [sharedByPage, setSharedByPage] = useState({});
+  const sharedRef = useRef({});
   const [activeTool, setActiveTool] = useState('tick');
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -125,6 +140,10 @@ export default function Evaluate() {
   }, []);
 
   // ── Load monitoring settings (face verify opens only after evaluationId exists) ──
+  useEffect(() => {
+    sharedRef.current = sharedByPage;
+  }, [sharedByPage]);
+
   useEffect(() => {
     api.eval.monitoringSettings().then(setMonitoringSettings).catch(() => {});
   }, []);
@@ -180,6 +199,19 @@ export default function Evaluate() {
           });
         }
         setAnnotations(byPage);
+
+        try {
+          const sh = await api.eval.getBookletSharedAnnotations(bookletId);
+          const pages = sh?.pages || {};
+          const norm = {};
+          Object.keys(pages).forEach((k) => {
+            const n = parseInt(k, 10);
+            if (Number.isFinite(n)) norm[n] = Array.isArray(pages[k]) ? pages[k] : [];
+          });
+          setSharedByPage(norm);
+        } catch {
+          setSharedByPage({});
+        }
 
         try {
           const av = await api.files.bookletAvailability(bookletId);
@@ -325,12 +357,15 @@ export default function Evaluate() {
     const tabSwitches = tabSwitchRef.current;
     tabSwitchRef.current = 0;
     api.eval.saveAnnotations(evaluationId, prev, annotationsRef.current[prev] || []).catch(() => {});
+    api.eval
+      .saveBookletSharedAnnotations(bookletId, prev, sharedRef.current[prev] || [])
+      .catch(() => {});
     api.eval.logPageVisit(evaluationId, prev, duration, zoomRef.current, annCount, tabSwitches)
       .catch(() => {});
     prevPageRef.current = currentPage;
     pageTimer.reset();
     setPageSeconds(0);
-  }, [currentPage, evaluationId]);
+  }, [currentPage, evaluationId, bookletId]);
 
   // Land on a page → count as visited immediately (fixes first/last page never logged until navigate away)
   useEffect(() => {
@@ -427,6 +462,13 @@ export default function Evaluate() {
       for (const p of pagesToSave) {
         await api.eval.saveAnnotations(evaluationId, p, annotations[p] || []);
       }
+      const sharedPagesToSave = new Set([
+        currentPage,
+        ...Object.keys(sharedRef.current).map((k) => parseInt(k, 10)).filter((n) => Number.isFinite(n)),
+      ]);
+      for (const p of sharedPagesToSave) {
+        await api.eval.saveBookletSharedAnnotations(bookletId, p, sharedRef.current[p] || []);
+      }
     } catch (err) {
       if (showFeedback) alert('Save failed: ' + err.message);
     } finally {
@@ -448,6 +490,31 @@ export default function Evaluate() {
       return { ...prev, [page]: updated };
     });
   }, []);
+
+  const saveSharedPage = useCallback(async (pageNum) => {
+    if (!bookletId) return;
+    const items = sharedRef.current[pageNum] || [];
+    try {
+      await api.eval.saveBookletSharedAnnotations(bookletId, pageNum, items);
+    } catch (e) {
+      console.warn('saveBookletSharedAnnotations', e);
+    }
+  }, [bookletId]);
+
+  const removeSharedStamp = useCallback(
+    (page, id) => {
+      if (!id) return;
+      setSharedByPage((prev) => {
+        const list = (prev[page] || []).filter((a) => a.id !== id);
+        const out = { ...prev, [page]: list };
+        queueMicrotask(() => {
+          api.eval.saveBookletSharedAnnotations(bookletId, page, list).catch(() => {});
+        });
+        return out;
+      });
+    },
+    [bookletId]
+  );
 
   // ── Normalized coords on displayed image (0–1); marks stored as JSON per evaluation/booklet ──
   const normPoint = useCallback((e) => {
@@ -478,15 +545,54 @@ export default function Evaluate() {
     });
   }, [currentPage, addAnnotation]);
 
-  const placeStampOrComment = useCallback((p) => {
-    if (activeTool === 'comment') {
-      setCommentPos(p);
-      setCommentInput('');
-      return;
-    }
-    if (DRAWING_TOOL_IDS.has(activeTool)) return;
-    addAnnotation(currentPage, { type: activeTool, x: p.x, y: p.y, note: null });
-  }, [activeTool, currentPage, addAnnotation]);
+  const placeStampOrComment = useCallback(
+    (p) => {
+      if (activeTool === 'comment') {
+        setCommentPos(p);
+        setCommentInput('');
+        return;
+      }
+      if (DRAWING_TOOL_IDS.has(activeTool)) return;
+
+      if (SHARED_STAMP_IDS.has(activeTool)) {
+        const nid = () =>
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `s-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        if (activeTool === 'stamp_page_crossed') {
+          setSharedByPage((prev) => {
+            const list = [...(prev[currentPage] || [])];
+            const idx = list.findIndex((a) => a.type === 'stamp_page_crossed' && a.fullPage);
+            if (idx >= 0) list.splice(idx, 1);
+            else list.push({ id: nid(), type: 'stamp_page_crossed', fullPage: true });
+            const out = { ...prev, [currentPage]: list };
+            queueMicrotask(() => saveSharedPage(currentPage));
+            return out;
+          });
+          return;
+        }
+        if (activeTool === 'stamp_blank') {
+          const w = 0.26;
+          const h = 0.068;
+          const x = Math.min(1 - w, Math.max(0, p.x - w / 2));
+          const y = Math.min(1 - h, Math.max(0, p.y - h / 2));
+          setSharedByPage((prev) => {
+            const list = [
+              ...(prev[currentPage] || []),
+              { id: nid(), type: 'stamp_blank', x, y, w, h },
+            ];
+            const out = { ...prev, [currentPage]: list };
+            queueMicrotask(() => saveSharedPage(currentPage));
+            return out;
+          });
+        }
+        return;
+      }
+
+      addAnnotation(currentPage, { type: activeTool, x: p.x, y: p.y, note: null });
+    },
+    [activeTool, currentPage, addAnnotation, saveSharedPage]
+  );
 
   const onMarkingPointerDown = useCallback((e) => {
     if (!imgRef.current || e.button !== 0) return;
@@ -610,6 +716,9 @@ export default function Evaluate() {
 
   const { booklet, metadata, questionScheme, questionSets } = bookletData;
   const pageAnnotations = annotations[currentPage] || [];
+  const sharedForPage = sharedByPage[currentPage] || [];
+  const sharedCross = sharedForPage.filter((a) => a.type === 'stamp_page_crossed' && a.fullPage);
+  const sharedBlanks = sharedForPage.filter((a) => a.type === 'stamp_blank');
   const mm = String(Math.floor(pageSeconds / 60)).padStart(2, '0');
   const ss = String(pageSeconds % 60).padStart(2, '0');
 
@@ -621,6 +730,48 @@ export default function Evaluate() {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
+      {sharedCross.map((ann, idx) => (
+        <g
+          key={`shx-${ann.id || idx}`}
+          className="eval-shared-stamp"
+          role="presentation"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            removeSharedStamp(currentPage, ann.id);
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          <rect width="1" height="1" fill="transparent" style={{ pointerEvents: 'all' }} />
+          <line
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="1"
+            stroke="rgba(185, 28, 28, 0.55)"
+            strokeWidth="0.014"
+            vectorEffect="non-scaling-stroke"
+          />
+          <line
+            x1="1"
+            y1="0"
+            x2="0"
+            y2="1"
+            stroke="rgba(185, 28, 28, 0.55)"
+            strokeWidth="0.014"
+            vectorEffect="non-scaling-stroke"
+          />
+          <text
+            x="0.5"
+            y="0.94"
+            fontSize="0.026"
+            fill="#991b1b"
+            textAnchor="middle"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            Student crossed entire page
+          </text>
+        </g>
+      ))}
       {pageAnnotations.map((ann, idx) => {
         if (ann.type === 'pencil' || ann.type === 'tick_draw') {
           const pts = ann.payload?.points;
@@ -697,6 +848,41 @@ export default function Evaluate() {
           </text>
         );
       })}
+      {sharedBlanks.map((ann, idx) => (
+        <g
+          key={`shb-${ann.id || idx}`}
+          className="eval-shared-stamp"
+          role="presentation"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            removeSharedStamp(currentPage, ann.id);
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          <rect
+            x={ann.x}
+            y={ann.y}
+            width={ann.w}
+            height={ann.h}
+            fill="rgba(248, 250, 252, 0.95)"
+            stroke="#64748b"
+            strokeWidth="0.0025"
+            rx="0.01"
+          />
+          <text
+            x={ann.x + ann.w / 2}
+            y={ann.y + ann.h / 2}
+            fontSize="0.03"
+            fill="#0f172a"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontWeight="700"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            BLANK
+          </text>
+        </g>
+      ))}
       {draftStroke && draftStroke.points?.length >= 2 && (
         <polyline
           fill="none"
@@ -761,7 +947,7 @@ export default function Evaluate() {
           <strong>{bookletMedia.mode === 'pdf' ? 'PDF answer sheet' : 'Answer files on server'}</strong>
           <span>
             {bookletMedia.mode === 'pdf'
-              ? 'Marks are saved as overlay data (JSON) for this evaluator and booklet — the original PDF is never modified. Use ✎ pencil or ✓˜ draw-tick, or tap stamps. Thumbnails on the left are page previews.'
+              ? 'Marks are saved as overlay JSON; the original PDF is unchanged. Booklet stamps (BLANK, ✕ Page) are shared for all evaluators. Other tools are per evaluation session. Thumbnails on the left are page previews.'
               : bookletMedia.hint}
           </span>
         </div>
@@ -829,6 +1015,22 @@ export default function Evaluate() {
               <button
                 key={tool.id}
                 className={`ann-tool ${activeTool === tool.id ? 'active' : ''}`}
+                style={activeTool === tool.id ? { borderColor: tool.color, color: tool.color } : {}}
+                onClick={() => setActiveTool(tool.id)}
+                title={tool.title}
+              >
+                {tool.label}
+              </button>
+            ))}
+            <div className="toolbar-sep" aria-hidden />
+            <span className="toolbar-group-label" title="Saved for all evaluators">
+              Booklet
+            </span>
+            {SHARED_STAMP_TOOLS.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                className={`ann-tool ann-tool-shared ${activeTool === tool.id ? 'active' : ''}`}
                 style={activeTool === tool.id ? { borderColor: tool.color, color: tool.color } : {}}
                 onClick={() => setActiveTool(tool.id)}
                 title={tool.title}

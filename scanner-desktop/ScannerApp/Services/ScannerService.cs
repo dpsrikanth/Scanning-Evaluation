@@ -10,6 +10,9 @@ namespace ScannerApp.Services
         public string Name { get; set; } = "";
         public string Source { get; set; } = "WIA";
         public override string ToString() => Name;
+
+        /// <summary>WIA Web Services / IP-style device (not direct USB bus).</summary>
+        public bool IsLikelyNetworkPath => ScannerService.IsNetworkStyleWiaDevice(DeviceId);
     }
 
     /// <summary>
@@ -57,6 +60,40 @@ namespace ScannerApp.Services
             foreach (var dev in GetScannerDevices())
                 names.Add(dev.Name);
             return names;
+        }
+
+        /// <summary>
+        /// USB / local-bus WIA scanners first; if none, returns all devices (including WSD / network).
+        /// </summary>
+        public IList<string> GetAvailableScannersPreferPhysical()
+        {
+            var names = new List<string>();
+            foreach (var dev in EnumerateScannersPreferPhysical())
+                names.Add(dev.Name);
+            return names;
+        }
+
+        /// <summary>
+        /// Heuristic for WIA <c>DeviceID</c>: Web Services for Devices, HTTP scanners, UPnP, etc.
+        /// </summary>
+        public static bool IsNetworkStyleWiaDevice(string deviceId)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId)) return false;
+            var u = deviceId.ToUpperInvariant();
+            if (u.Contains("WSD")) return true;
+            if (u.Contains("HTTP://") || u.Contains("HTTPS://")) return true;
+            if (u.Contains("UPNP")) return true;
+            if (u.Contains("SOCKET:")) return true;
+            if (u.Contains("BONJOUR") || u.Contains("MDNS")) return true;
+            return false;
+        }
+
+        /// <summary>Physical scanners (USB, 1394, …): WIA entries not classified as network-style.</summary>
+        public List<ScannerDevice> EnumerateScannersPreferPhysical()
+        {
+            var all = GetScannerDevices();
+            var local = all.Where(d => !IsNetworkStyleWiaDevice(d.DeviceId)).ToList();
+            return local.Count > 0 ? local : all;
         }
 
         public bool IsConnected()

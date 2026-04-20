@@ -143,6 +143,17 @@
 .ann-tool.active { background: rgba(255,255,255,0.15); border-color: currentColor; color: #fff; }
 .qpaper-btn { font-size: 12px; white-space: nowrap; }
 .toolbar-sep { width: 1px; height: 24px; background: rgba(255,255,255,0.15); margin: 0 4px; }
+.toolbar-group-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: rgba(255,255,255,0.45); margin-right: 2px; user-select: none;
+}
+.ann-tool-shared {
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.25);
+}
+.ann-tool-shared:hover {
+  border-color: rgba(255,255,255,0.45);
+}
 
 /* Image container */
 .image-container {
@@ -174,6 +185,9 @@
 }
 .annotation-overlay-svg polyline {
   pointer-events: stroke;
+}
+.annotation-overlay-svg .eval-shared-stamp {
+  pointer-events: auto;
 }
 .annotation-overlay-svg text {
   pointer-events: all;

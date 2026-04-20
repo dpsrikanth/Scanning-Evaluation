@@ -145,6 +145,14 @@ export const api = {
       }),
     getAnnotations: (evaluationId) =>
       request(`/eval/evaluation/${evaluationId}/annotations`),
+    /** Booklet-level stamps (BLANK sheet, student crossed whole page) — shared for all evaluator roles */
+    getBookletSharedAnnotations: (bookletId) =>
+      request(`/eval/booklet/${encodeURIComponent(bookletId)}/shared-annotations`),
+    saveBookletSharedAnnotations: (bookletId, pageNumber, items) =>
+      request(`/eval/booklet/${encodeURIComponent(bookletId)}/shared-annotations`, {
+        method: 'PUT',
+        body: JSON.stringify({ pageNumber, items }),
+      }),
     saveCapturedPhoto: (formData) =>
       request('/eval/captured-photo', {
         method: 'POST',

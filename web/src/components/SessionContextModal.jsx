@@ -105,6 +105,18 @@ export default function SessionContextModal({ onComplete }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // After capture, <video> unmounts; on Retake it remounts with no srcObject — reattach the same MediaStream
+  useEffect(() => {
+    if (camStatus === 'captured' || camStatus === 'denied') return;
+    const stream = streamRef.current;
+    const video = videoRef.current;
+    if (!stream || !video) return;
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+    video.play().catch(() => {});
+  }, [camStatus]);
+
   // Stop stream after leaving step 0
   useEffect(() => {
     if (step > 0) {
@@ -167,17 +179,25 @@ export default function SessionContextModal({ onComplete }) {
           return;
         }
         await loadLoginFaceModels();
-        let capDet = await faceapi
-          .detectSingleFace(canvas, faceDetectorOptsPrimary())
-          .withFaceLandmarks(true)
-          .withFaceDescriptor()
-          .catch(() => null);
-        if (!capDet) {
+        // face-api.js: chain may not return a native Promise — do not use .catch() on it
+        let capDet = null;
+        try {
           capDet = await faceapi
-            .detectSingleFace(canvas, faceDetectorOptsFallback())
+            .detectSingleFace(canvas, faceDetectorOptsPrimary())
             .withFaceLandmarks(true)
-            .withFaceDescriptor()
-            .catch(() => null);
+            .withFaceDescriptor();
+        } catch {
+          capDet = null;
+        }
+        if (!capDet) {
+          try {
+            capDet = await faceapi
+              .detectSingleFace(canvas, faceDetectorOptsFallback())
+              .withFaceLandmarks(true)
+              .withFaceDescriptor();
+          } catch {
+            capDet = null;
+          }
         }
 
         const profileDesc = await new Promise((resolve) => {
@@ -185,17 +205,24 @@ export default function SessionContextModal({ onComplete }) {
           img.crossOrigin = 'anonymous';
           img.onload = async () => {
             try {
-              let det = await faceapi
-                .detectSingleFace(img, faceDetectorOptsPrimary())
-                .withFaceLandmarks(true)
-                .withFaceDescriptor()
-                .catch(() => null);
-              if (!det) {
+              let det = null;
+              try {
                 det = await faceapi
-                  .detectSingleFace(img, faceDetectorOptsFallback())
+                  .detectSingleFace(img, faceDetectorOptsPrimary())
                   .withFaceLandmarks(true)
-                  .withFaceDescriptor()
-                  .catch(() => null);
+                  .withFaceDescriptor();
+              } catch {
+                det = null;
+              }
+              if (!det) {
+                try {
+                  det = await faceapi
+                    .detectSingleFace(img, faceDetectorOptsFallback())
+                    .withFaceLandmarks(true)
+                    .withFaceDescriptor();
+                } catch {
+                  det = null;
+                }
               }
               resolve(det?.descriptor || null);
             } catch {

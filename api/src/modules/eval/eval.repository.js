@@ -276,6 +276,51 @@ export default class EvalRepository {
     });
   }
 
+  // ── Booklet-level shared stamps (BLANK / student crossed page) ─────────────
+  async bookletExists(bookletId) {
+    const [rows] = await this.db.execute(
+      `SELECT 1 FROM Eval_Booklets WHERE BookletID = ? LIMIT 1`,
+      [bookletId]
+    );
+    return rows.length > 0;
+  }
+
+  async getBookletSharedAnnotations(bookletId) {
+    const [rows] = await this.db.execute(
+      `SELECT PageNumber, ItemsJson FROM Eval_BookletSharedAnnotations
+       WHERE BookletID = ? ORDER BY PageNumber ASC`,
+      [bookletId]
+    );
+    const pages = {};
+    for (const r of rows) {
+      let items = r.ItemsJson;
+      if (items == null) continue;
+      if (typeof items === 'string') {
+        try {
+          items = JSON.parse(items);
+        } catch {
+          items = [];
+        }
+      }
+      if (!Array.isArray(items)) items = [];
+      pages[Number(r.PageNumber)] = items;
+    }
+    return { pages };
+  }
+
+  async saveBookletSharedAnnotationsPage(bookletId, pageNumber, items, userId) {
+    const json = JSON.stringify(items ?? []);
+    await this.db.execute(
+      `INSERT INTO Eval_BookletSharedAnnotations (BookletID, PageNumber, ItemsJson, UpdatedByUserID)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         ItemsJson = VALUES(ItemsJson),
+         UpdatedByUserID = VALUES(UpdatedByUserID),
+         UpdatedAt = CURRENT_TIMESTAMP`,
+      [bookletId, pageNumber, json, userId ?? null]
+    );
+  }
+
   // ── Captured Photos ───────────────────────────────────────────────────────
   async saveCapturedPhoto({ userId, evaluationId, photoPath, faceMatchScore, faceMatchResult, captureType, ipAddress }) {
     const [result] = await this.db.execute(

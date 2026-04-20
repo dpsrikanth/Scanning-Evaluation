@@ -13,6 +13,12 @@ namespace ScannerApp.Services
         IList<string> GetAvailableScanners();
 
         /// <summary>
+        /// WIA: USB / local-bus devices first, then network (WSD) if no local scanners exist.
+        /// TWAIN: same order as <see cref="GetAvailableScanners"/>.
+        /// </summary>
+        IList<string> GetAvailableScannersPreferPhysical();
+
+        /// <summary>
         /// Scans one booklet using the settings from <paramref name="template"/>.
         /// Acquires up to <c>template.PageCount</c> pages (or until ADF is empty).
         /// Each acquired page is reported to <paramref name="progress"/> immediately,

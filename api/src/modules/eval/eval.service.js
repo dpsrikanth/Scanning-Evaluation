@@ -140,6 +140,30 @@ export default class EvalService {
     return this.repo.getAnnotations(evaluationId);
   }
 
+  async assertBookletExists(bookletId) {
+    const ok = await this.repo.bookletExists(bookletId);
+    if (!ok) {
+      throw Object.assign(new Error('Booklet not found in evaluation database'), { statusCode: 404 });
+    }
+  }
+
+  /** Shared across Primary / Secondary / Moderator / all eval viewers — JSON items per page */
+  async getBookletSharedAnnotations(bookletId) {
+    await this.assertBookletExists(bookletId);
+    return this.repo.getBookletSharedAnnotations(bookletId);
+  }
+
+  async saveBookletSharedAnnotationsPage(bookletId, pageNumber, items, userId) {
+    await this.assertBookletExists(bookletId);
+    const pn = parseInt(String(pageNumber ?? ''), 10);
+    if (!Number.isFinite(pn) || pn < 1) {
+      throw Object.assign(new Error('Invalid pageNumber'), { statusCode: 400 });
+    }
+    const list = Array.isArray(items) ? items : [];
+    await this.repo.saveBookletSharedAnnotationsPage(bookletId, pn, list, userId);
+    return { bookletId, pageNumber: pn, savedCount: list.length };
+  }
+
   async saveCapturedPhoto({ userId, evaluationId, photoPath, faceMatchScore, faceMatchResult, captureType, ipAddress }) {
     const photoId = await this.repo.saveCapturedPhoto({
       userId, evaluationId, photoPath, faceMatchScore, faceMatchResult, captureType, ipAddress,
