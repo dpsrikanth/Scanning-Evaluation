@@ -30,5 +30,8 @@ Thumbs.db
 # Test & coverage
 coverage/
 .nyc_output/
+web/playwright-report/
+web/test-results/
+web/blob-report/
 phy question paper.pdf
 scan files/

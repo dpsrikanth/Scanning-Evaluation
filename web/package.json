@@ -8,7 +8,10 @@
     "build": "node node_modules/vite/bin/vite.js build",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "sync-pdf-worker": "node scripts/sync-pdf-worker.cjs",
-    "postinstall": "node scripts/sync-pdf-worker.cjs"
+    "postinstall": "node scripts/sync-pdf-worker.cjs",
+    "test:e2e": "node ./node_modules/@playwright/test/cli.js test",
+    "test:e2e:ui": "node ./node_modules/@playwright/test/cli.js test --ui",
+    "test:e2e:headed": "node ./node_modules/@playwright/test/cli.js test --headed"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.1",
@@ -19,5 +22,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
     "vite": "^5.4.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
   }
 }

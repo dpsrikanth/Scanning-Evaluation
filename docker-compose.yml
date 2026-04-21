@@ -22,6 +22,21 @@ services:
       --collation-server=utf8mb4_unicode_ci
       --default-authentication-plugin=mysql_native_password
 
+  # ---- phpMyAdmin (MySQL web UI; PostgreSQL is not used — use this instead of pgAdmin) ----
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: scaneval-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+
   # ---- API (Node.js Express) ----
   api:
     build:

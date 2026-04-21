@@ -108,6 +108,18 @@ EVAL_DB_PORT=3307
 EVAL_DB_PASSWORD=ScanEval@2026
 ```
 
+### Playwright (web E2E)
+
+With the **API** reachable at `http://localhost:4000` (Docker or local), from `web/`:
+
+```bash
+npm install
+node ./node_modules/@playwright/test/cli.js install chromium   # once per machine
+npm run test:e2e
+```
+
+`npm run test:e2e:ui` opens the Playwright UI. Tests start Vite on **:5173** unless it is already running. To target **Docker web** on **:8080** instead: `set PLAYWRIGHT_WEB_SERVER=0` and `set PLAYWRIGHT_BASE_URL=http://localhost:8080` (PowerShell: `$env:PLAYWRIGHT_WEB_SERVER='0'; $env:PLAYWRIGHT_BASE_URL='http://localhost:8080'`).
+
 ### Desktop Scanner (.NET 8)
 
 ```bash
