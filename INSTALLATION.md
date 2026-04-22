@@ -29,6 +29,7 @@ cd Scanning&Evaluation
 ```
 
 - Copy **`api/.env.example`** → **`api/.env`** before running the API locally.
+- Optionally copy **`.env.example`** → **`.env`** in the **repository root** to set `MYSQL_ROOT_PASSWORD`, `JWT_SECRET`, or **`PHPMYADMIN_PORT`** for Docker Compose (see §4.3).
 - Do **not** commit `.env` (it is gitignored).
 
 ---
@@ -41,7 +42,7 @@ Scripts under **`docker/mysql-init/`** are mounted into the MySQL container as `
 
 - **`01_schema.sql`** — Creates `ScanningDB` and `EvaluationDB` and core tables.
 - **`02_seed.sql`** — Development seed data (eval users, scan users, sample exams/papers, etc.).
-- **`03_…` through `14_…`** — Incremental migrations (templates, QC workflow, annotations, etc.).
+- **`03_…` through `16_…`** — Incremental migrations (templates, monitoring, QC workflow, zone barcode schedule, **shared booklet annotation** stamps, etc.). Apply new files in filename order on existing databases.
 
 If you need a **clean reinstall**, remove the Docker volume (this **deletes all data**):
 
@@ -64,6 +65,7 @@ If the database already exists from an older snapshot:
    ```
 
 4. Apply **`14_scan_qc_workflow.sql`** for QC columns, `Scan_DailyLots`, location QC toggles, and QC roles/users (if not already applied).
+5. Apply **`15_zone_barcode_upload_schedule.sql`** and **`16_eval_booklet_shared_annotations.sql`** when you need those features (see filenames and comments inside each script).
 
 ---
 
@@ -83,20 +85,22 @@ docker compose up -d --build
 
 | Service | URL | Default credentials |
 |---------|-----|----------------------|
-| Web UI | http://localhost:8080 | See `docker/mysql-init/02_seed.sql` (e.g. eval users like `ravi.rajan` / `password123`) |
-| API | http://localhost:4000 | No default UI login; use JWT from `/api/auth/login` |
-| API Swagger (if enabled) | http://localhost:4000/api/docs | `ENABLE_SWAGGER=true` is set in compose for the API service |
+| Web UI | http://localhost:8080 | See `docker/mysql-init/02_seed.sql` (e.g. `admin` / `password123`, `ravi.rajan` / `password123`) |
+| API | http://localhost:4000 | Health: `GET /api/health`. JWT from `POST /api/auth/login` |
+| API Swagger (if enabled) | http://localhost:4000/api/docs | `ENABLE_SWAGGER=true` in `docker-compose.yml` for the API service |
+| **phpMyAdmin** | **http://localhost:8081** (default) | **Server:** pre-set to `mysql` inside Docker. **User:** `root`, password: same as MySQL (default **`ScanEval@2026`**). Host port: **`PHPMYADMIN_PORT`** in root `.env` (default 8081). |
 | MySQL (from host) | **127.0.0.1:3307** | User `root`, password **`ScanEval@2026`** unless you set `MYSQL_ROOT_PASSWORD` |
 
 Inside Docker, the API connects to MySQL host **`mysql`** on port **3306** (not 3307).
 
 ### 4.3 Environment overrides (optional)
 
-Create a **`.env`** file in the **project root** (same folder as `docker-compose.yml`) to override:
+Create a **`.env`** file in the **project root** (same folder as `docker-compose.yml`) to override. See **`.env.example`** for a template:
 
 ```env
 MYSQL_ROOT_PASSWORD=YourSecurePassword
 JWT_SECRET=your-long-random-secret-min-32-chars
+PHPMYADMIN_PORT=8081
 ```
 
 Restart after changes:
@@ -115,13 +119,14 @@ The API container uses volume **`scan-output`** mounted at **`/data/scan-output`
 
 Useful for hot reload and debugging.
 
-### 5.1 Start MySQL only
+### 5.1 Start MySQL and phpMyAdmin (API + web on host)
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-MySQL is available at **127.0.0.1:3307** (same default root password unless overridden).
+- **MySQL** at **127.0.0.1:3307** (same default root password unless overridden).
+- **phpMyAdmin** at **http://localhost:8081** (or `PHPMYADMIN_PORT`), same login as in §4.2.
 
 ### 5.2 API
 
@@ -188,7 +193,19 @@ npm run build
 npm run preview
 ```
 
-### 5.4 CORS / `CLIENT_URL`
+### 5.4 Playwright (web E2E)
+
+From **`web/`**, with the **API** running (e.g. on **http://localhost:4000**):
+
+```bash
+npm install
+node ./node_modules/@playwright/test/cli.js install chromium
+npm run test:e2e
+```
+
+Use **`npm run test:e2e:ui`** for the Playwright UI. By default the config starts the Vite dev server on **:5173**; to test against **Docker web** on **:8080** without starting Vite, set `PLAYWRIGHT_WEB_SERVER=0` and `PLAYWRIGHT_BASE_URL=http://localhost:8080` (see **README.md**). Requires Chromium installed via the `install` command above.
+
+### 5.5 CORS / `CLIENT_URL`
 
 The API uses **`CLIENT_URL`** for CORS. For local dev include the Vite origin:
 
@@ -205,7 +222,7 @@ For Docker production compose, multiple origins are already listed in `docker-co
 1. Install **MySQL 8.0+**, create server character set **utf8mb4**.
 2. Run **`docker/mysql-init/01_schema.sql`** and **`02_seed.sql`**, then remaining numbered migrations as in §3.2.
 3. Point **`api/.env`** at your host/port/user/password (often port **3306**).
-4. Run API and Web as in §5.2–5.3.
+4. Run API and Web as in **§5.2** and **§5.3** (and optionally Playwright in **§5.4**).
 
 ---
 
@@ -254,11 +271,13 @@ The app prompts for / stores a local folder for queued JPEGs and PDFs (default o
 ## 8. First-use checklist
 
 1. **MySQL** reachable; both **`ScanningDB`** and **`EvaluationDB`** exist.
-2. Migrations through **`14_scan_qc_workflow.sql`** applied if you need QC features.
-3. **API** starts without DB connection errors (check console / logs).
-4. **Web** loads; **eval login** works with a seeded evaluator/admin user.
-5. **Scanner Admin** (eval **Admin** role): configure exams, papers, workstations, **scan templates**, **scan output path**, **scan users**, **Scan QC flags** as needed.
-6. **Scanner desktop** logs in, loads templates, completes a test scan and upload (check API logs under **`logs/`** if using Docker volume mount).
+2. Migrations through **`16_eval_booklet_shared_annotations.sql`** (or at least through **`14_`** for QC) applied according to the features you need.
+3. **API** starts without DB connection errors (check console / logs). Health check: `GET /api/health`.
+4. **Web** at **http://localhost:8080** loads; **admin** or **evaluator** login works (see **`02_seed.sql`**). **Evaluators** must pass **Session Setup** (camera, location, face match) before the dashboard if that flow is enabled.
+5. **Booklets in EvaluationDB** appear on the evaluator dashboard only when **allocated** (e.g. via **Head Evaluator** at `/head-eval/assign` or admin tooling).
+6. **Scanner Admin** (eval **Admin** role): configure exams, papers, workstations, **scan templates**, **scan output path**, **scan users**, **Scan QC flags** as needed.
+7. **Scanner desktop** logs in, loads templates, completes a test scan and upload (check API logs under **`logs/`** if using Docker volume mount).
+8. **phpMyAdmin** (optional): confirm databases and tables if you use the Docker service (**§4.2**).
 
 ---
 
@@ -291,7 +310,9 @@ The app prompts for / stores a local folder for queued JPEGs and PDFs (default o
 |------|---------|
 | [README.md](README.md) | Overview and quick reference |
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Requirements |
-| `docker-compose.yml` | Full stack |
-| `docker-compose.dev.yml` | MySQL only |
+| `.env.example` | Root Docker overrides (e.g. `PHPMYADMIN_PORT`, `JWT_SECRET`) |
+| `docker-compose.yml` | Full stack (MySQL, phpMyAdmin, API, web) |
+| `docker-compose.dev.yml` | MySQL + phpMyAdmin (API and web on host) |
 | `api/.env.example` | API environment template |
 | `docker/mysql-init/*.sql` | Schema, seed, migrations |
+| `web/e2e/`, `web/playwright.config.js` | Playwright E2E tests |

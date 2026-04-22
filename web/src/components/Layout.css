@@ -6,8 +6,8 @@
 .sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--color-primary-dark);
+  color: #e8eaf6;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -21,7 +21,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #475569;
+  color: rgba(255, 255, 255, 0.45);
   padding: 8px 8px 4px;
   margin: 0;
 }
@@ -34,20 +34,20 @@
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.65);
   text-decoration: none;
   transition: all 0.15s;
   position: relative;
   margin-bottom: 2px;
 }
 .sidebar-link:hover {
-  background: rgba(255,255,255,0.07);
-  color: #e2e8f0;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
   text-decoration: none;
 }
 .sidebar-link.active {
-  background: rgba(13,110,74,0.25);
-  color: #4ade80;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
 }
 .sidebar-link.active::before {
   content: '';
@@ -55,7 +55,7 @@
   left: 0;
   top: 6px; bottom: 6px;
   width: 3px;
-  background: #4ade80;
+  background: #C5CAE9;
   border-radius: 0 3px 3px 0;
 }
 .sidebar-chevron {
@@ -85,7 +85,7 @@
 .sidebar-bottom {
   margin-top: auto;
   padding: 10px 10px 6px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .sidebar-logout {
@@ -116,7 +116,7 @@
 .sidebar-avatar {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0d6e4a, #059669);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 14px;
@@ -132,7 +132,7 @@
   font-size: 12px; font-weight: 600; color: #e2e8f0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sidebar-user-role { font-size: 11px; color: #64748b; }
+.sidebar-user-role { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
 
 /* ── Main content ─────────────────────────────────────────────────────────── */
 .main-content {

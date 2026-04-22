@@ -128,7 +128,7 @@
 }
 
 .view-booklet-thumbs .thumb-item.active {
-  border-color: #0d6e4a;
+  border-color: var(--color-primary);
 }
 
 .view-booklet-thumbs .thumb-img {
@@ -230,6 +230,6 @@
 
 .view-booklet-pdf-open {
   font-size: 13px;
-  color: #0d6e4a;
+  color: var(--color-primary);
   font-weight: 500;
 }

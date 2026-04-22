@@ -60,9 +60,9 @@
   color: #475569;
 }
 .sqc-tabs button.active {
-  border-color: #0d6e4a;
-  background: #ecfdf5;
-  color: #0d6e4a;
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
 }
 .sqc-filters {
   display: flex;
@@ -140,7 +140,7 @@
   letter-spacing: 0.03em;
 }
 .sqc-table tr.selected {
-  background: #ecfdf5;
+  background: var(--color-primary-light);
 }
 .sqc-table .mono {
   font-family: ui-monospace, monospace;
@@ -166,8 +166,8 @@
   font-size: 11px;
 }
 .sqc-btn.primary {
-  border-color: #0d6e4a;
-  background: #0d6e4a;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
 }
 .sqc-btn.ok {

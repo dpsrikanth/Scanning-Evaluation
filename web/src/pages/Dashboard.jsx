@@ -223,7 +223,7 @@ export default function Dashboard() {
               <div className="qs-divider" />
               <div className="quick-stat-row">
                 <span className="qs-label">Completion</span>
-                <span className="qs-val" style={{ color: '#0d6e4a' }}>{completionRate}%</span>
+                <span className="qs-val" style={{ color: 'var(--color-primary)' }}>{completionRate}%</span>
               </div>
             </div>
           </div>

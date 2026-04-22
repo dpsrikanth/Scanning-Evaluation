@@ -61,7 +61,7 @@ export default function ChangePassword() {
           ) : (
             <>
               <div className="auth-card-header">
-                <div className="auth-icon-wrap" style={{ background: isForced ? 'linear-gradient(135deg,#d97706,#fbbf24)' : 'linear-gradient(135deg,#0d6e4a,#059669)' }}>
+                <div className="auth-icon-wrap" style={{ background: isForced ? 'linear-gradient(135deg,#d97706,#fbbf24)' : 'linear-gradient(135deg,#3F51B5,#5C6BC0)' }}>
                   {isForced ? <ShieldAlert size={24} /> : <KeyRound size={24} />}
                 </div>
                 <h1>{isForced ? 'Set Your Password' : 'Change Password'}</h1>

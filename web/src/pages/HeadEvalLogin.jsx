@@ -30,7 +30,7 @@ export default function HeadEvalLogin() {
 
   return (
     <div className="auth-page">
-      <div className="auth-side" style={{ background: 'linear-gradient(160deg,#1e1b4b 0%,#3730a3 50%,#6366f1 100%)' }}>
+      <div className="auth-side" style={{ background: 'linear-gradient(160deg,#283593 0%,#303F9F 45%,#3F51B5 100%)' }}>
         <div className="auth-side-content">
           <div className="auth-side-logo"><GraduationCap size={36} /></div>
           <h2>Head Evaluator Portal</h2>
@@ -46,7 +46,7 @@ export default function HeadEvalLogin() {
       <div className="auth-main">
         <div className="auth-card">
           <div className="auth-card-header">
-            <div className="auth-icon-wrap" style={{ background: 'linear-gradient(135deg,#3730a3,#6366f1)' }}>
+            <div className="auth-icon-wrap" style={{ background: 'linear-gradient(135deg,#3F51B5,#5C6BC0)' }}>
               <ClipboardList size={24} />
             </div>
             <h1>Head Evaluator Login</h1>
@@ -77,7 +77,7 @@ export default function HeadEvalLogin() {
               </div>
             </div>
             <button type="submit" className="auth-submit" disabled={loading}
-              style={{ background: 'linear-gradient(135deg,#3730a3,#6366f1)' }}>
+              style={{ background: 'linear-gradient(135deg,#3F51B5,#5C6BC0)' }}>
               {loading ? 'Signing in…' : <><span>Sign In</span><ArrowRight size={16}/></>}
             </button>
           </form>

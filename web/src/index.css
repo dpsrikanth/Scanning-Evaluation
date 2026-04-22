@@ -1,47 +1,36 @@
-/* ── Google Font ─────────────────────────────────────────────────────────── */
+/* ── Google Font (Segoe UI first matches scanner-desktop WinForms) ───────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* ── Design Tokens ───────────────────────────────────────────────────────── */
+/* ── Design Tokens (aligned with scanner-desktop MainForm / LoginForm) ─── */
 :root {
-  /* Brand palette */
-  --green-50:  #f0fdf4;
-  --green-100: #dcfce7;
-  --green-200: #bbf7d0;
-  --green-400: #4ade80;
-  --green-500: #22c55e;
-  --green-600: #16a34a;
-  --green-700: #15803d;
-  --green-800: #166534;
-  --green-900: #0d4a28;
+  /* Indigo primary — ColorPrimary #3F51B5, ColorPrimaryDark #303F9F */
+  --color-primary:       #3F51B5;
+  --color-primary-dark:  #303F9F;
+  --color-primary-light: #E8EAF6;
+  --color-primary-mid:   #C5CAE9;
+  --color-primary-rgb:   63, 81, 181;
 
-  /* Primary */
-  --color-primary:       #0d6e4a;
-  --color-primary-dark:  #0a5a3c;
-  --color-primary-light: #f0fdf4;
-  --color-primary-mid:   #dcfce7;
+  --color-accent:        #5C6BC0;
 
-  /* Accent */
-  --color-accent:        #059669;
+  /* Semantic (desktop: ColorSuccess #10B981, ColorDanger #EF4444, ColorWarning #F59E0B) */
+  --color-success:       #10B981;
+  --color-success-light: #D1FAE5;
+  --color-warning:       #F59E0B;
+  --color-warning-light: #FEF3C7;
+  --color-danger:        #EF4444;
+  --color-danger-light:  #FEE2E2;
+  --color-info:          #3F51B5;
+  --color-info-light:    #E8EAF6;
 
-  /* Semantic */
-  --color-success:       #16a34a;
-  --color-success-light: #dcfce7;
-  --color-warning:       #d97706;
-  --color-warning-light: #fef3c7;
-  --color-danger:        #dc2626;
-  --color-danger-light:  #fee2e2;
-  --color-info:          #2563eb;
-  --color-info-light:    #dbeafe;
-
-  /* Neutral */
-  --color-text:          #0f172a;
-  --color-text-secondary:#475569;
-  --color-text-muted:    #94a3b8;
-  --color-border:        #e2e8f0;
-  --color-border-strong: #cbd5e1;
-  --color-bg:            #f8fafc;
+  /* Neutral (desktop: ColorText #1F2937, ColorMuted #6B7280, ColorBorder #E5E7EB) */
+  --color-text:          #1F2937;
+  --color-text-secondary:#6B7280;
+  --color-text-muted:    #9CA3AF;
+  --color-border:        #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-bg:            #F5F7FA;
   --color-surface:       #ffffff;
-  --color-surface-2:     #f1f5f9;
+  --color-surface-2:     #F3F4F6;
 
   /* Shadows */
   --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
@@ -58,7 +47,7 @@
   --radius-full: 9999px;
 
   /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Layout */
@@ -149,7 +138,7 @@ a:hover { text-decoration: underline; }
   transition: border-color var(--transition), box-shadow var(--transition);
   background: var(--color-surface);
 }
-.field-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(13,110,74,0.10); }
+.field-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.14); }
 .field-input::placeholder { color: var(--color-text-muted); }
 
 /* ── Divider ─────────────────────────────────────────────────────────────── */

@@ -88,9 +88,9 @@
 }
 .fv-scan-line {
   position: absolute; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, transparent, #4ade80, transparent);
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
   animation: scanMove 1.8s ease-in-out infinite alternate;
-  box-shadow: 0 0 12px #4ade80;
+  box-shadow: 0 0 12px rgba(var(--color-primary-rgb), 0.45);
 }
 
 .fv-message { font-size: 13px; color: var(--color-text-secondary); text-align: center; }
@@ -99,7 +99,7 @@
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 20px; width: 100%; border-radius: var(--radius-lg);
 }
-.fv-result.matched  { background: #f0fdf4; color: #16a34a; }
+.fv-result.matched  { background: var(--color-success-light); color: var(--color-success); }
 .fv-result.mismatch { background: #fef2f2; color: #dc2626; }
 .fv-result.skipped  { background: #f0f9ff; color: #0284c7; }
 

@@ -11,7 +11,7 @@
 /* Hero banner */
 .profile-hero {
   display: flex; align-items: center; gap: 20px;
-  background: linear-gradient(135deg, #0f172a 0%, #0d4a28 60%, #0d6e4a 100%);
+  background: linear-gradient(135deg, #1a237e 0%, #303F9F 50%, #3F51B5 100%);
   border-radius: var(--radius-xl);
   padding: 28px 32px;
   margin-bottom: 24px;

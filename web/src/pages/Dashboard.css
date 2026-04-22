@@ -84,7 +84,7 @@
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0d6e4a, #22c55e);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
   border-radius: 99px;
   transition: width 0.8s ease;
 }
@@ -150,7 +150,7 @@
 .data-table tbody tr:last-child td { border-bottom: none; }
 
 .table-row-clickable { cursor: pointer; transition: background 0.12s; }
-.table-row-clickable:hover td { background: #f0fdf4; }
+.table-row-clickable:hover td { background: var(--color-primary-light); }
 .table-row-clickable:hover .row-arrow { opacity: 1; transform: translateX(3px); }
 
 .doc-num { font-family: var(--font-mono); font-weight: 600; color: var(--color-primary); font-size: 12px; }

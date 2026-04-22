@@ -15,7 +15,7 @@ Scanning&Evaluation/
 ├── docker/
 │   └── mysql-init/               # Numbered SQL: schema, seed, incremental migrations
 │       ├── 01_schema.sql … 02_seed.sql
-│       └── 03_… through 14_scan_qc_workflow.sql (apply in order on existing DBs)
+│       └── 03_… through 16_eval_booklet_shared_annotations.sql (apply in order on existing DBs)
 │
 ├── migrations/                    # Legacy / reference incremental scripts
 │   ├── 001_scanning_additions.sql
@@ -37,10 +37,12 @@ Scanning&Evaluation/
 │   └── package.json
 │
 ├── web/                           # React + Vite (evaluation + admin + QC portal)
+│   ├── e2e/                      # Playwright E2E (smoke + admin login)
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/                # Login, Dashboard, Evaluate, AdminSettings, **ScanQcPortal**
 │   │   └── services/             # API client (scan, scanadmin, scanQc)
+│   ├── playwright.config.js
 │   └── package.json
 │
 ├── scanner-desktop/               # .NET 8 Windows Forms (scanning app)
@@ -64,6 +66,10 @@ Scanning&Evaluation/
 | **Operator rescan** | Desktop: **QC rejected…** (header) lists server-rejected booklets; optional **Server BookletID (QC rescan)** forces folder/upload id so the API upserts the same booklet. |
 | **Deskew & trim** | Desktop checkbox (default on): software pipeline **Emgu CV** (grayscale, Otsu, Hough line deskew, contour crop) with **AForge** fallback, then edge trim; saved JPEGs feed the booklet **PDF**. |
 | **Skip blank pages** | Controlled by the **scan template** from the server (no separate desktop toggle). |
+| **Web UI theme** | Visual design uses the same **Material indigo** palette as **scanner-desktop** (primary `#3F51B5` / `#303F9F`, surface `#F5F7FA`). |
+| **Evaluator session** | After login, evaluators complete **Session Setup** (camera, geolocation, face match vs registration photo) before the dashboard. |
+| **Head Evaluator** | Web routes `/head-eval/login`, `/head-eval/assign` for bulk allocation to evaluators. |
+| **phpMyAdmin** | Optional Docker service for **MySQL** administration (not PostgreSQL). |
 
 ## Quick Start (Docker)
 
@@ -76,21 +82,28 @@ docker compose up -d --build
 | Service | URL | Notes |
 |---------|-----|--------|
 | Web (Evaluation UI) | http://localhost:8080 | Nginx → React build |
-| API | http://localhost:4000 | Swagger optional: `ENABLE_SWAGGER=true` |
-| MySQL (host port) | **localhost:3307** → container `3306` | root / `ScanEval@2026` |
+| API | http://localhost:4000 | Health: `GET /api/health` — Swagger: `/api/docs` when `ENABLE_SWAGGER=true` |
+| MySQL (host port) | **localhost:3307** → container **3306** | root / `ScanEval@2026` (or `MYSQL_ROOT_PASSWORD` from `.env`) |
+| **phpMyAdmin** | **http://localhost:8081** | Login as `root` with the same MySQL password; server host **`mysql`** is preconfigured in Docker. Port: `PHPMYADMIN_PORT` in root `.env`. |
 
-Example logins (after seed / migrations):
+Optional **root** `.env` (same folder as `docker-compose.yml`): see **`.env.example`** — e.g. `PHPMYADMIN_PORT`, `JWT_SECRET`, `MYSQL_ROOT_PASSWORD`.
 
-- **Evaluation**: e.g. `ravi.rajan` / `password123` (see `docker/mysql-init/02_seed.sql`).
-- **Scanner desktop / QC**: scan users from **Admin → Scanner Admin → Scan users**, or seed users such as `vendorqc1` / `customerqc1` if present in `14_scan_qc_workflow.sql`.
+**Example logins** (after seed; see `docker/mysql-init/02_seed.sql` — reset passwords in DB if they were changed locally):
 
-### Development mode (MySQL only in Docker)
+- **Admin (evaluation):** `admin` / `password123`
+- **Evaluator:** `ravi.rajan` / `password123` (completes session setup with camera/geo/face on first use)
+- **Head Evaluator / admin tasks:** use `admin` or an account with **HeadEvaluator** role as defined in your DB
+- **Scanner desktop / QC:** `operator1` / `password123` (seed) or **Admin → Scanner Admin → Scan users**; QC seed users (e.g. `vendorqc1`) in `14_scan_qc_workflow.sql` if applied
+
+**Evaluation flow (typical):** scan/sync booklets to **EvaluationDB** → **Head Evaluator** (or admin tools) **assigns** booklets to evaluators → evaluator signs in → **Session Setup** → **Dashboard** → open booklet → **Evaluate** → submit marks.
+
+### Development mode (MySQL + phpMyAdmin in Docker, API + Web on host)
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-Then run API and Web locally:
+phpMyAdmin: **http://localhost:8081** (same as full stack). Then run API and Web locally:
 
 ```bash
 cd api && cp .env.example .env && npm install && npm run dev
@@ -132,13 +145,13 @@ Set API base URL to `http://localhost:4000` and sign in with a **ScanningDB** us
 ### Database initialization
 
 - **New volume**: `docker/mysql-init/*.sql` runs automatically in filename order when MySQL data is empty.
-- **Existing database**: run numbered scripts **03+** in order (skip **01**/**02** if already applied). Some scripts expect a default database; e.g. run `06`/`07` with `-D EvaluationDB` if you see “No database selected”. See `docker/mysql-init/14_scan_qc_workflow.sql` for QC columns, lots, and QC roles.
+- **Existing database**: run numbered scripts **03+** through **16** in order (skip **01**/**02** if already applied). Some scripts expect a default database; e.g. run `06`/`07` with `-D EvaluationDB` if you see “No database selected”. See `14_scan_qc_workflow.sql` (QC), `15_zone_barcode_upload_schedule.sql`, `16_eval_booklet_shared_annotations.sql` (shared stamps) as needed.
 
 ## Architecture
 
 - **API** (Express): dual DB (ScanningDB, EvaluationDB); JWT includes `roleName` and `source` for scan vs eval clients.
 - **Desktop scanner**: login, templates, ADF scan (WIA or TWAIN), barcode read (ZXing.Net), optional software deskew/trim, local queue, PDF upload.
-- **Web**: evaluators (dashboard, viewer, marks); **Admin** (eval users, SMTP, scanner admin, **scan users**, QC flags); **Vendor/Customer QC** portal.
+- **Web**: evaluators (dashboard, viewer, marks, session setup); **Admin** (eval users, SMTP, scanner admin, **scan users**, QC flags); **Head Evaluator** assignment; **Vendor/Customer QC** portal. UI theme matches **scanner-desktop** (indigo/surface).
 - **MySQL 8**: `ScanningDB` (booklets, QC, scan users), `EvaluationDB` (evaluations, users).
 
 ## Tech Stack
@@ -146,7 +159,7 @@ Set API base URL to `http://localhost:4000` and sign in with a **ScanningDB** us
 | Component | Technology |
 |-----------|------------|
 | API | Node.js, Express, MySQL2, JWT, Winston, bcryptjs |
-| Web | React 18, Vite, React Router |
+| Web | React 18, Vite, React Router, face-api.js (session photo), **Playwright** (E2E) |
 | Scanner | .NET 8 WinForms, NTwain, ZXing.Net, PdfSharpCore, **Emgu.CV** (+ runtime), AForge.Imaging |
 | Database | MySQL 8+ |
 | Barcode | ZXing.Net (Code128 + QR) |

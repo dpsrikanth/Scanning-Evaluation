@@ -20,7 +20,7 @@
 .sc-header {
   display: flex; align-items: flex-start; gap: 14px;
   padding: 22px 24px 18px;
-  background: linear-gradient(135deg, #0f172a 0%, #0d4a28 100%);
+  background: linear-gradient(135deg, #283593 0%, #303F9F 55%, #3F51B5 100%);
   color: #fff;
   position: sticky; top: 0; z-index: 1;
 }
@@ -42,7 +42,7 @@
   background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.6);
   transition: all 0.2s;
 }
-.sc-step.active { background: #4ade80; color: #0f172a; }
+.sc-step.active { background: #C5CAE9; color: #303F9F; }
 .sc-step-line { width: 20px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 1px; }
 
 /* ── Error ─────────────────────────────────────────────────────────────────── */
@@ -128,7 +128,7 @@
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.sc-perm-card.perm-granted { border-color: #22c55e; background: #f0fdf4; }
+.sc-perm-card.perm-granted { border-color: var(--color-success); background: var(--color-success-light); }
 .sc-perm-card.perm-denied  { border-color: #f87171; background: #fff5f5; }
 
 .sc-perm-header {
@@ -139,7 +139,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 .sc-perm-badge { margin-left: auto; color: var(--color-primary); }
-.sc-perm-card.perm-granted .sc-perm-badge { color: #16a34a; }
+.sc-perm-card.perm-granted .sc-perm-badge { color: var(--color-success); }
 .sc-perm-card.perm-denied  .sc-perm-badge { color: #dc2626; }
 
 /* Camera area */

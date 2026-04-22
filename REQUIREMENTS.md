@@ -1,7 +1,7 @@
 # Scanning & Evaluation System — Formal Requirements Specification
 
-**Document Version:** 1.0  
-**Date:** 2026-02-19  
+**Document Version:** 1.1  
+**Date:** 2026-04-21  
 **Status:** Draft for Development
 
 ---
@@ -20,6 +20,10 @@ This document defines the functional and non-functional requirements for a **Sca
 - Pre-examination logistics (schedule, fees, hall tickets, centres) are out of scope.
 - Question paper preparation (jumbling, multiple sets) may integrate later via separate module.
 - Focus: Answer booklet scanning, storage, evaluation workflow, and reporting.
+
+### 1.2.1 Web and desktop presentation (informative)
+
+The **web application** (React) uses a **Material indigo** visual system aligned with the **Windows scanner desktop** app (`#3F51B5` / `#303F9F` primary, `#F5F7FA` surfaces) so operators and evaluators see a consistent brand across clients.
 
 ### 1.3 Definitions
 
@@ -77,6 +81,12 @@ This document defines the functional and non-functional requirements for a **Sca
 | EVL-016 | Booklets per Session/Day | Should | Configurable daily limit per evaluator. |
 | EVL-017 | Charges | Could | Track evaluation charges per booklet/evaluator. |
 
+**Shipped web behaviours (see codebase for details):**
+
+- **Session setup (evaluators):** After login, evaluators may be required to share **geolocation**, capture a **live photo**, and **match face** to the administrator-registered profile image before accessing the dashboard (supports EVL-010 / audit goals).
+- **Head Evaluator portal:** Web routes for head-eval login and **bulk assignment** of booklets to evaluators (`/head-eval/*`).
+- **Shared booklet stamps:** Booklet-level annotation stamps (e.g. blank or crossed page markers) may be stored in **`Eval_BookletSharedAnnotations`** and shared across primary/secondary/moderation viewers (see `16_eval_booklet_shared_annotations.sql`).
+
 ### 2.3 Check-for Rules (Quality Control)
 
 | ID | Check | Description |
@@ -121,6 +131,7 @@ This document defines the functional and non-functional requirements for a **Sca
 | NFR-004 | Security | Passwords hashed (bcrypt/argon2); audit logs for all mutations. |
 | NFR-005 | Compliance | Support UTF-8 (vernacular scripts). |
 | NFR-006 | Scalability | Support 1000+ booklets per day per location. |
+| NFR-007 | Testability (web) | Key flows can be smoke-tested with **Playwright** (`web/e2e/`) against the API and Vite or Docker-served web. |
 
 ---
 
@@ -140,7 +151,7 @@ This document defines the functional and non-functional requirements for a **Sca
 
 1. **Scan**: Operator selects exam, paper, centre, workstation → scans booklet → barcode read → pages validated → saved to ScanningDB → (optionally) pushed to central.
 2. **Sync**: Local ScanningDB → Sync Queue → Central MySQL (EvaluationDB or mirror).
-3. **Evaluation**: Booklet allocated to evaluator → evaluator opens → views pages → enters marks → submits → status = Evaluated.
+3. **Evaluation**: Scanned data is available in **EvaluationDB** (sync/export per deployment). A booklet must be **allocated** to an evaluator (e.g. **Head Evaluator** assignment or allocation queue) before it appears on the evaluator dashboard. The evaluator opens the booklet → views pages → enters marks → submits → status = Evaluated.
 4. **Secondary**: System selects booklets (random or time-flagged) → allocates to different evaluator → variance compared → moderation if needed.
 
 ---
@@ -166,13 +177,26 @@ This document defines the functional and non-functional requirements for a **Sca
 
 ## 8. Traceability Matrix
 
-| Requirement | DDL Table(s) |
-|-------------|--------------|
-| SCN-004, SCN-005 | Scan_Booklets.BookletID, Scan_BookletPages.BarcodeData |
-| SCN-006, SCN-007 | Scan_Booklets.TotalPagesExpected/Scanned, Scan_BookletPages.ValidationStatus |
-| SCN-008, SCN-009 | Scan_Booklets.WorkstationID, ScanDate, LocationID |
-| EVL-004 | EvaluationDetails, Eval_QuestionScheme |
-| EVL-007 | Eval_PageVisitLog, Evaluations.AllPagesVisited |
-| EVL-014 | VarianceRecords, Eval_Papers.VarianceThresholdPercent |
-| MIS-007 | Eval_AttendanceLog |
-| SYNC | Scan_SyncQueue |
+| Requirement | DDL / implementation notes |
+|-------------|------------|
+| SCN-004, SCN-005 | `Scan_Booklets.BookletID`, `Scan_BookletPages.BarcodeData` |
+| SCN-006, SCN-007 | `Scan_Booklets.TotalPagesExpected` / `TotalPagesScanned`, `Scan_BookletPages.ValidationStatus` |
+| SCN-008, SCN-009 | `Scan_Booklets.WorkstationID`, `ScanDate`, `LocationID` |
+| EVL-004 | `EvaluationDetails`, `Eval_QuestionScheme` |
+| EVL-006 (annotations) | `Eval_Annotations` (per-evaluation), `Eval_BookletSharedAnnotations` (booklet-level shared stamps) |
+| EVL-007 | `Eval_PageVisitLog`, `Evaluations.AllPagesVisited` |
+| EVL-010 (identity) | `Users.ProfilePhotoPath`, session/login photo API; client-side face match |
+| EVL-013 | `AllocationQueue`, `Eval_Booklets.EvaluationStatus` |
+| EVL-014 | `VarianceRecords`, `Eval_Papers.VarianceThresholdPercent` |
+| MIS-007 | `Eval_AttendanceLog` |
+| Zone / barcode scheduling | Migrations in `15_zone_barcode_upload_schedule.sql` (ScanningDB) |
+| SYNC | `Scan_SyncQueue` (where enabled) |
+
+---
+
+## 9. Document history
+
+| Version | Date | Notes |
+|---------|------|--------|
+| 1.0 | 2026-02-19 | Initial formal specification. |
+| 1.1 | 2026-04-21 | Web/desktop UI alignment; evaluator session and Head Evaluator notes; `Eval_BookletSharedAnnotations` and migration references; Playwright (NFR-007); evaluation allocation clarified in data flow. |

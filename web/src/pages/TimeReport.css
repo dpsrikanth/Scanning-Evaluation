@@ -5,9 +5,9 @@
 }
 .tr-header-icon {
   width: 52px; height: 52px; border-radius: 14px;
-  background: linear-gradient(135deg, #0f172a, #0d4a28);
+  background: linear-gradient(135deg, #283593, #303F9F);
   color: #fff; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; box-shadow: 0 4px 14px rgba(13,110,74,0.25);
+  flex-shrink: 0; box-shadow: 0 4px 14px rgba(var(--color-primary-rgb), 0.25);
 }
 .tr-title    { margin: 0; font-size: 22px; font-weight: 800; }
 .tr-subtitle { margin: 4px 0 0; font-size: 13px; color: var(--color-text-muted); }
