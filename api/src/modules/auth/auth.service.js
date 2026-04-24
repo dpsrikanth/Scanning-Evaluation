@@ -30,6 +30,31 @@ function resolveProfilePhotoPath(storedPath) {
   return null;
 }
 
+/** Face-matching API may return snake_case or camelCase; numbers may arrive as strings. */
+function pickFaceMatchVerified(data) {
+  if (!data || typeof data !== 'object') return false;
+  const sf = data.success_flag ?? data.successFlag;
+  if (sf === true || sf === 1) return true;
+  if (sf === false || sf === 0) return false;
+  if (typeof sf === 'string') {
+    const s = sf.trim().toLowerCase();
+    if (s === 'true' || s === '1') return true;
+    if (s === 'false' || s === '0') return false;
+  }
+  return Boolean(sf);
+}
+
+function pickFaceMatchPercentage(data) {
+  if (!data || typeof data !== 'object') return 0;
+  const raw = data.match_percentage ?? data.matchPercentage ?? data.match_percent;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const n = parseFloat(raw);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+}
+
 /** MySQL2 row keys can vary by driver/case; never lose the hash. */
 function passHashFrom(user) {
   if (!user) return null;
@@ -354,8 +379,8 @@ export default class AuthService {
       throw Object.assign(new Error(msg), { statusCode: 502 });
     }
 
-    const verified = Boolean(data.success_flag);
-    const matchPercentage = typeof data.match_percentage === 'number' ? data.match_percentage : 0;
+    const verified = pickFaceMatchVerified(data);
+    const matchPercentage = pickFaceMatchPercentage(data);
     const message = data.message || (verified ? 'Faces match.' : 'Face does not match.');
 
     return {
