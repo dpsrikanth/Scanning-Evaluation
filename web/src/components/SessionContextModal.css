@@ -77,6 +77,70 @@
 }
 .sc-session-hint strong { color: var(--color-text); }
 
+/* Inline location (single row under session hint) */
+.sc-location-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.sc-location-row__icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+.sc-location-row__coord {
+  white-space: nowrap;
+}
+.sc-location-row__coord-label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.sc-location-row__sep {
+  color: var(--color-text-muted);
+  user-select: none;
+  opacity: 0.7;
+}
+.sc-location-row__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 12px;
+}
+.sc-location-row__status {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--color-text-secondary);
+}
+.sc-location-row__status .spin { flex-shrink: 0; }
+.sc-location-row__status--muted {
+  color: #b45309;
+}
+.sc-location-row__optional {
+  font-weight: 400;
+  opacity: 0.9;
+}
+.sc-location-row__retry {
+  margin-left: auto;
+}
+
+.sc-step0-camera-wrap {
+  width: 100%;
+}
+.sc-cam-card-full {
+  width: 100%;
+}
+
 .sc-verify-error {
   display: inline-flex;
   align-items: flex-start;
@@ -109,6 +173,33 @@
 
 /* ── Actions ───────────────────────────────────────────────────────────────── */
 .sc-actions { display: flex; gap: 10px; padding-top: 6px; justify-content: flex-end; }
+.sc-actions-step0 {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.sc-auto-advance-note {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 140px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+@media (max-width: 480px) {
+  .sc-actions-step0 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sc-actions-step0 .btn-primary {
+    width: 100%;
+  }
+  .sc-auto-advance-note {
+    text-align: center;
+    order: -1;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── Step 0: Permission Cards ──────────────────────────────────────────────── */
@@ -119,6 +210,16 @@
 }
 @media (max-width: 480px) {
   .sc-perm-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .sc-location-row__ok {
+    margin-left: 0;
+    width: 100%;
+  }
+  .sc-location-row__retry {
+    margin-left: 0;
+  }
 }
 
 .sc-perm-card {
@@ -142,14 +243,20 @@
 .sc-perm-card.perm-granted .sc-perm-badge { color: var(--color-success); }
 .sc-perm-card.perm-denied  .sc-perm-badge { color: #dc2626; }
 
-/* Camera area */
+/* Camera area — full-width card uses taller preview */
 .sc-cam-area {
   background: #000; position: relative;
-  height: 150px; display: flex; align-items: center; justify-content: center;
+  height: min(42vh, 280px);
+  min-height: 200px;
+  display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
 .sc-video {
-  width: 100%; height: 150px; object-fit: cover; display: block;
+  width: 100%;
+  height: min(42vh, 280px);
+  min-height: 200px;
+  object-fit: cover;
+  display: block;
   transform: scaleX(-1); /* mirror effect */
 }
 .sc-cam-placeholder {
@@ -169,6 +276,51 @@
 .sc-cam-captured-bar {
   display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;
 }
+.sc-cam-captured-bar--error {
+  flex-direction: column;
+  align-items: stretch;
+}
+.sc-cam-retake { align-self: flex-end; flex-shrink: 0; }
+
+.sc-verify-error-panel {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  text-align: left;
+}
+.sc-verify-error-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #b91c1c;
+  margin: 0 0 6px;
+}
+.sc-verify-error-panel__title svg { flex-shrink: 0; }
+.sc-verify-error-panel__msg {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #7f1d1d;
+}
+.sc-verify-error-panel__hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9a3412;
+  padding-top: 8px;
+  border-top: 1px solid #fecaca;
+}
+
+.sc-perm-card.sc-perm-card-verify-error {
+  border-color: #f87171;
+  background: #fff8f8;
+}
+.sc-perm-card.sc-perm-card-verify-error .sc-perm-badge { color: #dc2626; }
+
 .sc-ok      { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #16a34a; }
 .sc-uploading { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-secondary); }
 

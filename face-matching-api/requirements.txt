@@ -1,0 +1,24 @@
+# Python 3.10+ recommended
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.4.0
+pydantic-settings>=2.0.0
+python-multipart
+pillow>=10.0.0
+numpy>=1.24.0
+opencv-python-headless>=4.8.0
+
+# DeepFace stack (used for: opencv, mediapipe, mtcnn, retinaface backends)
+# TensorFlow: install a version compatible with your platform (CPU/GPU)
+tensorflow>=2.15.0,<2.18.0
+tf-keras>=2.15.0
+deepface>=0.0.91
+
+# Face detectors used by DeepFace
+mediapipe>=0.10.9
+mtcnn>=0.1.1
+
+# Optional — method "face_recognition" (dlib 128-d embeddings)
+# On Windows, install dlib first (conda, or a prebuilt wheel), then:
+#   pip install face-recognition
+# face-recognition>=1.3.0

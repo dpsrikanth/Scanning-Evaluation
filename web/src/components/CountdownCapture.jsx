@@ -1,25 +1,12 @@
 /**
  * CountdownCapture — shows a 3-2-1 countdown overlay then captures a webcam frame
  * and posts it to /api/eval/captured-photo for random monitoring checks.
+ * Face match uses the same server verification as evaluator login (/auth/verify-login-face).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera } from 'lucide-react';
-import * as faceapi from 'face-api.js';
 import { api } from '../services/api';
 import './CountdownCapture.css';
-
-const MODEL_URL = '/face-api-models';
-let modelsLoaded = false;
-
-async function ensureModels() {
-  if (modelsLoaded) return;
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
-    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-  ]);
-  modelsLoaded = true;
-}
 
 function waitVideoReady(video) {
   return new Promise((resolve, reject) => {
@@ -119,8 +106,6 @@ export default function CountdownCapture({ evaluationId, onDone }) {
   const doCapture = useCallback(async () => {
     setPhase('capturing');
     try {
-      await ensureModels();
-
       const canvas  = document.createElement('canvas');
       const video   = videoRef.current;
       const w = video?.videoWidth  || 0;
@@ -137,36 +122,30 @@ export default function CountdownCapture({ evaluationId, onDone }) {
       canvas.width  = vw;
       canvas.height = vh;
       canvas.getContext('2d').drawImage(video, 0, 0);
+      const previewUrl = canvas.toDataURL('image/jpeg', 0.8);
 
-      // Compare with profile photo
       const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const regPath = user.profilePhotoPath || user.ProfilePhotoPath;
       let faceMatchResult = 'Skipped';
       let score = null;
 
-      try {
-        const [capturedDetection, profileDesc] = await Promise.all([
-          faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks(true).withFaceDescriptor(),
-          (async () => {
-            if (!user.profilePhotoPath) return null;
-            const img = new Image(); img.crossOrigin = 'anonymous';
-            img.src = api.files.profilePhotoUrl(user.profilePhotoPath);
-            await new Promise(r => { img.onload = r; img.onerror = () => r(null); });
-            return faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-              .withFaceLandmarks(true).withFaceDescriptor().then(d => d?.descriptor || null);
-          })(),
-        ]);
-
-        if (capturedDetection?.descriptor && profileDesc) {
-          const dist = faceapi.euclideanDistance(capturedDetection.descriptor, profileDesc);
-          score = Math.max(0, Math.round((1 - dist) * 100));
-          faceMatchResult = score >= 50 ? 'Matched' : 'Mismatch';
-        } else if (capturedDetection?.descriptor) {
-          faceMatchResult = 'Skipped';
-        } else {
+      if (regPath) {
+        try {
+          const vr = await api.auth.verifyLoginFace({ liveImageBase64: previewUrl });
+          const pct =
+            vr.matchPercentage != null && Number.isFinite(Number(vr.matchPercentage))
+              ? Math.round(Number(vr.matchPercentage))
+              : null;
+          score = pct;
+          if (vr.verified) {
+            faceMatchResult = 'Matched';
+          } else {
+            faceMatchResult = 'Mismatch';
+          }
+        } catch {
           faceMatchResult = 'Error';
         }
-      } catch { faceMatchResult = 'Error'; }
+      }
 
       // Upload
       canvas.toBlob(async (blob) => {

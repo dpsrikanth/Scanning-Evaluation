@@ -4,6 +4,7 @@ import {
   Camera, Navigation, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ShieldCheck,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { mapFaceVerifyFailure } from '../utils/faceVerifyErrors';
 import './SessionContextModal.css';
 
 const PERIODS = [
@@ -27,6 +28,8 @@ export default function SessionContextModal({ onComplete }) {
   const videoRef       = useRef(null);
   const canvasRef      = useRef(null);
   const streamRef      = useRef(null);
+  /** After face match + upload, auto-open step 1 unless cleared (Retake / manual Next). */
+  const verifyAdvanceTimerRef = useRef(null);
   const [camStatus,    setCamStatus]    = useState('idle');     // idle|requesting|granted|denied|captured
   const [geoStatus,    setGeoStatus]    = useState('idle');     // idle|requesting|granted|denied
   const [capturedBlob, setCapturedBlob] = useState(null);
@@ -36,6 +39,8 @@ export default function SessionContextModal({ onComplete }) {
   /** null | verifying | uploading | done | error */
   const [verifyPhase, setVerifyPhase]   = useState(null);
   const [verifyMessage, setVerifyMessage] = useState('');
+  const [verifyErrorTitle, setVerifyErrorTitle] = useState('');
+  const [verifyHint, setVerifyHint] = useState('');
 
   // ── Session / exam state ───────────────────────────────────────────────────
   const [exams,        setExams]        = useState([]);
@@ -75,11 +80,24 @@ export default function SessionContextModal({ onComplete }) {
     );
   };
 
+  const clearVerifyAdvanceTimer = () => {
+    if (verifyAdvanceTimerRef.current != null) {
+      clearTimeout(verifyAdvanceTimerRef.current);
+      verifyAdvanceTimerRef.current = null;
+    }
+  };
+
+  const goToSessionPaperStep = () => {
+    clearVerifyAdvanceTimer();
+    setStep(1);
+  };
+
   // Start permissions on mount (step 0)
   useEffect(() => {
     requestCamera();
     requestGeolocation();
     return () => {
+      clearVerifyAdvanceTimer();
       // Cleanup stream when component unmounts
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
@@ -149,6 +167,8 @@ export default function SessionContextModal({ onComplete }) {
     setCapturedBlob(null);
     setVerifyPhase('verifying');
     setVerifyMessage('Verifying your face against your registered photo…');
+    setVerifyErrorTitle('');
+    setVerifyHint('');
 
     (async () => {
       try {
@@ -156,22 +176,28 @@ export default function SessionContextModal({ onComplete }) {
         const regPath = user.profilePhotoPath || user.ProfilePhotoPath;
         if (!regPath) {
           setVerifyPhase('error');
-          setVerifyMessage('No registration photo on file. Contact your administrator.');
+          setVerifyErrorTitle('No registration photo');
+          setVerifyMessage(
+            'Your account does not have a photo on file yet. An administrator must upload your registration photo before you can continue.'
+          );
+          setVerifyHint('');
           return;
         }
 
         const vr = await api.auth.verifyLoginFace({ liveImageBase64: previewUrl });
         if (!vr.verified) {
           setVerifyPhase('error');
+          setVerifyErrorTitle('Face did not match');
           const pct =
             vr.matchPercentage != null && Number.isFinite(Number(vr.matchPercentage))
               ? Math.round(Number(vr.matchPercentage))
               : null;
           setVerifyMessage(
             pct != null
-              ? `${vr.message || 'Face does not match your registration photo.'} (${pct}% similarity.)`
-              : (vr.message || 'Face does not match your registration photo. Retake or contact your administrator.')
+              ? `${vr.message || 'Your live photo does not match your registration photo.'} Similarity was about ${pct}%.`
+              : (vr.message || 'Your live photo does not match your registration photo. Try better lighting, remove glasses if possible, and center your face.')
           );
+          setVerifyHint('Tap Retake, adjust your position or lighting, then capture again.');
           return;
         }
 
@@ -197,23 +223,38 @@ export default function SessionContextModal({ onComplete }) {
         setVerifyPhase('done');
         setVerifyMessage(
           pctOk != null
-            ? `Verified (${pctOk}% match). You can continue.`
-            : 'Verified. You can continue.'
+            ? `Verified (${pctOk}% match). Opening session & paper…`
+            : 'Verified. Opening session & paper…'
         );
+        clearVerifyAdvanceTimer();
+        verifyAdvanceTimerRef.current = window.setTimeout(() => {
+          verifyAdvanceTimerRef.current = null;
+          setStep(1);
+        }, 900);
       } catch (err) {
         const msg = err?.message || '';
         setVerifyPhase('error');
-        setVerifyMessage(msg || 'Verification or upload failed. Retake or try again.');
+        const mapped = mapFaceVerifyFailure(msg);
+        setVerifyErrorTitle(mapped.title);
+        if (mapped.title === 'Verification failed') {
+          setVerifyMessage(msg || mapped.message);
+        } else {
+          setVerifyMessage(mapped.message);
+        }
+        setVerifyHint(mapped.hint || '');
       }
     })();
   };
 
   const handleRetake = () => {
+    clearVerifyAdvanceTimer();
     setCapturedUrl(null);
     setCapturedBlob(null);
     setPhotoPath(null);
     setVerifyPhase(null);
     setVerifyMessage('');
+    setVerifyErrorTitle('');
+    setVerifyHint('');
     setCamStatus(streamRef.current ? 'granted' : 'denied');
   };
 
@@ -282,16 +323,60 @@ export default function SessionContextModal({ onComplete }) {
               Your live photo must <strong>match your administrator-registered profile photo</strong> before you can continue.
             </p>
 
-            <div className="sc-perm-grid">
-              {/* Camera card */}
-              <div className={`sc-perm-card ${camStatus === 'denied' ? 'perm-denied' : camStatus === 'granted' || camStatus === 'captured' ? 'perm-granted' : ''}`}>
+            <div className="sc-location-row" role="status" aria-live="polite">
+              <Navigation size={14} className="sc-location-row__icon" aria-hidden />
+              {(geoStatus === 'idle' || geoStatus === 'requesting') && (
+                <span className="sc-location-row__status">
+                  <Loader2 size={14} className="spin" aria-hidden />
+                  Acquiring location…
+                </span>
+              )}
+              {geoStatus === 'granted' && geoCoords && (
+                <>
+                  <span className="sc-location-row__coord">
+                    <span className="sc-location-row__coord-label">Latitude</span>{' '}
+                    <strong>{geoCoords.latitude.toFixed(6)}°</strong>
+                  </span>
+                  <span className="sc-location-row__sep" aria-hidden>
+                    ·
+                  </span>
+                  <span className="sc-location-row__coord">
+                    <span className="sc-location-row__coord-label">Longitude</span>{' '}
+                    <strong>{geoCoords.longitude.toFixed(6)}°</strong>
+                  </span>
+                  <span className="sc-location-row__ok">
+                    <CheckCircle2 size={13} aria-hidden /> Location recorded
+                  </span>
+                </>
+              )}
+              {geoStatus === 'denied' && (
+                <span className="sc-location-row__status sc-location-row__status--muted">
+                  <AlertTriangle size={14} aria-hidden />
+                  Location unavailable
+                  <small className="sc-location-row__optional">Optional — you can still proceed</small>
+                  <button type="button" className="btn btn-sm btn-secondary sc-location-row__retry" onClick={requestGeolocation}>
+                    <RefreshCw size={12} /> Retry
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <div className="sc-step0-camera-wrap">
+              {/* Camera — full width */}
+              <div
+                className={`sc-perm-card sc-cam-card-full ${camStatus === 'denied' ? 'perm-denied' : camStatus === 'granted' || camStatus === 'captured' ? 'perm-granted' : ''} ${camStatus === 'captured' && verifyPhase === 'error' ? 'sc-perm-card-verify-error' : ''}`}
+              >
                 <div className="sc-perm-header">
                   <Camera size={14} />
                   <span>Camera Access</span>
                   <span className="sc-perm-badge">
                     {camStatus === 'requesting' && <Loader2 size={13} className="spin" />}
-                    {(camStatus === 'granted' || camStatus === 'captured') && <CheckCircle2 size={13} />}
                     {camStatus === 'denied' && <XCircle size={13} />}
+                    {camStatus === 'captured' && verifyPhase === 'error' && <AlertTriangle size={13} />}
+                    {(verifyPhase === 'verifying' || verifyPhase === 'uploading') && <Loader2 size={13} className="spin" />}
+                    {(camStatus === 'granted' || (camStatus === 'captured' && verifyPhase === 'done')) && (
+                      <CheckCircle2 size={13} />
+                    )}
                   </span>
                 </div>
 
@@ -328,67 +413,32 @@ export default function SessionContextModal({ onComplete }) {
                     </button>
                   )}
                   {camStatus === 'captured' && (
-                    <div className="sc-cam-captured-bar">
+                    <div className={`sc-cam-captured-bar${verifyPhase === 'error' ? ' sc-cam-captured-bar--error' : ''}`}>
                       {verifyPhase === 'verifying' || verifyPhase === 'uploading' ? (
                         <span className="sc-uploading"><Loader2 size={13} className="spin" /> {verifyMessage || 'Working…'}</span>
                       ) : verifyPhase === 'done' ? (
                         <span className="sc-ok"><ShieldCheck size={13} /> {verifyMessage || 'Verified'}</span>
                       ) : verifyPhase === 'error' ? (
-                        <span className="sc-verify-error"><AlertTriangle size={13} /> {verifyMessage}</span>
+                        <div className="sc-verify-error-panel" role="alert">
+                          <div className="sc-verify-error-panel__title">
+                            <AlertTriangle size={16} strokeWidth={2.2} aria-hidden />
+                            <span>{verifyErrorTitle || 'Verification issue'}</span>
+                          </div>
+                          <p className="sc-verify-error-panel__msg">{verifyMessage}</p>
+                          {verifyHint ? (
+                            <p className="sc-verify-error-panel__hint">{verifyHint}</p>
+                          ) : null}
+                        </div>
                       ) : (
                         <span className="sc-uploading"><Loader2 size={13} className="spin" /> …</span>
                       )}
-                      <button type="button" className="btn btn-sm btn-secondary" onClick={handleRetake} disabled={verifyBusy}>
+                      <button type="button" className="btn btn-sm btn-secondary sc-cam-retake" onClick={handleRetake} disabled={verifyBusy}>
                         <RefreshCw size={12} /> Retake
                       </button>
                     </div>
                   )}
                   {camStatus === 'requesting' && (
                     <span className="sc-cam-hint"><Loader2 size={13} className="spin" /> Requesting camera…</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Geolocation card */}
-              <div className={`sc-perm-card ${geoStatus === 'denied' ? 'perm-denied' : geoStatus === 'granted' ? 'perm-granted' : ''}`}>
-                <div className="sc-perm-header">
-                  <Navigation size={14} />
-                  <span>Location Access</span>
-                  <span className="sc-perm-badge">
-                    {geoStatus === 'requesting' && <Loader2 size={13} className="spin" />}
-                    {geoStatus === 'granted' && <CheckCircle2 size={13} />}
-                    {geoStatus === 'denied' && <AlertTriangle size={13} />}
-                  </span>
-                </div>
-                <div className="sc-geo-body">
-                  {(geoStatus === 'idle' || geoStatus === 'requesting') && (
-                    <div className="sc-geo-placeholder">
-                      <Loader2 size={22} className="spin" />
-                      <span>Acquiring location…</span>
-                    </div>
-                  )}
-                  {geoStatus === 'granted' && geoCoords && (
-                    <div className="sc-geo-coords">
-                      <div className="sc-geo-row">
-                        <span className="sc-geo-label">Latitude</span>
-                        <strong>{geoCoords.latitude.toFixed(6)}°</strong>
-                      </div>
-                      <div className="sc-geo-row">
-                        <span className="sc-geo-label">Longitude</span>
-                        <strong>{geoCoords.longitude.toFixed(6)}°</strong>
-                      </div>
-                      <div className="sc-geo-ok"><CheckCircle2 size={13} /> Location recorded</div>
-                    </div>
-                  )}
-                  {geoStatus === 'denied' && (
-                    <div className="sc-geo-placeholder denied">
-                      <AlertTriangle size={22} />
-                      <span>Location unavailable</span>
-                      <small>Optional — you can still proceed</small>
-                      <button className="btn btn-sm btn-secondary" onClick={requestGeolocation}>
-                        <RefreshCw size={12} /> Retry
-                      </button>
-                    </div>
                   )}
                 </div>
               </div>
@@ -405,10 +455,16 @@ export default function SessionContextModal({ onComplete }) {
               </p>
             )}
 
-            <div className="sc-actions">
+            <div className="sc-actions sc-actions-step0">
+              {canProceed0 && (
+                <p className="sc-auto-advance-note" role="status">
+                  Continuing automatically. Use Next if this does not advance in a moment.
+                </p>
+              )}
               <button
+                type="button"
                 className="btn btn-primary"
-                onClick={() => setStep(1)}
+                onClick={goToSessionPaperStep}
                 disabled={!canProceed0}
               >
                 Next <ChevronRight size={14} />
