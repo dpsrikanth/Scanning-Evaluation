@@ -1,10 +1,40 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import env from '../../config/env.js';
 import { sendMail } from '../../services/mailer.js';
 import logger from '../../utils/logger.js';
 import { clientIp } from '../../middleware/auditLog.js';
+import { getProfilePhotoDir } from '../../middleware/upload.js';
+
+/** Resolve stored DB path (absolute or filename) to a readable profile photo file. */
+function resolveProfilePhotoPath(storedPath) {
+  if (!storedPath || typeof storedPath !== 'string') return null;
+  const trimmed = storedPath.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\//g, path.sep);
+  try {
+    if (fs.existsSync(normalized)) return path.resolve(normalized);
+  } catch {
+    /* ignore */
+  }
+  const base = path.basename(trimmed);
+  const candidate = path.join(getProfilePhotoDir(), base);
+  try {
+    if (fs.existsSync(candidate)) return candidate;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** MySQL2 row keys can vary by driver/case; never lose the hash. */
+function passHashFrom(user) {
+  if (!user) return null;
+  return user.PasswordHash ?? user.passwordHash;
+}
 
 export default class AuthService {
   constructor(authRepository) {
@@ -13,16 +43,17 @@ export default class AuthService {
 
   // ── Login ──────────────────────────────────────────────────────────────────
   async login(username, password, source = 'eval') {
-    if (!username || !password) {
+    const u = String(username ?? '').trim();
+    if (!u || !password) {
       throw Object.assign(new Error('Username and password are required'), { statusCode: 400 });
     }
 
     let user;
     if (source === 'scan') {
       const { getScanDb } = await import('../../config/database.js');
-      user = await this.repo.findScanUserByUsername(getScanDb(), username);
+      user = await this.repo.findScanUserByUsername(getScanDb(), u);
     } else {
-      user = await this.repo.findUserByUsername(username);
+      user = await this.repo.findUserByUsername(u);
     }
 
     if (!user) {
@@ -46,7 +77,18 @@ export default class AuthService {
       );
     }
 
-    const valid = await bcrypt.compare(password, user.PasswordHash);
+    const hash = passHashFrom(user);
+    if (!hash) {
+      logger.error('login: user row missing PasswordHash', { userId: user.UserID, username: user.Username });
+      throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
+    }
+    let valid;
+    try {
+      valid = await bcrypt.compare(password, hash);
+    } catch (bcErr) {
+      logger.error('bcrypt.compare failed; stored hash may be invalid', { userId: user.UserID, username: user.Username, err: bcErr.message });
+      throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
+    }
     if (!valid) {
       throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
     }
@@ -105,7 +147,11 @@ export default class AuthService {
     const user = await this.repo.findUserById(userId);
     if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
 
-    const valid = await bcrypt.compare(currentPassword, user.PasswordHash);
+    const currentHash = passHashFrom(user);
+    if (!currentHash) {
+      throw Object.assign(new Error('Current password is incorrect'), { statusCode: 400 });
+    }
+    const valid = await bcrypt.compare(currentPassword, currentHash);
     if (!valid) throw Object.assign(new Error('Current password is incorrect'), { statusCode: 400 });
 
     if (newPassword.length < 8) {
@@ -113,7 +159,20 @@ export default class AuthService {
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await this.repo.updatePassword(userId, hash, 0);
+    const n = await this.repo.updatePassword(userId, hash, 0);
+    if (n === 0) {
+      throw Object.assign(
+        new Error('Password could not be saved. Try again or contact an administrator.'),
+        { statusCode: 500 }
+      );
+    }
+    const after = await this.repo.findUserById(userId);
+    if (!after || !(await bcrypt.compare(newPassword, passHashFrom(after) || ''))) {
+      throw Object.assign(
+        new Error('Password could not be saved. Try again or contact an administrator.'),
+        { statusCode: 500 }
+      );
+    }
 
     // Send notification email (non-blocking)
     if (user.Email) {
@@ -196,6 +255,119 @@ export default class AuthService {
     return { photoPath: filePath.replace(/\\/g, '/') };
   }
 
+  /**
+   * Compare live capture (base64) to the user's registered profile photo via the face-matching API.
+   * @param {string} [method] - optional DeepFace detector override (opencv, mediapipe, …)
+   */
+  async verifyLoginFace(userId, liveImageBase64, method = null) {
+    const raw = String(liveImageBase64 ?? '').trim();
+    if (!raw) {
+      throw Object.assign(new Error('liveImageBase64 is required'), { statusCode: 400 });
+    }
+
+    const baseUrl = env.faceMatching?.baseUrl;
+    if (!baseUrl) {
+      throw Object.assign(
+        new Error('Face matching service is not configured (set FACE_MATCHING_API_URL).'),
+        { statusCode: 503 }
+      );
+    }
+
+    const user = await this.repo.findUserById(userId);
+    if (!user) {
+      throw Object.assign(new Error('User not found'), { statusCode: 404 });
+    }
+    const regPath = user.ProfilePhotoPath || user.profilePhotoPath;
+    if (!regPath) {
+      throw Object.assign(
+        new Error('No registration photo on file. Contact your administrator.'),
+        { statusCode: 403 }
+      );
+    }
+
+    const absPhoto = resolveProfilePhotoPath(regPath);
+    if (!absPhoto) {
+      logger.error('verifyLoginFace: profile file missing on disk', { userId, regPath });
+      throw Object.assign(
+        new Error('Registration photo file is missing on the server. Contact your administrator.'),
+        { statusCode: 404 }
+      );
+    }
+
+    let referenceB64;
+    try {
+      referenceB64 = (await fs.promises.readFile(absPhoto)).toString('base64');
+    } catch (e) {
+      logger.error('verifyLoginFace: read profile photo failed', { userId, err: e.message });
+      throw Object.assign(
+        new Error('Could not read registration photo on the server.'),
+        { statusCode: 500 }
+      );
+    }
+
+    const url = `${baseUrl}/facematch`;
+    const timeoutMs = env.faceMatching?.timeoutMs || 120000;
+    const payload = {
+      actual_image_base64: referenceB64,
+      tobecompared_image_base64: raw,
+    };
+    if (method && String(method).trim()) {
+      payload.method = String(method).trim();
+    }
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      logger.error('verifyLoginFace: fetch face-matching API failed', { err: e.message });
+      throw Object.assign(
+        new Error(
+          'Face verification service is unavailable. Ensure face-matching-api is running and FACE_MATCHING_API_URL is correct.'
+        ),
+        { statusCode: 503 }
+      );
+    }
+
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      throw Object.assign(new Error('Face verification service returned an invalid response.'), {
+        statusCode: 502,
+      });
+    }
+
+    if (!data || typeof data !== 'object') {
+      throw Object.assign(new Error('Face verification service returned an invalid response.'), {
+        statusCode: 502,
+      });
+    }
+
+    if (data.success === false) {
+      const msg = data.message || data.error || 'Face verification failed.';
+      throw Object.assign(new Error(msg), { statusCode: 502 });
+    }
+
+    const verified = Boolean(data.success_flag);
+    const matchPercentage = typeof data.match_percentage === 'number' ? data.match_percentage : 0;
+    const message = data.message || (verified ? 'Faces match.' : 'Face does not match.');
+
+    return {
+      verified,
+      matchPercentage,
+      message,
+      method: data.method || null,
+      faceCountReference: data.face_count_reference ?? null,
+      faceCountCompare: data.face_count_compare ?? null,
+    };
+  }
+
   async heartbeat(userId, sessionId) {
     await this.repo.updateSessionHeartbeat(sessionId, userId);
     return { ok: true };
@@ -271,9 +443,21 @@ export default class AuthService {
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await this.repo.updatePassword(payload.userId, hash, 0);
+    const n = await this.repo.updatePassword(payload.userId, hash, 0);
+    if (n === 0) {
+      throw Object.assign(
+        new Error('Password could not be saved. Try again or contact an administrator.'),
+        { statusCode: 500 }
+      );
+    }
 
     const user = await this.repo.findUserById(payload.userId);
+    if (!user || !(await bcrypt.compare(newPassword, passHashFrom(user) || ''))) {
+      throw Object.assign(
+        new Error('Password could not be saved. Try again or contact an administrator.'),
+        { statusCode: 500 }
+      );
+    }
     if (user?.Email) {
       sendMail('change_password', user.Email, {
         fullName: user.FullName,

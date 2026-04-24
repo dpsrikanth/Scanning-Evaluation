@@ -56,6 +56,12 @@ const env = {
   },
 
   logLevel: process.env.LOG_LEVEL || 'info',
+
+  /** Python FastAPI face-matching service (evaluator login verification). */
+  faceMatching: {
+    baseUrl: (process.env.FACE_MATCHING_API_URL || 'http://127.0.0.1:8050').replace(/\/$/, ''),
+    timeoutMs: parseInt(process.env.FACE_MATCHING_TIMEOUT_MS || '120000', 10),
+  },
 };
 
 export default env;

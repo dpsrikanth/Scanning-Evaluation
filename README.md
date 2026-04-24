@@ -12,12 +12,10 @@ Scanning&Evaluation/
 │   ├── Scanning_Evaluation_Full_Production_MySQL_DDL.sql
 │   └── AI_Cursor_Advanced_System_Prompt_Pack/
 │
-├── docker/
-│   └── mysql-init/               # Numbered SQL: schema, seed, incremental migrations
-│       ├── 01_schema.sql … 02_seed.sql
-│       └── 03_… through 16_eval_booklet_shared_annotations.sql (apply in order on existing DBs)
+├── sql/mysql-init/               # Numbered SQL: schema, seed, incremental (run in order on a fresh MySQL)
+│   ├── 01_schema.sql, 02_seed.sql, then 03_… through 17_…
 │
-├── migrations/                    # Legacy / reference incremental scripts
+├── migrations/                    # Reference incremental scripts (and README)
 │   ├── 001_scanning_additions.sql
 │   └── 002_evaluation_additions.sql
 │
@@ -69,26 +67,22 @@ Scanning&Evaluation/
 | **Web UI theme** | Visual design uses the same **Material indigo** palette as **scanner-desktop** (primary `#3F51B5` / `#303F9F`, surface `#F5F7FA`). |
 | **Evaluator session** | After login, evaluators complete **Session Setup** (camera, geolocation, face match vs registration photo) before the dashboard. |
 | **Head Evaluator** | Web routes `/head-eval/login`, `/head-eval/assign` for bulk allocation to evaluators. |
-| **phpMyAdmin** | Optional Docker service for **MySQL** administration (not PostgreSQL). |
 
-## Quick Start (Docker)
+## Quick start (local)
 
-### Full stack (MySQL + API + Web)
+You need **MySQL 8+** with `ScanningDB` and `EvaluationDB`. For a new database, run the numbered scripts under [`sql/mysql-init/`](sql/mysql-init/) in filename order, or use the full DDL in `docs/Scanning_Evaluation_Full_Production_MySQL_DDL.sql` and apply migrations as needed. Details are in **[INSTALLATION.md](INSTALLATION.md)**.
+
+**API and web** (separate terminals):
 
 ```bash
-docker compose up -d --build
+cd api && cp .env.example .env && npm install && npm run dev
+cd web && npm install && npm run dev
 ```
 
-| Service | URL | Notes |
-|---------|-----|--------|
-| Web (Evaluation UI) | http://localhost:8080 | Nginx → React build |
-| API | http://localhost:4000 | Health: `GET /api/health` — Swagger: `/api/docs` when `ENABLE_SWAGGER=true` |
-| MySQL (host port) | **localhost:3307** → container **3306** | root / `ScanEval@2026` (or `MYSQL_ROOT_PASSWORD` from `.env`) |
-| **phpMyAdmin** | **http://localhost:8081** | Login as `root` with the same MySQL password; server host **`mysql`** is preconfigured in Docker. Port: `PHPMYADMIN_PORT` in root `.env`. |
+- **API** — [http://localhost:4000](http://localhost:4000) (health: `GET /api/health`; Swagger: `/api/docs` when `ENABLE_SWAGGER=true`)
+- **Web (Vite)** — [http://localhost:5173](http://localhost:5173)
 
-Optional **root** `.env` (same folder as `docker-compose.yml`): see **`.env.example`** — e.g. `PHPMYADMIN_PORT`, `JWT_SECRET`, `MYSQL_ROOT_PASSWORD`.
-
-**Example logins** (after seed; see `docker/mysql-init/02_seed.sql` — reset passwords in DB if they were changed locally):
+**Example logins** (after seed; see `sql/mysql-init/02_seed.sql` — reset passwords in the DB if they were changed locally):
 
 - **Admin (evaluation):** `admin` / `password123`
 - **Evaluator:** `ravi.rajan` / `password123` (completes session setup with camera/geo/face on first use)
@@ -97,41 +91,17 @@ Optional **root** `.env` (same folder as `docker-compose.yml`): see **`.env.exam
 
 **Evaluation flow (typical):** scan/sync booklets to **EvaluationDB** → **Head Evaluator** (or admin tools) **assigns** booklets to evaluators → evaluator signs in → **Session Setup** → **Dashboard** → open booklet → **Evaluate** → submit marks.
 
-### Development mode (MySQL + phpMyAdmin in Docker, API + Web on host)
-
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-phpMyAdmin: **http://localhost:8081** (same as full stack). Then run API and Web locally:
-
-```bash
-cd api && cp .env.example .env && npm install && npm run dev
-cd web && npm install && npm run dev
-```
-
-Point `api/.env` at Docker MySQL on the **host**:
-
-```env
-SCAN_DB_HOST=localhost
-SCAN_DB_PORT=3307
-SCAN_DB_PASSWORD=ScanEval@2026
-EVAL_DB_HOST=localhost
-EVAL_DB_PORT=3307
-EVAL_DB_PASSWORD=ScanEval@2026
-```
-
 ### Playwright (web E2E)
 
-With the **API** reachable at `http://localhost:4000` (Docker or local), from `web/`:
+With the **API** running (e.g. on **http://localhost:4000**), from `web/`:
 
 ```bash
 npm install
-node ./node_modules/@playwright/test/cli.js install chromium   # once per machine
+node ./node_modules/@playwright/test/cli.js install chromium
 npm run test:e2e
 ```
 
-`npm run test:e2e:ui` opens the Playwright UI. Tests start Vite on **:5173** unless it is already running. To target **Docker web** on **:8080** instead: `set PLAYWRIGHT_WEB_SERVER=0` and `set PLAYWRIGHT_BASE_URL=http://localhost:8080` (PowerShell: `$env:PLAYWRIGHT_WEB_SERVER='0'; $env:PLAYWRIGHT_BASE_URL='http://localhost:8080'`).
+`npm run test:e2e:ui` opens the Playwright UI. Tests start Vite on **:5173** unless it is already running. To use another base URL, set `PLAYWRIGHT_BASE_URL` (and disable the test web server with `PLAYWRIGHT_WEB_SERVER=0` if your app is already served).
 
 ### Desktop Scanner (.NET 8)
 
@@ -140,12 +110,7 @@ cd scanner-desktop/ScannerApp
 dotnet run
 ```
 
-Set API base URL to `http://localhost:4000` and sign in with a **ScanningDB** user (e.g. `operator1` / `password123` from seed, or a user created under Scanner Admin).
-
-### Database initialization
-
-- **New volume**: `docker/mysql-init/*.sql` runs automatically in filename order when MySQL data is empty.
-- **Existing database**: run numbered scripts **03+** through **16** in order (skip **01**/**02** if already applied). Some scripts expect a default database; e.g. run `06`/`07` with `-D EvaluationDB` if you see “No database selected”. See `14_scan_qc_workflow.sql` (QC), `15_zone_barcode_upload_schedule.sql`, `16_eval_booklet_shared_annotations.sql` (shared stamps) as needed.
+Set the API base URL to `http://localhost:4000` and sign in with a **ScanningDB** user (e.g. `operator1` / `password123` from seed, or a user created under Scanner Admin).
 
 ## Architecture
 
@@ -170,4 +135,4 @@ Root `.gitignore` covers `node_modules`, `.env`, logs, `dist`/`build`, and `**/b
 
 ## Detailed installation
 
-Step-by-step setup (Docker full stack, dev mode, manual DB, scanner desktop, env vars, troubleshooting) is in **[INSTALLATION.md](INSTALLATION.md)**.
+Step-by-step setup (MySQL, API, web, scanner desktop, env vars, troubleshooting) is in **[INSTALLATION.md](INSTALLATION.md)**.

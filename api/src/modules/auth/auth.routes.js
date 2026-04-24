@@ -233,6 +233,36 @@ router.post('/session-context', authenticate, auditLog('auth'), controller.sessi
  */
 router.post('/login-photo', authenticate, uploadCapturedPhoto, auditLog('auth'), controller.uploadLoginPhoto);
 
+/**
+ * @openapi
+ * /api/auth/verify-login-face:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Verify evaluator live capture against registered profile photo (face-matching API)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [liveImageBase64]
+ *             properties:
+ *               liveImageBase64: { type: string, description: 'JPEG/PNG as base64 or data URL' }
+ *               method: { type: string, description: 'Optional opencv|mediapipe|retinaface|mtcnn|face_recognition' }
+ *     responses:
+ *       200:
+ *         description: Verification result (verified, matchPercentage)
+ */
+router.post(
+  '/verify-login-face',
+  authenticate,
+  auditLog('auth'),
+  validateBody({
+    liveImageBase64: { required: true, type: 'string', minLength: 32 },
+  }),
+  controller.verifyLoginFace
+);
+
 /** @openapi
  * /api/auth/heartbeat:
  *   post:

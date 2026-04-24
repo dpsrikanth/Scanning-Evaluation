@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Settings, User, KeyRound, LogOut, ChevronDown,
-  Timer, Bell, GraduationCap
+  Timer, Bell, GraduationCap, Menu,
 } from 'lucide-react';
+import { useSidebar } from '../contexts/SidebarContext';
 import { api } from '../services/api';
 import './Header.css';
 
@@ -29,6 +30,7 @@ function SessionTimer() {
 }
 
 export default function Header() {
+  const { toggle: toggleSidebar } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
@@ -78,6 +80,14 @@ export default function Header() {
   return (
     <>
       <header className="header">
+        <button
+          type="button"
+          className="header-icon-btn header-menu-btn"
+          title="Toggle navigation menu"
+          onClick={toggleSidebar}
+        >
+          <Menu size={18} />
+        </button>
         <div className="header-brand">
           <div className="header-logo">
             <GraduationCap size={20} />

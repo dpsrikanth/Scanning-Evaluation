@@ -306,4 +306,30 @@ export default class ScanAdminController {
       return ok(res, null, 'Output path removed');
     } catch (err) { next(err); }
   };
+
+  getMirrorConfig = async (req, res, next) => {
+    try {
+      return ok(res, await this.service.getMirrorConfig());
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  updateMirrorConfig = async (req, res, next) => {
+    try {
+      const data = await this.service.updateMirrorConfig(req.body || {});
+      return ok(res, data, 'Offsite storage settings saved');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  testMirrorConfig = async (req, res, next) => {
+    try {
+      const data = await this.service.testMirrorConfig(req.body || {});
+      return ok(res, data, 'Connection test succeeded');
+    } catch (err) {
+      next(err);
+    }
+  };
 }

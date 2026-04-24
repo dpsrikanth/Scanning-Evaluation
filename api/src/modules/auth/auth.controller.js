@@ -88,6 +88,16 @@ export default class AuthController {
     } catch (err) { next(err); }
   };
 
+  verifyLoginFace = async (req, res, next) => {
+    try {
+      const { liveImageBase64, method } = req.body || {};
+      const result = await this.service.verifyLoginFace(req.user.userId, liveImageBase64, method);
+      return ok(res, result, result.verified ? 'Face verified' : 'Face verification completed');
+    } catch (err) {
+      next(err);
+    }
+  };
+
   heartbeat = async (req, res, next) => {
     try {
       const { sessionId } = req.body;

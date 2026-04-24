@@ -294,7 +294,7 @@ ALTER TABLE Scan_ScanTemplates ADD COLUMN UploadIntervalHours DECIMAL(5,1) DEFAU
 
 - **Public sample-image endpoint**: GET only, no-auth (read booklet preview)
 - **Protected create/update/delete**: All mutations require Auth + ScanAdmin role
-- **CORS configured**: nginx proxy handles cross-origin from web client
+- **CORS configured**: API `CLIENT_URL` allows the web app origin
 
 ---
 

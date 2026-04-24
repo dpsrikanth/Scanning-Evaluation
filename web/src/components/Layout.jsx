@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Settings, Users,
@@ -5,7 +6,7 @@ import {
   Monitor, Layers, Printer, FolderOpen, ShieldCheck, ScanLine,
 } from 'lucide-react';
 import Header from './Header';
-import { api } from '../services/api';
+import { SidebarProvider, useSidebar } from '../contexts/SidebarContext';
 import './Layout.css';
 
 function useCurrentUser() {
@@ -19,6 +20,11 @@ function useCurrentUser() {
 function canSeeScanAdmin(user) {
   const r = (user?.roleName || '').trim();
   return r === 'Admin' || r === 'ScanAdmin' || r.toLowerCase() === 'admin';
+}
+
+function canSeeHeadEval(user) {
+  const r = (user?.roleName || '').trim();
+  return r === 'Admin' || r === 'HeadEvaluator';
 }
 
 const navItems = [
@@ -52,26 +58,56 @@ const scanSettingsSubLinks = [
 ];
 
 const adminItems = [
-  { to: '/admin/settings',        label: 'Admin Settings',        icon: Settings  },
-  { to: '/admin/question-papers', label: 'Question Papers',       icon: BookOpen  },
-  { to: '/admin/answer-sheets',   label: 'Answer Sheet Designer', icon: PenTool   },
+  { to: '/admin/settings', label: 'Admin Settings', icon: Settings },
+  { to: '/admin/question-papers', label: 'Question Papers', icon: BookOpen },
+  { to: '/admin/answer-sheets', label: 'Answer Sheet Designer', icon: PenTool },
 ];
 
 const headItems = [
   { to: '/head-eval/assign', label: 'Assign Booklets', icon: ClipboardList },
 ];
 
-export default function Layout() {
+function useIsNarrow(breakpoint = 768) {
+  const [narrow, setNarrow] = useState(
+    () => (typeof window !== 'undefined' ? window.matchMedia(`(max-width: ${breakpoint}px)`).matches : false)
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [breakpoint]);
+  return narrow;
+}
+
+function LayoutInner() {
   const user = useCurrentUser();
   const location = useLocation();
+  const { collapsed, toggle, setCollapsed } = useSidebar();
+  const isNarrow = useIsNarrow(768);
   const scanSubtabActive = scanSettingsEffectiveSubtab(location.pathname, location.search);
+
+  const onNav = () => {
+    if (isNarrow) setCollapsed(true);
+  };
 
   return (
     <div className="layout">
       <Header />
       <div className="layout-body">
-        {/* Sidebar */}
-        <nav className="sidebar">
+        {isNarrow && !collapsed && (
+          <button
+            type="button"
+            className="sidebar-backdrop"
+            aria-label="Close menu"
+            onClick={toggle}
+          />
+        )}
+
+        <nav
+          className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''} ${isNarrow ? 'sidebar--mobile' : ''}`}
+          aria-label="Main"
+        >
           <div className="sidebar-section">
             <p className="sidebar-label">Navigation</p>
             {navItems.map(({ to, label, icon: Icon, exact }) => (
@@ -79,6 +115,7 @@ export default function Layout() {
                 key={to}
                 to={to}
                 end={exact}
+                onClick={onNav}
                 className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
               >
                 <Icon size={16} />
@@ -88,58 +125,70 @@ export default function Layout() {
             ))}
           </div>
 
+          {canSeeScanAdmin(user) && (
             <div className="sidebar-section">
               <p className="sidebar-label">Management</p>
-              {canSeeScanAdmin(user) && (
-                <>
-                  {adminItems.map(({ to, label, icon: Icon }) => (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                    >
-                      <Icon size={16} /><span>{label}</span>
-                      <ChevronRight size={12} className="sidebar-chevron" />
-                    </NavLink>
-                  ))}
-                  <div className="sidebar-scan-group">
-                    <p className="sidebar-label">Scanner admin</p>
-                    <NavLink
-                      to="/admin/scan-settings"
-                      className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                    >
-                      <ScanLine size={16} />
-                      <span>Scan settings</span>
-                      <ChevronRight size={12} className="sidebar-chevron" />
-                    </NavLink>
-                    {scanSettingsSubLinks.map(({ subtab, label, Icon }) => {
-                      const to = `/admin/scan-settings?subtab=${subtab}`;
-                      const active = scanSubtabActive === subtab;
-                      return (
-                        <Link
-                          key={subtab}
-                          to={to}
-                          className={`sidebar-link sidebar-sublink ${active ? 'active' : ''}`}
-                        >
-                          <Icon size={15} />
-                          <span>{label}</span>
-                          <ChevronRight size={12} className="sidebar-chevron" />
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-              {headItems.map(({ to, label, icon: Icon }) => (
+              {adminItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
-                  key={to} to={to}
+                  key={to}
+                  to={to}
+                  onClick={onNav}
                   className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
-                  <Icon size={16} /><span>{label}</span>
+                  <Icon size={16} />
+                  <span>{label}</span>
                   <ChevronRight size={12} className="sidebar-chevron" />
                 </NavLink>
               ))}
-          </div>
+
+              <div className="sidebar-scan-group">
+                <p className="sidebar-label">Scanner admin</p>
+                <NavLink
+                  to="/admin/scan-settings"
+                  onClick={onNav}
+                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                >
+                  <ScanLine size={16} />
+                  <span>Scan settings</span>
+                  <ChevronRight size={12} className="sidebar-chevron" />
+                </NavLink>
+                {scanSettingsSubLinks.map(({ subtab, label, Icon }) => {
+                  const to = `/admin/scan-settings?subtab=${subtab}`;
+                  const active = scanSubtabActive === subtab;
+                  return (
+                    <Link
+                      key={subtab}
+                      to={to}
+                      onClick={onNav}
+                      className={`sidebar-link sidebar-sublink ${active ? 'active' : ''}`}
+                    >
+                      <Icon size={15} />
+                      <span>{label}</span>
+                      <ChevronRight size={12} className="sidebar-chevron" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {canSeeHeadEval(user) && (
+            <div className="sidebar-section">
+              <p className="sidebar-label">Head evaluation</p>
+              {headItems.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={onNav}
+                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                  <ChevronRight size={12} className="sidebar-chevron" />
+                </NavLink>
+              ))}
+            </div>
+          )}
         </nav>
 
         <main className="main-content">
@@ -147,5 +196,13 @@ export default function Layout() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function Layout() {
+  return (
+    <SidebarProvider>
+      <LayoutInner />
+    </SidebarProvider>
   );
 }

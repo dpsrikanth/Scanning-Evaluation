@@ -52,12 +52,13 @@ export default class AuthRepository {
   }
 
   async updatePassword(userId, passwordHash, isFirstLogin = 0) {
-    await this.db.execute(
+    const [result] = await this.db.execute(
       `UPDATE Users
        SET PasswordHash = ?, IsFirstLogin = ?, UserStatus = 'Active', PasswordChangedAt = NOW()
-       WHERE UserID = ?`,
+       WHERE UserID = ? AND IsDeleted = 0`,
       [passwordHash, isFirstLogin, userId]
     );
+    return result.affectedRows ?? 0;
   }
 
   // ── OTP management ──────────────────────────────────────────────────────────

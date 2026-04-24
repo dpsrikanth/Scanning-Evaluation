@@ -848,6 +848,10 @@ router.put('/output-paths/:pathId', controller.updateOutputPath);
 router.post('/output-paths/:pathId/set-active', controller.setActiveOutputPath);
 router.delete('/output-paths/:pathId', controller.deleteOutputPath);
 
+router.get('/mirror-config', controller.getMirrorConfig);
+router.put('/mirror-config', controller.updateMirrorConfig);
+router.post('/mirror-config/test', controller.testMirrorConfig);
+
 // ── Sync Scan_Booklets → Eval_Booklets (so uploads appear in Admin → Assign Booklets)
 router.post('/sync-scan-to-eval', async (req, res, next) => {
   try {

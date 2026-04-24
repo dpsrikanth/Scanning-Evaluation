@@ -101,7 +101,8 @@
 }
 .fv-result.matched  { background: var(--color-success-light); color: var(--color-success); }
 .fv-result.mismatch { background: #fef2f2; color: #dc2626; }
-.fv-result.skipped  { background: #f0f9ff; color: #0284c7; }
+.fv-result.skipped   { background: #f0f9ff; color: #0284c7; }
+.fv-result.noprofile { background: #fffbeb; color: #92400e; }
 
 .fv-result-title { margin: 0; font-size: 16px; font-weight: 700; }
 

@@ -21,7 +21,14 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const data = await api.auth.login(username, password, scanStaffLogin ? 'scan' : 'eval');
+      const u = username.trim();
+      const p = password.trim();
+      if (!u) {
+        setError('Enter your username.');
+        setLoading(false);
+        return;
+      }
+      const data = await api.auth.login(u, p, scanStaffLogin ? 'scan' : 'eval');
       const user = data.user || {};
       if (user.roloName != null && user.roleName == null) user.roleName = user.roloName;
       localStorage.setItem('token', data.token);
@@ -71,7 +78,7 @@ export default function Login() {
               <GraduationCap size={24} />
             </div>
             <h1>Welcome back</h1>
-            <p>Sign in to your evaluator account</p>
+            <p>Admin, head evaluator, and evaluator sign-in. Leave the option below off unless you use the scan-station / QC portal.</p>
           </div>
 
           {error && (
@@ -110,13 +117,13 @@ export default function Login() {
               </div>
             </div>
 
-            <label className="auth-scan-toggle">
+            <label className="auth-scan-toggle" title="Evaluation accounts (incl. admin) use the main database. Checking this uses the scanner database only.">
               <input
                 type="checkbox"
                 checked={scanStaffLogin}
                 onChange={(e) => setScanStaffLogin(e.target.checked)}
               />
-              <span>Scanner staff login (operator / vendor QC / customer QC)</span>
+              <span>Scanner staff (operator / vendor QC / customer QC) — not for evaluation admin</span>
             </label>
 
             <div className="auth-meta">

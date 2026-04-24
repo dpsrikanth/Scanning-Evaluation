@@ -460,4 +460,76 @@ export default class ScanAdminService {
     }
     await this.repo.deleteOutputPath(pathId);
   }
+
+  // ── Mirror / offsite copy (after scanner upload) ───────────────────────────
+
+  async getMirrorConfig() {
+    const row = await this.repo.getMirrorConfig();
+    if (!row) {
+      return {
+        mirrorEnabled: false,
+        mirrorMode: 'none',
+        sftpHost: '',
+        sftpPort: 22,
+        sftpUsername: '',
+        sftpPasswordSet: false,
+        sftpRemotePath: '',
+        networkPath: '',
+      };
+    }
+    return {
+      mirrorEnabled: !!row.MirrorEnabled,
+      mirrorMode: row.MirrorMode || 'none',
+      sftpHost: row.SftpHost || '',
+      sftpPort: row.SftpPort || 22,
+      sftpUsername: row.SftpUsername || '',
+      sftpPasswordSet: !!(row.SftpPassword && String(row.SftpPassword).length > 0),
+      sftpRemotePath: row.SftpRemotePath || '',
+      networkPath: row.NetworkPath || '',
+    };
+  }
+
+  async updateMirrorConfig(body) {
+    const mode = String(body.mirrorMode || 'none').toLowerCase();
+    if (!['none', 'sftp', 'network'].includes(mode)) {
+      throw Object.assign(new Error('mirrorMode must be none, sftp, or network'), { statusCode: 400 });
+    }
+    const payload = {
+      mirrorEnabled: !!(body.mirrorEnabled === true || body.mirrorEnabled === 1 || body.mirrorEnabled === '1'),
+      mirrorMode: mode,
+      sftpHost: body.sftpHost,
+      sftpPort: body.sftpPort,
+      sftpUsername: body.sftpUsername,
+      sftpRemotePath: body.sftpRemotePath,
+      networkPath: body.networkPath,
+    };
+    if (body.sftpPassword != null && String(body.sftpPassword).trim().length > 0) {
+      payload.sftpPassword = String(body.sftpPassword);
+    }
+    await this.repo.upsertMirrorConfig(payload);
+    return this.getMirrorConfig();
+  }
+
+  async testMirrorConfig(body) {
+    const { testSftpConnection, testNetworkPathWritable } = await import('../../utils/mirrorStorage.js');
+    const mode = String(body.mirrorMode || 'none').toLowerCase();
+    if (mode === 'sftp') {
+      let pwd = body.sftpPassword;
+      if (pwd == null || String(pwd).length === 0) {
+        const row = await this.repo.getMirrorConfig();
+        pwd = row?.SftpPassword != null ? String(row.SftpPassword) : '';
+      }
+      return testSftpConnection({
+        host: body.sftpHost,
+        port: body.sftpPort || 22,
+        username: body.sftpUsername,
+        password: pwd,
+        remotePath: body.sftpRemotePath,
+      });
+    }
+    if (mode === 'network') {
+      return testNetworkPathWritable(body.networkPath);
+    }
+    throw Object.assign(new Error('Select SFTP or Network mode to test'), { statusCode: 400 });
+  }
 }

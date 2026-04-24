@@ -1,8 +1,8 @@
 /**
  * FaceVerifyModal — identity check before evaluation; user picks camera then verifies face.
  */
-import { useState, useEffect, useRef } from 'react';
-import { Camera, ShieldCheck, ShieldAlert, AlertTriangle, Loader2, X, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { Camera, ShieldAlert, AlertTriangle, Loader2, X, CheckCircle2 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import { api } from '../services/api';
 import './FaceVerifyModal.css';
@@ -20,9 +20,11 @@ async function loadModels() {
   modelsLoaded = true;
 }
 
+const faceDetectOpts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
+
 async function getDescriptor(imgElement) {
   const detection = await faceapi
-    .detectSingleFace(imgElement, new faceapi.TinyFaceDetectorOptions())
+    .detectSingleFace(imgElement, faceDetectOpts)
     .withFaceLandmarks(true)
     .withFaceDescriptor();
   return detection?.descriptor || null;
@@ -71,7 +73,44 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
-  const stopStream = () => streamRef.current?.getTracks().forEach((t) => t.stop());
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  };
+
+  /* <video> only exists in ready/verifying. startCamera() runs while phase is "starting" so ref was null — bind stream here. */
+  useLayoutEffect(() => {
+    if (phase !== 'ready' && phase !== 'verifying') {
+      if (videoRef.current) {
+        try {
+          videoRef.current.srcObject = null;
+        } catch {
+          /* */
+        }
+      }
+      return;
+    }
+    const stream = streamRef.current;
+    if (!stream) return;
+    let attempts = 0;
+    const attach = () => {
+      const v = videoRef.current;
+      if (v) {
+        v.srcObject = stream;
+        v.muted = true;
+        v.playsInline = true;
+        v.setAttribute('playsinline', '');
+        v.setAttribute('webkit-playsinline', '');
+        v.play().catch(() => {});
+        return;
+      }
+      if (attempts < 10) {
+        attempts += 1;
+        requestAnimationFrame(attach);
+      }
+    };
+    attach();
+  }, [phase, selectedDeviceId]);
 
   useEffect(() => {
     let mounted = true;
@@ -136,6 +175,7 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
               },
             },
             { audio: false, video: { deviceId: { ideal: selectedDeviceId } } },
+            { audio: false, video: { deviceId: { exact: selectedDeviceId } } },
           ]
         : [
             { audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } },
@@ -154,19 +194,6 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
         throw new Error('Could not open any camera with these settings');
       }
       streamRef.current = stream;
-      if (videoRef.current) {
-        const v = videoRef.current;
-        v.srcObject = stream;
-        v.muted = true;
-        v.playsInline = true;
-        v.setAttribute('playsinline', '');
-        v.setAttribute('webkit-playsinline', '');
-        await new Promise((r) => {
-          v.onloadedmetadata = () => r();
-        });
-        await v.play().catch(() => {});
-        await waitForVideoFrame(v);
-      }
       setPhase('ready');
       setMessage('Position your face in the frame and click Verify.');
       if (selectedDeviceId) {
@@ -189,11 +216,13 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
       const canvas = await captureWebcamFrame(videoRef.current);
       const captured = await getDescriptor(canvas);
 
-      let faceMatchResult = 'Skipped';
+      let faceMatchResult = 'Error';
       let score = null;
 
+      let errDetail = null;
       if (!captured) {
         faceMatchResult = 'Error';
+        errDetail = { _kind: 'no_face', _msg: 'No clear face in frame — try again with better light and center your face.' };
         setMessage('No face detected in camera. Please ensure good lighting.');
       } else {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -214,13 +243,15 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
               score = Math.max(0, Math.round((1 - distance) * 100));
               faceMatchResult = score >= 50 ? 'Matched' : 'Mismatch';
             } else {
-              faceMatchResult = 'Skipped';
+              faceMatchResult = 'Error';
+              errDetail = { _msg: 'Could not read a face from your profile photo. Ask an admin to re-upload a clear face photo.' };
             }
           } catch {
-            faceMatchResult = 'Skipped';
+            faceMatchResult = 'Error';
+            errDetail = { _msg: 'Could not load your profile image for comparison. Sign out and in, or contact support.' };
           }
         } else {
-          faceMatchResult = 'Skipped';
+          faceMatchResult = 'NoProfile';
         }
       }
 
@@ -242,27 +273,38 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
         0.85
       );
 
-      setResult({ faceMatchResult, score });
+      setResult({ faceMatchResult, score, ...(errDetail && typeof errDetail === 'object' ? errDetail : {}) });
       setPhase('result');
       stopStream();
     } catch (err) {
-      setPhase('error');
-      setMessage(`Verification failed: ${err.message}`);
+      setResult({
+        faceMatchResult: 'Error',
+        score: null,
+        _msg: err?.message || 'Camera capture failed. Click Try again and ensure the preview is showing.',
+      });
+      setMessage('');
+      setPhase('result');
       stopStream();
     }
   };
 
   const handleProceed = () => {
-    if (result?.faceMatchResult === 'Mismatch' && verifyAction === 'block') {
-      onBlock?.();
-    } else {
-      onDone?.({ faceMatchResult: result?.faceMatchResult, score: result?.score });
-    }
+    if (result?.faceMatchResult !== 'Matched') return;
+    onDone?.({ faceMatchResult: result?.faceMatchResult, score: result?.score });
   };
 
-  const handleSkip = () => {
+  const resetToCamera = () => {
+    setResult(null);
+    if (videoRef.current) {
+      try {
+        videoRef.current.srcObject = null;
+      } catch {
+        /* */
+      }
+    }
     stopStream();
-    onDone?.({ faceMatchResult: 'Skipped', score: null });
+    setMessage('Choose which camera to use, then click “Start camera”.');
+    setPhase('pick_camera');
   };
 
   return (
@@ -335,17 +377,34 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
 
           {phase === 'result' && result && (
             <div
-              className={`fv-result ${result.faceMatchResult === 'Matched' ? 'matched' : result.faceMatchResult === 'Mismatch' ? 'mismatch' : 'skipped'}`}
+              className={`fv-result ${
+                result.faceMatchResult === 'Matched'
+                  ? 'matched'
+                  : result.faceMatchResult === 'Mismatch'
+                    ? 'mismatch'
+                    : result.faceMatchResult === 'NoProfile'
+                      ? 'noprofile'
+                      : 'skipped'
+              }`}
             >
               {result.faceMatchResult === 'Matched' && <CheckCircle2 size={48} />}
               {result.faceMatchResult === 'Mismatch' && <ShieldAlert size={48} />}
-              {result.faceMatchResult === 'Skipped' && <ShieldCheck size={48} />}
+              {(result.faceMatchResult === 'Error' || result.faceMatchResult === 'NoProfile') && (
+                <AlertTriangle size={48} style={{ color: 'var(--color-warning, #b45309)' }} />
+              )}
               <h3 className="fv-result-title">
                 {result.faceMatchResult === 'Matched' && 'Identity Verified'}
-                {result.faceMatchResult === 'Mismatch' && 'Face Mismatch Detected'}
-                {result.faceMatchResult === 'Skipped' && 'Verification Skipped'}
+                {result.faceMatchResult === 'Mismatch' && 'Face Mismatch'}
+                {result.faceMatchResult === 'Error' &&
+                  (result._kind === 'no_face' ? 'No Face Detected' : 'Verification Error')}
+                {result.faceMatchResult === 'NoProfile' && 'Profile Photo Required'}
               </h3>
-              {result.score !== null && (
+              {result.faceMatchResult === 'NoProfile' && (
+                <p className="fv-block-text" style={{ textAlign: 'center', maxWidth: 360 }}>
+                  Your account has no profile photo on file, so identity cannot be checked. An administrator must upload your photo.
+                </p>
+              )}
+              {result.score !== null && (result.faceMatchResult === 'Matched' || result.faceMatchResult === 'Mismatch') && (
                 <div className="fv-score-bar">
                   <div className="fv-score-track">
                     <div
@@ -361,12 +420,17 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
                 </div>
               )}
               {result.faceMatchResult === 'Mismatch' && verifyAction !== 'block' && (
-                <p className="fv-warn-text">
-                  <AlertTriangle size={14} /> This session has been flagged for review. You may continue.
+                <p className="fv-warn-text" style={{ borderColor: '#fecaca' }}>
+                  <AlertTriangle size={14} /> Your face does not match the profile on file. Adjust lighting or try again. You cannot continue until verification succeeds.
                 </p>
               )}
               {result.faceMatchResult === 'Mismatch' && verifyAction === 'block' && (
                 <p className="fv-block-text">Access denied. Contact your administrator.</p>
+              )}
+              {result.faceMatchResult === 'Error' && result._msg && (
+                <p className="fv-warn-text" style={{ borderColor: '#fecaca' }}>
+                  {result._msg}
+                </p>
               )}
             </div>
           )}
@@ -380,34 +444,45 @@ export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_con
 
           {phase !== 'result' && phase !== 'error' && <p className="fv-message">{message}</p>}
 
-          <div className="fv-actions">
+          <div className="fv-actions" style={{ flexWrap: 'wrap' }}>
             {phase === 'ready' && (
-              <>
-                <button type="button" className="btn btn-primary" onClick={handleVerify}>
-                  <Camera size={14} /> Verify Identity
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={handleSkip}>
-                  Skip
-                </button>
-              </>
+              <button type="button" className="btn btn-primary" onClick={handleVerify}>
+                <Camera size={14} /> Verify Identity
+              </button>
             )}
-            {phase === 'result' && (
+            {phase === 'result' && result && (
               <>
-                {!(result.faceMatchResult === 'Mismatch' && verifyAction === 'block') && (
+                {result.faceMatchResult === 'Matched' && (
                   <button type="button" className="btn btn-primary" onClick={handleProceed}>
                     <CheckCircle2 size={14} /> Proceed to Evaluation
                   </button>
                 )}
-                {result.faceMatchResult === 'Mismatch' && verifyAction === 'block' && (
-                  <button type="button" className="btn btn-secondary" onClick={() => (window.location.href = '/')}>
-                    <X size={14} /> Go Back
+                {result.faceMatchResult === 'Mismatch' && (
+                  verifyAction === 'block' ? (
+                    <button type="button" className="btn btn-secondary" onClick={() => onBlock?.()}>
+                      <X size={14} /> Go back
+                    </button>
+                  ) : (
+                    <button type="button" className="btn btn-primary" onClick={resetToCamera}>
+                      <Camera size={14} /> Try again
+                    </button>
+                  )
+                )}
+                {result.faceMatchResult === 'Error' && (
+                  <button type="button" className="btn btn-primary" onClick={resetToCamera}>
+                    <Camera size={14} /> Try again
+                  </button>
+                )}
+                {result.faceMatchResult === 'NoProfile' && (
+                  <button type="button" className="btn btn-secondary" onClick={() => onBlock?.()}>
+                    <X size={14} /> Go to dashboard
                   </button>
                 )}
               </>
             )}
             {phase === 'error' && (
-              <button type="button" className="btn btn-secondary" onClick={handleSkip}>
-                Skip Verification
+              <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+                Reload page
               </button>
             )}
           </div>

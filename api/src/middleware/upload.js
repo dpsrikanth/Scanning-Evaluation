@@ -11,6 +11,11 @@ function getCommonBase() {
   return env.storage?.getCommonPath?.() || path.resolve(process.cwd(), env.storage?.commonPath || 'storage');
 }
 
+/** Directory where evaluator profile/registration photos are stored (multer + GET /admin/photo-file). */
+export function getProfilePhotoDir() {
+  return path.join(getCommonBase(), 'profiles');
+}
+
 // ── Profile photos (common API folder, not scan output) ─────────────────────
 const profileStorage = multer.diskStorage({
   destination: (req, _file, cb) => {

@@ -31243,4 +31243,10238 @@ _**Agent (composer-2)**_
 _**Agent (composer-2)**_
 
 <think><details><summary>Thought Process</summary>
-The dev installation section should note that phpMyAdmin is included in the dev Docker Compose setup. The README file will be updated in chunks using search_replace for major sections, while smaller diffs will require full file replacement. The REQUIREMENTS file will include a new "Document history" section and integrate "Shipped capabilities" into the introduction, adding a last updated date and a new implementation alignment section with</details></think>
+The dev installation section should note that phpMyAdmin is included in the dev Docker Compose setup. The README file will be updated in chunks using search_replace for major sections, while smaller diffs will require full file replacement. The REQUIREMENTS file will include a new "Document history" section and integrate "Shipped capabilities" into the introduction, adding a last updated date and a new implementation alignment section with bullet points. I'll add section 8.1 "Implementation notes" and section 10 "Document history", updating the header to Version 1.1, Date 2026-04-21.
+
+Current implementation notes (non-normative):
+- Web UI uses Material indigo palette aligned with scanner-desktop
+- Evaluator session: camera + geolocation + face match vs registration photo
+- Head Evaluator portal for allocation
+- Shared booklet annotations (Eval_BookletSharedAnnotations)
+- Playwright E2E smoke tests in web/ The traceability matrix section will be expanded with new rows, and section 8.1 will be added to document recent DDL changes. A new subsection 9. Document revision history will be added at the end of the REQUIREMENTS file. The updated table will include:
+
+- EVL-006 (annotations) linked to Eval_Annotations and Eval_BookletSharedAnnotations
+- Session / identity linked to Users.ProfilePhotoPath and session context API
+
+The document header will be updated to Version 1.1, Date 2026-04-21.</details></think>
+
+_**Agent (composer-2)**_
+
+Updating all three files: applying README and INSTALLATION changes, then REQUIREMENTS.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+The string to replace was not found in the file.
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+The string to replace was not found in the file.
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/README.md",
+  "pattern": "api/health|3306"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/README.md",
+  "pattern": "api/health|3306",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "README.md"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I duplicated section 5.3.1, as section 5 was already present.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/INSTALLATION.md",
+  "pattern": "5\\.2–5\\.3|§5"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/INSTALLATION.md",
+  "pattern": "5\\.2–5\\.3|§5",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "INSTALLATION.md"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/REQUIREMENTS.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/REQUIREMENTS.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/REQUIREMENTS.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/REQUIREMENTS.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/REQUIREMENTS.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/REQUIREMENTS.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The INSTALLATION section's option C reference to "5.25." needs correction.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/INSTALLATION.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/README.md</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+All good. Provide summary to user.</details></think>
+
+_**Agent (composer-2)**_
+
+Here is what was updated in each file.
+
+### [README.md](README.md)
+- **Repo tree:** `web/e2e/`, `playwright.config.js`; `docker/mysql-init` through **`16_eval_booklet_shared_annotations.sql`**.
+- **Features:** Web theme (indigo, aligned with **scanner-desktop**), evaluator **Session Setup**, **Head Evaluator** routes, **phpMyAdmin**.
+- **Services table:** Fixed **`GET /api/health`**, **phpMyAdmin** on **:8081**, root **`.env` / `.env.example`**.
+- **Logins:** `admin`, `ravi.rajan`, head eval note, `operator1`, QC seed reference.
+- **Evaluation flow** one-liner (sync → assign → session → dashboard → evaluate).
+- **Dev compose:** MySQL **+ phpMyAdmin**, not “MySQL only”.
+- **DB:** Migrations **03+ through 16**; pointers to 14/15/16.
+- **Architecture & tech stack:** Session setup, Head Evaluator, indigo theme; **face-api.js** and **Playwright** on the web row.
+
+### [REQUIREMENTS.md](REQUIREMENTS.md)
+- **Version 1.1**, date **2026-04-21**.
+- **§1.2.1** — Web vs desktop **UI alignment** (informative).
+- **§2.2** — Shipped web behaviour: session setup, Head Evaluator portal, **Eval_BookletSharedAnnotations**.
+- **§3** — **NFR-007** (Playwright smoke tests).
+- **§5** — Data flow: **EvaluationDB** + **allocation** before dashboard.
+- **§8** — Traceability extended (annotations, identity, `15_` / `16_` migrations).
+- **§9** — Document history (1.0 vs 1.1).
+
+### [INSTALLATION.md](INSTALLATION.md)
+- **Clone:** Root **`.env.example`** and Docker overrides.
+- **§3.1** — Migrations through **`16_`…**; **§3.2** step 5 for 15/16.
+- **§4.2** — **phpMyAdmin** URL, login, `PHPMYADMIN_PORT`; `GET /api/health**`.
+- **§4.3** — **`PHPMYADMIN_PORT`** in the example **`.env`**.
+- **§5.1** — Dev compose: **MySQL + phpMyAdmin** (not only MySQL).
+- **§5.4 / §5.5** — **Playwright** (was renumbered; **CORS** is **§5.5**).
+- **§8** — Checklist: health URL, session setup, **allocation**, migrations through **16**, phpMyAdmin.
+- **§11** — Related files: **`.env.example`**, `docker-compose*`, **Playwright** paths.
+- **§6** — Points to **§5.2**, **§5.3**, optional **§5.4**.
+
+---
+
+_**User**_
+
+implement left side menu auto hide (burger menu ), 
+Group menu items by category
+
+After uploading file from scanner-desktop to server, provision to upload to sftp path, in admin setting provide configuration 
+like host/ip, username, password, port , path  and test connection and path verification after addding.
+At present local path is there. apart from sftp other provisions like network shared path.  
+
+
+
+---
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants several features:</details></think>
+
+_**Agent (composer-2)**_
+
+Exploring the layout, admin settings, and scan output/upload flow to implement a collapsible sidebar, grouped navigation, and SFTP/network path configuration with test connectivity.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Layout.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{js,jsx,sql}",
+  "path": "d:/Scanning\u0026Evaluation",
+  "pattern": "Scan output|output path|scan.output"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation",
+  "pattern": "Scan output|output path|scan.output",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "api/src/index.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api/src/modules/scanadmin/scanadmin.service.js"
+    },
+    {
+      "matchCount": 3,
+      "uri": "api/src/config/env.js"
+    },
+    {
+      "matchCount": 4,
+      "uri": "api/src/modules/scan/files.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/services/api.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/Evaluate.jsx"
+    },
+    {
+      "matchCount": 4,
+      "uri": "api/src/modules/scan/scan.controller.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api/src/modules/scanadmin/scanadmin.repository.js"
+    },
+    {
+      "matchCount": 8,
+      "uri": "web/src/pages/ScanSettings.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/ViewBooklet.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api/src/modules/scanadmin/scanadmin.routes.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api/src/middleware/upload.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "docker/mysql-init/12_scan_output_paths.sql"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api/src/config/swagger.js"
+    },
+    {
+      "matchCount": 8,
+      "uri": "api/src/modules/scan/scanOutputPaths.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/components/Layout.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api/src/modules/scanadmin/scanadmin.controller.js"
+    }
+  ],
+  "totalFiles": 17,
+  "totalMatches": 44
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "d:/Scanning\u0026Evaluation/api",
+  "query": "Where is scan upload or booklet file saved after desktop upload?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class ScanRepository {"
+          },
+          {
+            "lineNumber": 138,
+            "text": "async getBookletExpectedPages(bookletId) {"
+          },
+          {
+            "lineNumber": 139,
+            "text": "const [rows] = await "
+          },
+          {
+            "lineNumber": 146,
+            "text": "&#96;,"
+          },
+          {
+            "lineNumber": 147,
+            "text": "      [bookletId]"
+          },
+          {
+            "lineNumber": 148,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 149,
+            "text": "    return rows[0] || null;"
+          },
+          {
+            "lineNumber": 150,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 151
+          },
+          {
+            "lineNumber": 152,
+            "text": "  async lookupBookletByBarcode(barcodeValue) {"
+          },
+          {
+            "lineNumber": 153,
+            "text": "    const [rows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 154,
+            "text": "      &#96;SELECT BookletID, ExamID, PaperID, TotalPagesExpected, ValidationStatus"
+          },
+          {
+            "lineNumber": 155,
+            "text": "       FROM Scan_Booklets"
+          },
+          {
+            "lineNumber": 156,
+            "text": "       WHERE BookletID = ? AND IsDeleted = 0&#96;,"
+          },
+          {
+            "lineNumber": 157,
+            "text": "      [barcodeValue]"
+          },
+          {
+            "lineNumber": 158,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 159,
+            "text": "    return rows[0] || null;"
+          },
+          {
+            "lineNumber": 160,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 161
+          },
+          {
+            "lineNumber": 162,
+            "text": "  async getPaperSettings(examId, paperCode) {"
+          },
+          {
+            "lineNumber": 163,
+            "text": "    const [rows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 164,
+            "text": "      &#96;SELECT p.PaperID, p.PaperCode, p.PaperName, p.TotalPages, p.BookletPageCounts"
+          },
+          {
+            "lineNumber": 165,
+            "text": "       FROM Scan_Papers p"
+          },
+          {
+            "lineNumber": 166,
+            "text": "       WHERE p.ExamID = ? AND p.PaperCode = ? AND p.IsDeleted = 0&#96;,"
+          },
+          {
+            "lineNumber": 167,
+            "text": "      [examId, paperCode]"
+          },
+          {
+            "lineNumber": 168,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 169,
+            "text": "    return rows[0] || null;"
+          },
+          {
+            "lineNumber": 170,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 171
+          },
+          {
+            "lineNumber": 172,
+            "text": "  /**"
+          },
+          {
+            "lineNumber": 173,
+            "text": "   * Resolve ExamID and PaperID from a bookletId string (format: EXAMCODE_PAPERCODE_...)."
+          },
+          {
+            "lineNumber": 174,
+            "text": "   * Returns { examId, paperId } or null if not found or format unrecognized."
+          },
+          {
+            "lineNumber": 175,
+            "text": "   */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 367,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 366
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.repository.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.401589035987854
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 10,
+            "text": "function getCommonBase() {"
+          },
+          {
+            "lineNumber": 11,
+            "text": "  return env.storage?.getCommonPath?.() || path.resolve(process.cwd(), env.storage?.commonPath || 'storage');"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 12,
+            "text": "}"
+          },
+          {
+            "lineNumber": 13
+          },
+          {
+            "lineNumber": 14,
+            "text": "// ── Profile photos (common API folder, not scan output) ─────────────────────"
+          },
+          {
+            "lineNumber": 15,
+            "text": "const profileStorage = multer.diskStorage({"
+          },
+          {
+            "lineNumber": 16,
+            "text": "  destination: (req, _file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 17,
+            "text": "    const dir = path.join(getCommonBase(), 'profiles');"
+          },
+          {
+            "lineNumber": 18,
+            "text": "    ensureDir(dir);"
+          },
+          {
+            "lineNumber": 19,
+            "text": "    cb(null, dir);"
+          },
+          {
+            "lineNumber": 20,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 21,
+            "text": "  filename: (req, file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 22,
+            "text": "    const userId = req.params.userId || req.user?.userId || 'unknown';"
+          },
+          {
+            "lineNumber": 23,
+            "text": "    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';"
+          },
+          {
+            "lineNumber": 24,
+            "text": "    cb(null, &#96;profile_${userId}_${Date.now()}${ext}&#96;);"
+          },
+          {
+            "lineNumber": 25,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 26,
+            "text": "});"
+          },
+          {
+            "lineNumber": 27
+          },
+          {
+            "lineNumber": 28,
+            "text": "// ── Evaluator captured photos (common API folder) ───────────────────────────"
+          },
+          {
+            "lineNumber": 29,
+            "text": "const capturedStorage = multer.diskStorage({"
+          },
+          {
+            "lineNumber": 30,
+            "text": "  destination: (_req, _file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 31,
+            "text": "    const dir = path.join(getCommonBase(), 'captured_photos');"
+          },
+          {
+            "lineNumber": 32,
+            "text": "    ensureDir(dir);"
+          },
+          {
+            "lineNumber": 33,
+            "text": "    cb(null, dir);"
+          },
+          {
+            "lineNumber": 34,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 35,
+            "text": "  filename: (_req, file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 36,
+            "text": "    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';"
+          },
+          {
+            "lineNumber": 37,
+            "text": "    cb(null, &#96;capture_${Date.now()}${ext}&#96;);"
+          },
+          {
+            "lineNumber": 38,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 39,
+            "text": "});"
+          },
+          {
+            "lineNumber": 40
+          },
+          {
+            "lineNumber": 41,
+            "text": "// ── Question paper documents (common API folder) ────────────────────────────"
+          },
+          {
+            "lineNumber": 42,
+            "text": "const questionPaperStorage = multer.diskStorage({"
+          },
+          {
+            "lineNumber": 43,
+            "text": "  destination: (_req, _file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    const dir = path.join(getCommonBase(), 'question_papers');"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    ensureDir(dir);"
+          },
+          {
+            "lineNumber": 46,
+            "text": "    cb(null, dir);"
+          },
+          {
+            "lineNumber": 47,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 48,
+            "text": "  filename: (req, file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 49,
+            "text": "    const paperId = req.params.paperId || 'unknown';"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    const ext = path.extname(file.originalname).toLowerCase() || '.pdf';"
+          },
+          {
+            "lineNumber": 51,
+            "text": "    cb(null, &#96;qpaper_${paperId}_${Date.now()}${ext}&#96;);"
+          },
+          {
+            "lineNumber": 52,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 53,
+            "text": "});"
+          },
+          {
+            "lineNumber": 54
+          },
+          {
+            "lineNumber": 55,
+            "text": "const questionPaperFilter = (_req, file, cb) =\u003e {"
+          },
+          {
+            "lineNumber": 56,
+            "text": "  const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];"
+          },
+          {
+            "lineNumber": 57,
+            "text": "  const ext = path.extname(file.originalname).toLowerCase();"
+          },
+          {
+            "lineNumber": 58,
+            "text": "  if (allowed.includes(ext)) return cb(null, true);"
+          },
+          {
+            "lineNumber": 60,
+            "text": ";"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 59
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 7
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\middleware\\upload.js",
+        "signatures": {}
+      },
+      "score": 0.40140366554260254
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 100,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 101,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 102,
+            "text": " * /api/scan/booklet/{bookletId}:"
+          },
+          {
+            "lineNumber": 103,
+            "text": " *   get:"
+          },
+          {
+            "lineNumber": 104,
+            "text": " *     tags: [Scan]"
+          },
+          {
+            "lineNumber": 105,
+            "text": " *     summary: Get scan status for a booklet"
+          },
+          {
+            "lineNumber": 106,
+            "text": " *     description: Returns scan header and page list for a previously scanned booklet."
+          },
+          {
+            "lineNumber": 107,
+            "text": " *     parameters:"
+          },
+          {
+            "lineNumber": 108,
+            "text": " *       - in: path"
+          },
+          {
+            "lineNumber": 109,
+            "text": " *         name: bookletId"
+          },
+          {
+            "lineNumber": 110,
+            "text": " *         required: true"
+          },
+          {
+            "lineNumber": 111,
+            "text": " *         schema: { type: string }"
+          },
+          {
+            "lineNumber": 112,
+            "text": " *         example: 110293000124"
+          },
+          {
+            "lineNumber": 113,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 114,
+            "text": " *       200:"
+          },
+          {
+            "lineNumber": 115,
+            "text": " *         description: Booklet scan data"
+          },
+          {
+            "lineNumber": 116,
+            "text": " *       404:"
+          },
+          {
+            "lineNumber": 117,
+            "text": " *         description: Booklet not found"
+          },
+          {
+            "lineNumber": 118,
+            "text": " */"
+          },
+          {
+            "lineNumber": 119,
+            "text": "router.get('/booklet/:bookletId', controller.getBookletInfo);"
+          },
+          {
+            "lineNumber": 120
+          },
+          {
+            "lineNumber": 121,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 122,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 123,
+            "text": " * /api/scan/booklet:"
+          },
+          {
+            "lineNumber": 124,
+            "text": " *   post:"
+          },
+          {
+            "lineNumber": 125,
+            "text": " *     tags: [Scan]"
+          },
+          {
+            "lineNumber": 126,
+            "text": " *     summary: Save a newly scanned booklet"
+          },
+          {
+            "lineNumber": 127,
+            "text": " *     description: |"
+          },
+          {
+            "lineNumber": 128,
+            "text": " *       Persists the booklet header plus all individual page records."
+          },
+          {
+            "lineNumber": 129,
+            "text": " *       Called by the .NET desktop app after scanning is complete and"
+          },
+          {
+            "lineNumber": 130,
+            "text": " *       images have been saved locally."
+          },
+          {
+            "lineNumber": 131,
+            "text": " *     requestBody:"
+          },
+          {
+            "lineNumber": 132,
+            "text": " *       required: true"
+          },
+          {
+            "lineNumber": 133,
+            "text": " *       content:"
+          },
+          {
+            "lineNumber": 134,
+            "text": " *         application/json:"
+          },
+          {
+            "lineNumber": 135,
+            "text": " *           schema:"
+          },
+          {
+            "lineNumber": 136,
+            "text": " *             $ref: '#/components/schemas/SaveBookletRequest'"
+          },
+          {
+            "lineNumber": 137,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 138,
+            "text": " *       201:"
+          },
+          {
+            "lineNumber": 139,
+            "text": " *         description: Booklet saved successfully"
+          },
+          {
+            "lineNumber": 140,
+            "text": " *       400:"
+          },
+          {
+            "lineNumber": 141,
+            "text": " *         description: Validation error"
+          },
+          {
+            "lineNumber": 142,
+            "text": " *       409:"
+          },
+          {
+            "lineNumber": 143,
+            "text": " *         description: Booklet already exists"
+          },
+          {
+            "lineNumber": 144,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 143
+          },
+          "startPosition": {
+            "column": 80,
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.routes.js",
+        "signatures": {}
+      },
+      "score": 0.36938899755477905
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class ScanService {"
+          },
+          {
+            "lineNumber": 49
+          },
+          {
+            "lineNumber": 50
+          },
+          {
+            "lineNumber": 51,
+            "text": "  async saveScannedBooklet(bookletData, pages) {"
+          },
+          {
+            "lineNumber": 52,
+            "text": "    if (!bookletData.bookletId) {"
+          },
+          {
+            "lineNumber": 53,
+            "text": "      throw Object.assign(new Error('bookletId is required'), { statusCode: 400 });"
+          },
+          {
+            "lineNumber": 54,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 55
+          },
+          {
+            "lineNumber": 56,
+            "text": "    // Normalise numeric IDs (multipart / JSON may send strings)"
+          },
+          {
+            "lineNumber": 57,
+            "text": "    const num = (v) =\u003e {"
+          },
+          {
+            "lineNumber": 58,
+            "text": "      const n = Number(v);"
+          },
+          {
+            "lineNumber": 59,
+            "text": "      return Number.isFinite(n) \u0026\u0026 n \u003e 0 ? n : 0;"
+          },
+          {
+            "lineNumber": 60,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 61,
+            "text": "    bookletData.examId = num(bookletData.examId);"
+          },
+          {
+            "lineNumber": 62,
+            "text": "    bookletData.paperId = num(bookletData.paperId);"
+          },
+          {
+            "lineNumber": 63,
+            "text": "    bookletData.locationId = num(bookletData.locationId);"
+          },
+          {
+            "lineNumber": 64
+          },
+          {
+            "lineNumber": 65,
+            "text": "    // Fallback 1: explicit examCode + paperCode from desktop queue (barcode metadata)"
+          },
+          {
+            "lineNumber": 66,
+            "text": "    if (!bookletData.examId || !bookletData.paperId) {"
+          },
+          {
+            "lineNumber": 67,
+            "text": "      const ec = bookletData.examCode != null ? String(bookletData.examCode).trim() : '';"
+          },
+          {
+            "lineNumber": 68,
+            "text": "      const pc = bookletData.paperCode != null ? String(bookletData.paperCode).trim() : '';"
+          },
+          {
+            "lineNumber": 69,
+            "text": "      if (ec \u0026\u0026 pc) {"
+          },
+          {
+            "lineNumber": 70,
+            "text": "        const byCodes = await this.repo.resolveExamAndPaperFromCodes(ec, pc);"
+          },
+          {
+            "lineNumber": 71,
+            "text": "        if (byCodes) {"
+          },
+          {
+            "lineNumber": 72,
+            "text": "          bookletData.examId = bookletData.examId || byCodes.examId;"
+          },
+          {
+            "lineNumber": 73,
+            "text": "          bookletData.paperId = bookletData.paperId || byCodes.paperId;"
+          },
+          {
+            "lineNumber": 74,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 75,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 76,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 77
+          },
+          {
+            "lineNumber": 78,
+            "text": "    // Fallback 2: bookletId prefix EXAMCODE_PAPERCODE_..."
+          },
+          {
+            "lineNumber": 79,
+            "text": "    if"
+          },
+          {
+            "lineNumber": 164,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 185,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 184
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.service.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36370694637298584
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 7,
+            "text": "import { getActiveScanOutputPath } from './scanOutputPaths.js';"
+          },
+          {
+            "lineNumber": 8
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 9,
+            "text": "export default class ScanController {"
+          },
+          {
+            "lineNumber": 10,
+            "text": "  constructor(scanService) {"
+          },
+          {
+            "lineNumber": 11,
+            "text": "    this.service = scanService;"
+          },
+          {
+            "lineNumber": 12,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 13
+          },
+          {
+            "lineNumber": 14,
+            "text": "  getSettings = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 15,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 16,
+            "text": "      const locationId = req.user.locationId || req.query.locationId;"
+          },
+          {
+            "lineNumber": 17,
+            "text": "      const result = await this.service.getSettings(locationId);"
+          },
+          {
+            "lineNumber": 18,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 19,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 20,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 21,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 22,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 23
+          },
+          {
+            "lineNumber": 24,
+            "text": "  lookupBarcode = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 25,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 26,
+            "text": "      const { barcodeValue } = req.params;"
+          },
+          {
+            "lineNumber": 27,
+            "text": "      const result = await this.service.lookupBarcode(barcodeValue);"
+          },
+          {
+            "lineNumber": 28,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 29,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 30,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 31,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 32,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 33
+          },
+          {
+            "lineNumber": 34,
+            "text": "  getBookletInfo = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 35,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 36,
+            "text": "      const { bookletId } = req.params;"
+          },
+          {
+            "lineNumber": 37,
+            "text": "      const result = await this.service.getBookletInfo(bookletId);"
+          },
+          {
+            "lineNumber": 38,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 40,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 41,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 42,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 43
+          },
+          {
+            "lineNumber": 44,
+            "text": "  /**"
+          },
+          {
+            "lineNumber": 45,
+            "text": "   * POST /api/scan/booklet — receives JSON only (booklet metadata + page records with image paths)."
+          },
+          {
+            "lineNumber": 46,
+            "text": "   * No files are saved on the server; only DB rows (Scan_Booklets, Scan_BookletPages) are written."
+          },
+          {
+            "lineNumber": 47,
+            "text": "   * The actual scanned images/PDF remain on the scanner-desktop machine (e.g. C:\\ScanOutput\\booklets\\\u003cbookletId\u003e\\)."
+          },
+          {
+            "lineNumber": 48,
+            "text": "   */"
+          },
+          {
+            "lineNumber": 49,
+            "text": "  saveBooklet = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    const requestId = req.requestId || '-';"
+          },
+          {
+            "lineNumber": 51,
+            "text": "    const workstation = req.headers['x-workstation'] || 'unknown';"
+          },
+          {
+            "lineNumber": 52,
+            "text": "    const { booklet, pages } = req.body || {};"
+          },
+          {
+            "lineNumber": 53
+          },
+          {
+            "lineNumber": 54,
+            "text": "    // ── Upload request log ──────────────────────────────────────────────────"
+          },
+          {
+            "lineNumber": 55,
+            "text": "    logger.info('UPLOAD_REQUEST', {"
+          },
+          {
+            "lineNumber": 56,
+            "text": "      module: 'upload',"
+          },
+          {
+            "lineNumber": 57,
+            "text": "      requestId,"
+          },
+          {
+            "lineNumber": 58,
+            "text": "      workstation,"
+          },
+          {
+            "lineNumber": 59,
+            "text": "      operator: req.user?.username,"
+          },
+          {
+            "lineNumber": 60,
+            "text": "      bookletId: booklet?.bookletId,"
+          },
+          {
+            "lineNumber": 61,
+            "text": "      examId: booklet?.examId,"
+          },
+          {
+            "lineNumber": 62,
+            "text": "      paperId: booklet?.paperId,"
+          },
+          {
+            "lineNumber": 63,
+            "text": "      locationId: booklet?.locationId,"
+          },
+          {
+            "lineNumber": 64,
+            "text": "      workstationId: booklet?.workstationId,"
+          },
+          {
+            "lineNumber": 65,
+            "text": "      totalPagesExpected: booklet?.totalPagesExpected,"
+          },
+          {
+            "lineNumber": 66,
+            "text": "      totalPagesScanned: booklet?.totalPagesScanned,"
+          },
+          {
+            "lineNumber": 67,
+            "text": "      pageCount: Array.isArray(pages) ? pages.length : 0,"
+          },
+          {
+            "lineNumber": 68,
+            "text": "      scanDate: booklet?.scanDate,"
+          },
+          {
+            "lineNumber": 69,
+            "text": "      filePath: booklet?.filePath,"
+          },
+          {
+            "lineNumber": 70,
+            "text": "      ip: req.ip,"
+          },
+          {
+            "lineNumber": 71,
+            "text": "    });"
+          },
+          {
+            "lineNumber": 72
+          },
+          {
+            "lineNumber": 73,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 74,
+            "text": "      if (!booklet)"
+          },
+          {
+            "lineNumber": 147,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 251,
+            "text": ";"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 252,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 251
+          },
+          "startPosition": {
+            "column": 64,
+            "line": 5
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.controller.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 3
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 3
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 4
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 3
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.31329846382141113
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 10,
+            "text": "import { ok } from '../../utils/response.js';"
+          },
+          {
+            "lineNumber": 11
+          },
+          {
+            "lineNumber": 12,
+            "text": "const router = Router();"
+          },
+          {
+            "lineNumber": 13,
+            "text": "router.use(authenticate);"
+          },
+          {
+            "lineNumber": 14
+          },
+          {
+            "lineNumber": 15,
+            "text": "/** Detect how many page images exist in a booklet folder (page_NNN.jpg or {bookletId}_Page_NN.jpg). */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 16,
+            "text": "function countPageImages(dir, bookletId) {"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  if (!existsSync(dir)) return { count: 0, hasPdf: false };"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  const files = readdirSync(dir);"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  const hasPdf = files.some((f) =\u003e f.toLowerCase() === 'booklet.pdf');"
+          },
+          {
+            "lineNumber": 20,
+            "text": "  const page3 = files.filter((f) =\u003e /^page_\\d{3}\\.jpg$/i.test(f)).length;"
+          },
+          {
+            "lineNumber": 21,
+            "text": "  const page2 = files.filter((f) =\u003e new RegExp(&#96;^${escapeRe(bookletId)}_Page_\\\\d{2}\\\\.jpg$&#96;, 'i').test(f)).length;"
+          },
+          {
+            "lineNumber": 22,
+            "text": "  const count = page3 \u003e 0 ? page3 : page2;"
+          },
+          {
+            "lineNumber": 23,
+            "text": "  return { count, hasPdf };"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 24,
+            "text": "}"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 25,
+            "text": "function escapeRe(s) {"
+          },
+          {
+            "lineNumber": 26,
+            "text": "  return String(s).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$\u0026');"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 27,
+            "text": "}"
+          },
+          {
+            "lineNumber": 28
+          },
+          {
+            "lineNumber": 29,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 30,
+            "text": " * GET /api/files/booklet/:bookletId/availability"
+          },
+          {
+            "lineNumber": 31,
+            "text": " * Returns whether the answer sheet files exist on the server (page images or PDF)."
+          },
+          {
+            "lineNumber": 32,
+            "text": " * Uses configured scan output paths (DB or env)."
+          },
+          {
+            "lineNumber": 33,
+            "text": " * Use ?debug=1 to include which paths were checked."
+          },
+          {
+            "lineNumber": 34,
+            "text": " */"
+          },
+          {
+            "lineNumber": 35,
+            "text": "router.get('/booklet/:bookletId/availability', enforceScanBookletLocationAccess, async (req, res) =\u003e {"
+          },
+          {
+            "lineNumber": 36,
+            "text": "  const { bookletId } = req.params;"
+          },
+          {
+            "lineNumber": 37,
+            "text": "  const debug = req.query.debug === '1' || req.query.debug === 'true';"
+          },
+          {
+            "lineNumber": 38,
+            "text": "  if (!bookletId || bookletId.includes('..') || bookletId.includes('/')) {"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    return res.status(400).json({ success: true, data: { available: false, totalPages: 0, hasPdf: false, message: 'Invalid booklet ID' } });"
+          },
+          {
+            "lineNumber": 40,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 41,
+            "text": "  const roots = await getScanOutputPathsForReading(getScanDb());"
+          },
+          {
+            "lineNumber": 42,
+            "text": "  const baseDirs = [];"
+          },
+          {
+            "lineNumber": 43,
+            "text": "  for (const root of roots) {"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    baseDirs.push(resolve(join(root, 'booklets', bookletId)));"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    baseDirs.push(resolve(join(root, bookletId)));"
+          },
+          {
+            "lineNumber": 46,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 47,
+            "text": "  const checked = debug ? [] : null;"
+          },
+          {
+            "lineNumber": 48,
+            "text": "  let totalPages = 0;"
+          },
+          {
+            "lineNumber": 49,
+            "text": "  let hasPdf = false;"
+          },
+          {
+            "lineNumber": 50,
+            "text": "  for (const dir of baseDirs) {"
+          },
+          {
+            "lineNumber": 51,
+            "text": "    if (debug) checked.push({ path: dir, exists: existsSync(dir) });"
+          },
+          {
+            "lineNumber": 52,
+            "text": "    const { count, hasPdf: pdf } = countPageImages(dir, bookletId);"
+          },
+          {
+            "lineNumber": 53,
+            "text": "    if (count \u003e 0 || pdf) {"
+          },
+          {
+            "lineNumber": 54,
+            "text": "      totalPages = count;"
+          },
+          {
+            "lineNumber": 55,
+            "text": "      hasPdf = pdf;"
+          },
+          {
+            "lineNumber": 56,
+            "text": "      const pdfOnly = hasPdf \u0026\u0026 totalPages === 0;"
+          },
+          {
+            "lineNumber": 57,
+            "text": "      return ok(res, {"
+          },
+          {
+            "lineNumber": 58,
+            "text": "        available: true,"
+          },
+          {
+            "lineNumber": 59,
+            "text": "        totalPages,"
+          },
+          {
+            "lineNumber": 60,
+            "text": "        hasPdf"
+          },
+          {
+            "lineNumber": 69
+          },
+          {
+            "lineNumber": 81,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 80
+          },
+          "startPosition": {
+            "column": 51,
+            "line": 8
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\files.routes.js",
+        "signatures": {}
+      },
+      "score": 0.29278019070625305
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "import multer from 'multer';"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import path from 'path';"
+          },
+          {
+            "lineNumber": 3,
+            "text": "import fs from 'fs';"
+          },
+          {
+            "lineNumber": 4,
+            "text": "import env from '../config/env.js';"
+          },
+          {
+            "lineNumber": 5
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6,
+            "text": "function ensureDir(dir) {"
+          },
+          {
+            "lineNumber": 7,
+            "text": "  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 8,
+            "text": "}"
+          },
+          {
+            "lineNumber": 9
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 10,
+            "text": "function getCommonBase() {"
+          },
+          {
+            "lineNumber": 11,
+            "text": "  return env.storage?.getCommonPath?.() ||"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 12,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 11
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\middleware\\upload.js",
+        "signatures": {}
+      },
+      "score": 0.28510475158691406
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class ScanRepository {"
+          },
+          {
+            "lineNumber": 162,
+            "text": "async getPaperSettings(examId, paperCode) {"
+          },
+          {
+            "lineNumber": 163,
+            "text": "const [rows] = await "
+          },
+          {
+            "lineNumber": 166,
+            "text": "&#96;,"
+          },
+          {
+            "lineNumber": 167,
+            "text": "      [examId, paperCode]"
+          },
+          {
+            "lineNumber": 168,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 169,
+            "text": "    return rows[0] || null;"
+          },
+          {
+            "lineNumber": 170,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 171
+          },
+          {
+            "lineNumber": 172,
+            "text": "  /**"
+          },
+          {
+            "lineNumber": 173,
+            "text": "   * Resolve ExamID and PaperID from a bookletId string (format: EXAMCODE_PAPERCODE_...)."
+          },
+          {
+            "lineNumber": 174,
+            "text": "   * Returns { examId, paperId } or null if not found or format unrecognized."
+          },
+          {
+            "lineNumber": 175,
+            "text": "   */"
+          },
+          {
+            "lineNumber": 176,
+            "text": "  async resolveExamAndPaperFromBookletId(bookletId) {"
+          },
+          {
+            "lineNumber": 177,
+            "text": "    if (!bookletId || typeof bookletId !== 'string') return null;"
+          },
+          {
+            "lineNumber": 178,
+            "text": "    const parts = bookletId.trim().split('_');"
+          },
+          {
+            "lineNumber": 179,
+            "text": "    if (parts.length \u003c 2) return null;"
+          },
+          {
+            "lineNumber": 180,
+            "text": "    const examCode = parts[0];"
+          },
+          {
+            "lineNumber": 181,
+            "text": "    const paperCode = parts[1];"
+          },
+          {
+            "lineNumber": 182,
+            "text": "    const [examRows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 183,
+            "text": "      'SELECT ExamID FROM Scan_Exams WHERE ExamCode = ? AND IsDeleted = 0 LIMIT 1',"
+          },
+          {
+            "lineNumber": 184,
+            "text": "      [examCode]"
+          },
+          {
+            "lineNumber": 185,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 186,
+            "text": "    if (!examRows || examRows.length === 0) return null;"
+          },
+          {
+            "lineNumber": 194,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 367,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 366
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.repository.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.28334349393844604
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 15,
+            "text": "export default class AdminService {"
+          },
+          {
+            "lineNumber": 127,
+            "text": "async testSmtpConnection(config) {"
+          },
+          {
+            "lineNumber": 131,
+            "text": " catch (err) {"
+          },
+          {
+            "lineNumber": 132,
+            "text": "      throw Object.assign(new Error(&#96;SMTP test failed: ${err.message}&#96;), { statusCode: 400 });"
+          },
+          {
+            "lineNumber": 133,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 134,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 135
+          },
+          {
+            "lineNumber": 136,
+            "text": "  // ── Question Paper Config ────────────────────────────────────────────────────"
+          },
+          {
+            "lineNumber": 137,
+            "text": "  async listExamsForQPaper() {"
+          },
+          {
+            "lineNumber": 138,
+            "text": "    return this.repo.listExams();"
+          },
+          {
+            "lineNumber": 139,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 295,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 294
+          },
+          "startPosition": {
+            "line": 14
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\admin\\admin.service.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 13
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 13
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 14
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 13
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.28306376934051514
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 3,
+            "text": "export default class EvalController {"
+          },
+          {
+            "lineNumber": 67,
+            "text": "async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 71,
+            "text": "const result = await ("
+          },
+          {
+            "lineNumber": 72,
+            "text": "        parseInt(evaluationId), totalMarks, totalPages, paperId || null"
+          },
+          {
+            "lineNumber": 73,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 74,
+            "text": "      return ok(res, result, 'Evaluation submitted');"
+          },
+          {
+            "lineNumber": 75,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 76,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 77,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 78,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 79
+          },
+          {
+            "lineNumber": 80,
+            "text": "  logPageVisit = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 81,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 82,
+            "text": "      const { evaluationId } = req.params;"
+          },
+          {
+            "lineNumber": 83,
+            "text": "      const { pageNumber, durationSeconds, zoomLevel, annotationsMade } = req.body;"
+          },
+          {
+            "lineNumber": 84,
+            "text": "      await this.service.logPageVisit("
+          },
+          {
+            "lineNumber": 85,
+            "text": "        parseInt(evaluationId), pageNumber, durationSeconds, zoomLevel, annotationsMade"
+          },
+          {
+            "lineNumber": 86,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 87,
+            "text": "      return ok(res, null, 'Page visit logged');"
+          },
+          {
+            "lineNumber": 88,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 89,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 90,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 91,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 92
+          },
+          {
+            "lineNumber": 93,
+            "text": "  saveAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 94,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 95,
+            "text": "      const { evaluationId } = req.params;"
+          },
+          {
+            "lineNumber": 96,
+            "text": "      const { pageNumber, annotations } = req.body;"
+          },
+          {
+            "lineNumber": 97,
+            "text": "      const result = await this.service.saveAnnotations("
+          },
+          {
+            "lineNumber": 98,
+            "text": "        parseInt(evaluationId), pageNumber, annotations || []"
+          },
+          {
+            "lineNumber": 99,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 100,
+            "text": "      return ok(res, result, 'Annotations saved');"
+          },
+          {
+            "lineNumber": 101,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 102,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 103,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 104,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 105
+          },
+          {
+            "lineNumber": 106,
+            "text": "  getAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 107,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 108,
+            "text": "      const result = await this.service.getAnnotations(parseInt(req.params.evaluationId));"
+          },
+          {
+            "lineNumber": 109,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 110,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 111,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 112,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 113,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 114
+          },
+          {
+            "lineNumber": 115,
+            "text": "  getBookletSharedAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 116,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 117,
+            "text": "      const result = await this.service.getBookletSharedAnnotations(req.params.bookletId);"
+          },
+          {
+            "lineNumber": 118,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 119,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 120,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 121,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 122,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 123
+          },
+          {
+            "lineNumber": 124,
+            "text": "  saveBookletSharedAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 125,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 126,
+            "text": "      const { pageNumber, items } = req.body || {};"
+          },
+          {
+            "lineNumber": 137,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 169,
+            "text": ";"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 170,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 169
+          },
+          "startPosition": {
+            "line": 2
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.controller.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 3
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 3
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 4
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 3
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.27138909697532654
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "import { config } from 'dotenv';"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import path from 'path';"
+          },
+          {
+            "lineNumber": 3,
+            "text": "config();"
+          },
+          {
+            "lineNumber": 4
+          },
+          {
+            "lineNumber": 5,
+            "text": "const env = {"
+          },
+          {
+            "lineNumber": 6,
+            "text": "  nodeEnv: process.env.NODE_ENV || 'development',"
+          },
+          {
+            "lineNumber": 7,
+            "text": "  /** Swagger UI at /api/docs — off if DISABLE_SWAGGER=true; in production also set ENABLE_SWAGGER=true (Docker compose includes this). */"
+          },
+          {
+            "lineNumber": 8,
+            "text": "  enableSwagger:"
+          },
+          {
+            "lineNumber": 9,
+            "text": "    process.env.DISABLE_SWAGGER !== 'true' \u0026\u0026"
+          },
+          {
+            "lineNumber": 10,
+            "text": "    ((process.env.NODE_ENV || 'development') !== 'production' ||"
+          },
+          {
+            "lineNumber": 11,
+            "text": "      process.env.ENABLE_SWAGGER === 'true' ||"
+          },
+          {
+            "lineNumber": 12,
+            "text": "      process.env.ENABLE_SWAGGER === '1'),"
+          },
+          {
+            "lineNumber": 13,
+            "text": "  port: parseInt(process.env.PORT || '4000', 10),"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  // Supports comma-separated list of allowed origins e.g. http://localhost:5173,http://localhost:8080"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  clientUrls: (process.env.CLIENT_URL || 'http://localhost:5173')"
+          },
+          {
+            "lineNumber": 16,
+            "text": "    .split(',').map(u =\u003e u.trim()).filter(Boolean),"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  // Keep single clientUrl for backward compat"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  clientUrl: process.env.CLIENT_URL?.split(',')[0].trim() || 'http://localhost:5173',"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  swaggerUiOrigin: process.env.SWAGGER_UI_ORIGIN || 'http://localhost:5173',"
+          },
+          {
+            "lineNumber": 20
+          },
+          {
+            "lineNumber": 21,
+            "text": "  scanDb: {"
+          },
+          {
+            "lineNumber": 22,
+            "text": "    host: process.env.SCAN_DB_HOST || 'localhost',"
+          },
+          {
+            "lineNumber": 23,
+            "text": "    port: parseInt(process.env.SCAN_DB_PORT || '3307', 10),"
+          },
+          {
+            "lineNumber": 24,
+            "text": "    user: process.env.SCAN_DB_USER || 'root',"
+          },
+          {
+            "lineNumber": 25,
+            "text": "    password: process.env.SCAN_DB_PASSWORD || '',"
+          },
+          {
+            "lineNumber": 26,
+            "text": "    database: process.env.SCAN_DB_NAME || 'ScanningDB',"
+          },
+          {
+            "lineNumber": 27,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 28
+          },
+          {
+            "lineNumber": 29,
+            "text": "  evalDb: {"
+          },
+          {
+            "lineNumber": 30,
+            "text": "    host: process.env.EVAL_DB_HOST || 'localhost',"
+          },
+          {
+            "lineNumber": 31,
+            "text": "    port: parseInt(process.env.EVAL_DB_PORT || '3307', 10),"
+          },
+          {
+            "lineNumber": 32,
+            "text": "    user: process.env.EVAL_DB_USER || 'root',"
+          },
+          {
+            "lineNumber": 33,
+            "text": "    password: process.env.EVAL_DB_PASSWORD || '',"
+          },
+          {
+            "lineNumber": 34,
+            "text": "    database: process.env.EVAL_DB_NAME || 'EvaluationDB',"
+          },
+          {
+            "lineNumber": 35,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 36
+          },
+          {
+            "lineNumber": 37,
+            "text": "  jwt: {"
+          },
+          {
+            "lineNumber": 38,
+            "text": "    secret: process.env.JWT_SECRET || 'dev-secret-change-me',"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    expiresIn: process.env.JWT_EXPIRES_IN || '8h',"
+          },
+          {
+            "lineNumber": 40,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 41
+          },
+          {
+            "lineNumber": 42,
+            "text": "  storage: {"
+          },
+          {
+            "lineNumber": 43,
+            "text": "    mode: process.env.STORAGE_MODE || 'local',"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    // Common path in API folder for profile photos, captured photos, question papers (not scanned booklets)"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    commonPath: process.env.COMMON_STORAGE_PATH || 'storage',"
+          },
+          {
+            "lineNumber": 58,
+            "text": ","
+          },
+          {
+            "lineNumber": 59,
+            "text": "};"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 58
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\config\\env.js",
+        "signatures": {}
+      },
+      "score": 0.2618792951107025
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 7,
+            "text": "const options = {"
+          },
+          {
+            "lineNumber": 125
+          },
+          {
+            "lineNumber": 126,
+            "text": "        SaveBookletRequest: {"
+          },
+          {
+            "lineNumber": 127,
+            "text": "          type: 'object',"
+          },
+          {
+            "lineNumber": 128,
+            "text": "          required: ['booklet', 'pages'],"
+          },
+          {
+            "lineNumber": 129,
+            "text": "          properties: {"
+          },
+          {
+            "lineNumber": 130,
+            "text": "            booklet: {"
+          },
+          {
+            "lineNumber": 131,
+            "text": "              type: 'object',"
+          },
+          {
+            "lineNumber": 132,
+            "text": "              required: ['bookletId', 'examId', 'paperId', 'locationId', 'totalPagesExpected', 'totalPagesScanned'],"
+          },
+          {
+            "lineNumber": 133,
+            "text": "              properties: {"
+          },
+          {
+            "lineNumber": 134,
+            "text": "                bookletId: { type: 'string', example: '110293000124' },"
+          },
+          {
+            "lineNumber": 135,
+            "text": "                examId: { type: 'integer', example: 1 },"
+          },
+          {
+            "lineNumber": 136,
+            "text": "                paperId: { type: 'integer', example: 1 },"
+          },
+          {
+            "lineNumber": 137,
+            "text": "                locationId: { type: 'integer', example: 1 },"
+          },
+          {
+            "lineNumber": 138,
+            "text": "                centreCode: { type: 'string', example: 'LOC001' },"
+          },
+          {
+            "lineNumber": 139,
+            "text": "                workstationId: { type: 'integer', example: 1 },"
+          },
+          {
+            "lineNumber": 140,
+            "text": "                totalPagesExpected: { type: 'integer', example: 32 },"
+          },
+          {
+            "lineNumber": 141,
+            "text": "                totalPagesScanned: { type: 'integer', example: 32 },"
+          },
+          {
+            "lineNumber": 142,
+            "text": "                fileHash: { type: 'string', example: 'abc123...' },"
+          },
+          {
+            "lineNumber": 143,
+            "text": "                filePath: { type: 'string', example: '/data/scan-output/110293000124' },"
+          },
+          {
+            "lineNumber": 144,
+            "text": "                scanDate: { type: 'string', format: 'date', example: '2026-03-03' },"
+          },
+          {
+            "lineNumber": 145,
+            "text": "              },"
+          },
+          {
+            "lineNumber": 146,
+            "text": "            },"
+          },
+          {
+            "lineNumber": 147,
+            "text": "            pages: {"
+          },
+          {
+            "lineNumber": 148,
+            "text": "              type: 'array',"
+          },
+          {
+            "lineNumber": 149,
+            "text": "              items: {"
+          },
+          {
+            "lineNumber": 150,
+            "text": "                type: 'object',"
+          },
+          {
+            "lineNumber": 151,
+            "text": "                properties: {"
+          },
+          {
+            "lineNumber": 152,
+            "text": "                  pageNumber: { type: 'integer', example: 1 },"
+          },
+          {
+            "lineNumber": 153,
+            "text": "                  imagePath: { type: 'string', example: '/data/scan-output/110293000124/110293000124_Page_01.jpg' },"
+          },
+          {
+            "lineNumber": 154,
+            "text": "                  pageHash: { type: 'string' },"
+          },
+          {
+            "lineNumber": 155,
+            "text": "                  barcodeData: { type: 'string' },"
+          },
+          {
+            "lineNumber": 156,
+            "text": "                  validationStatus: { type: 'string', example: 'Valid' },"
+          },
+          {
+            "lineNumber": 157,
+            "text": "                  isRoughPage: { type: 'integer', enum: [0, 1] },"
+          },
+          {
+            "lineNumber": 158,
+            "text": "                },"
+          },
+          {
+            "lineNumber": 159,
+            "text": "              },"
+          },
+          {
+            "lineNumber": 160,
+            "text": "            },"
+          },
+          {
+            "lineNumber": 161,
+            "text": "          },"
+          },
+          {
+            "lineNumber": 162,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 163,
+            "text": "        DashboardSummary: {"
+          },
+          {
+            "lineNumber": 164,
+            "text": "          type: 'object',"
+          },
+          {
+            "lineNumber": 319,
+            "text": ","
+          },
+          {
+            "lineNumber": 320,
+            "text": "};"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 319
+          },
+          "startPosition": {
+            "line": 6
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\config\\swagger.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 7
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 7
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 8
+              },
+              "startPosition": {
+                "column": 7,
+                "line": 7
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2529396116733551
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 22,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 23,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 24,
+            "text": " * /api/admin/roles:"
+          },
+          {
+            "lineNumber": 25,
+            "text": " *   get:"
+          },
+          {
+            "lineNumber": 26,
+            "text": " *     tags: [Admin]"
+          },
+          {
+            "lineNumber": 27,
+            "text": " *     summary: List all system roles"
+          },
+          {
+            "lineNumber": 28,
+            "text": " *     description: Returns every role in the system. Used for user-management dropdowns."
+          },
+          {
+            "lineNumber": 29,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 30,
+            "text": " *       200:"
+          },
+          {
+            "lineNumber": 31,
+            "text": " *         description: Array of roles"
+          },
+          {
+            "lineNumber": 32,
+            "text": " *         content:"
+          },
+          {
+            "lineNumber": 33,
+            "text": " *           application/json:"
+          },
+          {
+            "lineNumber": 34,
+            "text": " *             schema:"
+          },
+          {
+            "lineNumber": 35,
+            "text": " *               allOf:"
+          },
+          {
+            "lineNumber": 36,
+            "text": " *                 - $ref: '#/components/schemas/SuccessResponse'"
+          },
+          {
+            "lineNumber": 37,
+            "text": " *                 - type: object"
+          },
+          {
+            "lineNumber": 38,
+            "text": " *                   properties:"
+          },
+          {
+            "lineNumber": 39,
+            "text": " *                     data:"
+          },
+          {
+            "lineNumber": 40,
+            "text": " *                       type: array"
+          },
+          {
+            "lineNumber": 41,
+            "text": " *                       items:"
+          },
+          {
+            "lineNumber": 42,
+            "text": " *                         type: object"
+          },
+          {
+            "lineNumber": 43,
+            "text": " *                         properties:"
+          },
+          {
+            "lineNumber": 44,
+            "text": " *                           RoleID:   { type: integer, example: 2 }"
+          },
+          {
+            "lineNumber": 45,
+            "text": " *                           RoleName: { type: string,  example: Evaluator }"
+          },
+          {
+            "lineNumber": 46,
+            "text": " *       401:"
+          },
+          {
+            "lineNumber": 47,
+            "text": " *         description: Unauthorised"
+          },
+          {
+            "lineNumber": 48,
+            "text": " */"
+          },
+          {
+            "lineNumber": 49,
+            "text": "router.get('/roles', controller.listRoles);"
+          },
+          {
+            "lineNumber": 50
+          },
+          {
+            "lineNumber": 51,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 52,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 53,
+            "text": " * /api/admin/locations:"
+          },
+          {
+            "lineNumber": 54,
+            "text": " *   get:"
+          },
+          {
+            "lineNumber": 55,
+            "text": " *     tags: [Admin]"
+          },
+          {
+            "lineNumber": 56,
+            "text": " *     summary: List all exam locations / centres"
+          },
+          {
+            "lineNumber": 57,
+            "text": " *     description: Returns all active locations. Used by login, user-create and filter dropdowns."
+          },
+          {
+            "lineNumber": 58,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 59,
+            "text": " *       200:"
+          },
+          {
+            "lineNumber": 60,
+            "text": " *         description: Array of locations"
+          },
+          {
+            "lineNumber": 61,
+            "text": " *         content:"
+          },
+          {
+            "lineNumber": 62,
+            "text": " *           application/json:"
+          },
+          {
+            "lineNumber": 63,
+            "text": " *             schema:"
+          },
+          {
+            "lineNumber": 64,
+            "text": " *               allOf:"
+          },
+          {
+            "lineNumber": 65,
+            "text": " *                 - $ref: '#/components/schemas/SuccessResponse'"
+          },
+          {
+            "lineNumber": 66,
+            "text": " *                 - type: object"
+          },
+          {
+            "lineNumber": 67,
+            "text": " *                   properties:"
+          },
+          {
+            "lineNumber": 68,
+            "text": " *                     data:"
+          },
+          {
+            "lineNumber": 69,
+            "text": " *                       type: array"
+          },
+          {
+            "lineNumber": 70,
+            "text": " *                       items:"
+          },
+          {
+            "lineNumber": 71,
+            "text": " *                         type: object"
+          },
+          {
+            "lineNumber": 72,
+            "text": " *                         properties:"
+          },
+          {
+            "lineNumber": 73,
+            "text": " *                           LocationID:   { type: integer, example: 1 }"
+          },
+          {
+            "lineNumber": 74,
+            "text": " *                           LocationCode: { type: string,  example: HYD-001 }"
+          },
+          {
+            "lineNumber": 75,
+            "text": " *                           LocationName: { type: string,  example: Hyderabad Centre }"
+          },
+          {
+            "lineNumber": 76,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 75
+          },
+          "startPosition": {
+            "column": 208,
+            "line": 19
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\admin\\admin.routes.js",
+        "signatures": {}
+      },
+      "score": 0.24993880093097687
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 69,
+            "text": "export const uploadProfilePhoto = ({"
+          },
+          {
+            "lineNumber": 70,
+            "text": "  storage: profileStorage,"
+          },
+          {
+            "lineNumber": 71,
+            "text": "  fileFilter: imageFilter,"
+          },
+          {
+            "lineNumber": 72,
+            "text": "  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB"
+          },
+          {
+            "lineNumber": 73,
+            "text": "}).single('profilePhoto');"
+          },
+          {
+            "lineNumber": 74
+          },
+          {
+            "lineNumber": 75,
+            "text": "export const uploadCapturedPhoto = multer({"
+          },
+          {
+            "lineNumber": 76,
+            "text": "  storage: capturedStorage,"
+          },
+          {
+            "lineNumber": 77,
+            "text": "  fileFilter: imageFilter,"
+          },
+          {
+            "lineNumber": 79,
+            "text": ";"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 78
+          },
+          "startPosition": {
+            "line": 68
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\middleware\\upload.js",
+        "signatures": {}
+      },
+      "score": 0.24954620003700256
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 75,
+            "text": "export const uploadCapturedPhoto = ({"
+          },
+          {
+            "lineNumber": 76,
+            "text": "  storage: capturedStorage,"
+          },
+          {
+            "lineNumber": 77,
+            "text": "  fileFilter: imageFilter,"
+          },
+          {
+            "lineNumber": 78,
+            "text": "  limits: { fileSize: 3 * 1024 * 1024 }, // 3 MB"
+          },
+          {
+            "lineNumber": 79,
+            "text": "}).single('photo');"
+          },
+          {
+            "lineNumber": 80
+          },
+          {
+            "lineNumber": 81,
+            "text": "export const uploadQuestionPaper = multer({"
+          },
+          {
+            "lineNumber": 82,
+            "text": "  storage: questionPaperStorage,"
+          },
+          {
+            "lineNumber": 83,
+            "text": "  fileFilter: questionPaperFilter,"
+          },
+          {
+            "lineNumber": 85,
+            "text": ";"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 84
+          },
+          "startPosition": {
+            "line": 74
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\middleware\\upload.js",
+        "signatures": {}
+      },
+      "score": 0.24437479674816132
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I need to read more:
+- scan.controller</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scan/scan.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scan/scanOutputPaths.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/docker/mysql-init/12_scan_output_paths.sql</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+
+- Add a burger button to the Header or sidebar edge
+- Implement `sidebarOpen` state in Layout or context
+- Create CSS styles for a collapsed sidebar (using width 0 or translate)
+- Add an overlay for mobile views
+- Persist sidebar preference using localStorage 2. **Group menu items**: Reorganize navigation items into clear sections:
+   - **Navigation**: Dashboard, Profile, Time Analytics
+   - **Management**: Admin Settings, Question Papers, Answer Sheet Designer
+   - **Head evaluation**: Assign Booklets (only for HeadEvaluator/Admin)
+   - **Scanner admin**: Scan settings + sublinks
+
+   Move `headItems` into its own "Head evaluation" section for clarity.
+
+3. **Secondary storage**: - Created new table `Scan_SecondaryStorage` with fields for storage type, SFTP details, network paths, and enabled status
+- Added `StorageType` ENUM with values 'off', 'sftp', 'network' and `IsEnabled` flag
+- For SFTP: includes host, port, username, password, and remote path
+- For network storage: uses `NetworkPath` for UNC or mounted paths
+- Alternative approach considered: using a single-row JSON table like `SystemSettings` or `Scan_ReplicationSettings`
+- Final decision: created `Scan_MirrorConfig` table with `MirrorID`, `Enabled`, and `Mode` fields
+- `Mode` ENUM includes 'none', 'sftp', 'network' options for mirror configuration - Added database fields for SFTP and network storage configurations:
+  - SftpHost, SftpPort, SftpUser, SftpPassword (VARCHAR 500), SftpRemoteBasePath
+  - NetworkPath VARCHAR(1000)
+- Implemented replication logic in `saveBookletWithPdf` to copy files to secondary storage after local save
+- Created API endpoints for managing mirror configuration:
+  - GET /api/scanadmin/mirror-config
+  - PUT /api/scanadmin/mirror-config</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Header.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/package.json</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+This is a large implementation. I'll structure the migration `17_scan_mirror_config.sql` to create a new table named `Scan_MirrorConfig` with the following fields:
+
+- ConfigID: A tiny integer primary key with a default value of 1 and a check constraint ensuring it equals 1.
+- MirrorEnabled: A tiny integer that is not null and defaults to 0.
+- MirrorMode: A varchar field with a maximum length of 20 characters, not null, and defaults to 'none'.
+- SftpHost: A varchar field with a maximum length of 500 characters that can be null.
+- SftpPort: An integer field that is not null and defaults to 22.
+- SftpUsername: A varchar field with a maximum length of 255 characters that can be null.
+- SftpPassword: A varchar field with a maximum length of 2000 characters that can be null and includes a comment about storing passwords in the database.
+- S The migration creates a `Scan_MirrorConfig` table with fields including ConfigID, MirrorEnabled, MirrorMode, SftpHost, SftpPort, SftpUsername, SftpPassword, NetworkPath, and UpdatedAt. The table has a single row with ID=1.
+
+The implementation includes:
+- A new utility file `mirrorStorage.js` for retrieving, saving, and testing mirror configurations
+- Admin-only routes and controller for managing mirror configuration
+- A scan controller that replicates uploaded PDFs to mirrors after successful writes
+
+Replication uploads files to configured SFTP servers or network paths. The migration creates a `Scan_MirrorConfig` table with fields including ConfigID, MirrorEnabled, MirrorMode, SftpHost, SftpPort, SftpUsername, SftpPassword, NetworkPath, and UpdatedAt. The table has a single row with ID=1.
+
+The implementation includes:
+- A new utility file `mirrorStorage.js` for retrieving, saving, and testing mirror configurations
+- Admin-only routes and controller for managing mirror configuration
+- A scan controller that replicates uploaded PDFs to mirrors after successful writes
+
+Replication uploads files to configured SFTP servers or network paths.
+
+For booklet replication, the system copies the entire `booklets/{bookletId}/` folder if it exists, handling both PDFs and page images. The `saveBookletWithPdf` function uses pdfPath, while full folder synchronization occurs after `saveBooklet` by copying each file in the directory to SFTP. Page image uploads within the same request are also considered during the save</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Header.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.routes.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/web/src/services/api.js",
+  "pattern": "scanadmin"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src/services/api.js",
+  "pattern": "scanadmin",
+  "topFiles": [
+    {
+      "matchCount": 42,
+      "uri": "web\\src\\services\\api.js"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 42
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Admin Settings are accessible only to users with the `Admin` role, specifically those identified as `scanadmin` or `ScanAdmin`. The new storage mirror functionality will be accessible through the Admin Settings page under the "Offsite storage" tab, which is visible only to users with the `Admin` role. This includes users identified as `scanadmin` or `ScanAdmin`, who can access the mirror API endpoints via JWT authentication. The implementation involves:
+
+- SQL migration 17
+- Creating scanadmin.repository with methods to retrieve and update mirror configuration
+- Implementing mirror endpoint handlers
+
+The authorization logic ensures that only users with `Admin` or `ScanAdmin` roles can access these features.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/web/src/App.jsx",
+  "pattern": "admin/settings|ScanAdmin"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src/App.jsx",
+  "pattern": "admin/settings|ScanAdmin",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "web/src/App.jsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add controller methods for mirror at the end of scanadmin. I'll add controller methods for mirror at the end of scanadmin, including service methods, repository, and routes.
+
+For admin routes in web - the api base is `/api` - so `/api/scanadmin/mirror-config`
+
+I'll implement `mirrorStorage.js` in api/src/utils/ with:
+- loadConfig from DB (sync call from request - async)
+- `replicateBookletAfterUpload({ scanDb, bookletId, localBookletDir, pdfPath })`
+
+After PDF is written, `localBookletDir` = path.join(basePath, 'booklets', bookletId)
+We need to copy:
+- booklet.pdf
+- all files in dir (if page images were written there - check if desktop sends images to server in same request) For the minimal scope, recursively copy the entire `booklets/bookletId` directory to SFTP or network.
+
+Use `fs.readdirSync` with recursive option to read files, and upload each file using SFTP's `put` method with `useFastPut` or `createReadStream`.
+
+Create remote directories with `sftp.mkdir(remoteBase/bookletId, true)`.
+
+For password handling:
+- On GET, return masked `****` if password is set, or empty if not set
+- On PUT, if password is empty string, preserve existing password
+
+Implement:
+- GET endpoint that returns config with `sftpPasswordSet: true/false` without exposing actual password
+- PUT endpoint to update configuration
+- Copy entire booklet directory to remote storage on upload completion - PUT endpoint accepts optional password; if omitted or empty, the password field in DB remains unchanged.
+- Repository method `getMirrorConfig()` fetches the mirror configuration from the database, returning a default row if none exists.
+- A new test endpoint `POST /api/scanadmin/mirror-config/test` allows testing configuration without saving changes.
+- Layout grouping uses a structured approach with sections containing labeled items. The layout groups items into Management, Head evaluation, and Scanner admin sections. Head evaluation items are visible only to HeadEvaluator and Admin roles. Scanner admin items are visible based on `canSeeScanAdmin` permission. Assign Booklets should be moved to the Head evaluation section. The current layout shows headItems within the `canSeeScanAdmin` block, which may cause incorrect visibility. The final structure will have:
+
+- Management: All admin items
+- Head evaluation: Items for HeadEvaluator and Admin only
+- Scanner admin: Items based on `canSeeScanAdmin` permission The headItems were incorrectly placed inside the scan admin section, making them visible to all users instead of just HeadEvaluator and Admin roles. I'll move headItems to a new "Head evaluation" group that appears after the "Management" section. This new section will only be visible to users with Admin or HeadEvaluator roles, using the condition `const canSeeHead = ['Admin', 'HeadEvaluator'].includes(r)`. The "Scanner admin" section will remain correctly restricted to users with the `canSeeScanAdmin` permission.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.repository.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin/scanadmin.routes.js",
+  "pattern": "output-paths"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin/scanadmin.routes.js",
+  "pattern": "output-paths",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "api/src/modules/scanadmin/scanadmin.routes.js"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add routes after output-paths for mirror-config. I'll implement the new storage tab for Admin and ScanAdmin services, adding a dedicated component file for offsite storage settings.
+
+- Add methods to scanadmin.service.js by reading the end of the file
+- Create new component AdminOffsiteStorage.jsx in web/src/components/ directory
+- Update visibleSettingsTabs to include 'storage' tab for Admin and ScanAdmin only
+- Clone existing audit tab pattern for the new storage tab
+- Keep AdminSettings component size manageable by moving storage settings to separate file
+
+The implementation will follow the same pattern as the audit tab but for storage configuration.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scan/scan.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add a call to replicate after line 130 (after syncBookletToEval) if the PDF was saved. If the PDF was saved, the booklet will be replicated to a mirror location using either SFTP or network file copy based on configuration settings. The replication process requires the booklet ID from the result object and uses dynamic imports for SSH SFTP client to avoid loading it unnecessarily. The function checks for enabled configuration before proceeding with file transfers.
+
+- Replication occurs after successful PDF saving
+- Uses booklet ID from result object
+- Implements conditional logic for SFTP or network copying
+- Handles errors gracefully with logging
+- Avoids unnecessary module loading through dynamic imports</details></think>
+
+_**Agent (composer-2)**_
+
+Implementing the sidebar toggle, grouped navigation, database + API for offsite storage, SFTP replication after upload, and the Admin Settings UI.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write">
+<details>
+<summary>Tool use: **todo_write**</summary>
+
+
+Parameters:
+
+```json
+{
+  "merge": true
+}
+```
+Result:
+
+```json
+{
+  "finalTodos": [
+    {
+      "content": "Add DB migration + mirrorStorage util + ssh2-sftp-client",
+      "id": "1",
+      "status": "in_progress"
+    },
+    {
+      "content": "Scanadmin repo/service/controller/routes + scan.controller hook",
+      "id": "2",
+      "status": "pending"
+    },
+    {
+      "content": "web: api.js, SidebarContext, Layout, Header, AdminOffsite tab",
+      "id": "3",
+      "status": "pending"
+    }
+  ],
+  "success": true
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write"><details>
+<summary>Tool use: **todo_write**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/docker/mysql-init/17_scan_mirror_config.sql</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/docker/mysql-init/17_scan_mirror_config.sql</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+INSERT ... ON DUPLICATE KEY UPDATE is used to insert new rows into a table, and if a duplicate key conflict occurs, it updates the existing row instead of throwing an error. This is useful when inserting into an empty table or when you want to avoid errors during duplicate inserts.
+
+- Prevents errors when inserting into tables with unique constraints
+- Updates existing rows instead of failing on duplicates
+- Useful for upsert operations (update or insert)
+- Can be combined with specific column updates in the ON DUPLICATE KEY UPDATE clause
+
+Example usage:
+INSERT INTO table_name (col1, col2) VALUES (val1, val2) ON DUPLICATE KEY UPDATE col2 = VALUES(col2);</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/docker/mysql-init/17_scan_mirror_config.sql</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/migrations/17_scan_mirror_config.sql</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/utils/mirrorStorage.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Fixed mirrorStorage.js to properly export resolveStoredScanPath from scanOutputPaths, which was previously used for network paths and is now correctly implemented.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **1** result in **1** directory</summary>
+
+Directory: **d:/Scanning&Evaluation/api/src** (1 file)
+
+| File |
+|------|
+| `../../../../api\src\utils\logger.js` |
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The logger is located in api/src/utils/logger. The logger is correctly imported from the same folder using `import logger from './logger.js';`.
+
+To fix SFTP connection issues with empty passwords, try connecting with an empty string password.
+
+For the circular import problem between mirrorStorage and scanOutputPaths, consider using dynamic imports in mirror to avoid issues, since scanOutputPaths already imports resolveStoredScanPath from mirror, which may cause circular dependencies.
+
+Simplify SFTP operations in mirrorStorage by removing the problematic mkdir loop and using a cleaner approach for remote base paths.
+
+- Remove the problematic mkdir loop in SFTP connection
+- Use simpler remote base path handling
+- Consider dynamic imports to prevent circular dependency issues</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/utils/mirrorStorage.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Add exports for `replicateBookletToMirrorIfConfigured`, `getMirrorConfigFromDb`, `testSftpConnection`, and `testNetworkPath` functions. Added `testSftpConfig` export in mirrorStorage.js and implemented `testSftpConnection` function to connect and list files on SFTP. Moved testing logic to service layer in scanadmin.service.js.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scan/scan.service.js",
+  "pattern": "return.*bookletId"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scan/scan.service.js",
+  "pattern": "return.*bookletId",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scan/scan.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scan/scan.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/utils/mirrorStorage.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Insert the code before the closing brace (`}`) of the class definition. Insert the code before the closing brace (`}`) of the class definition.
+
+- Add the `getMirrorConfig` method to retrieve mirror configuration settings.
+- Return default values if no row is found in the repository.
+- Map database row values to the expected configuration object format.
+- Ensure proper handling of optional fields and default values for SFTP and network paths. Insert the code before the closing brace (`}`) of the class definition.
+
+- Add the `getMirrorConfig` method to retrieve mirror configuration settings.
+- Return default values if no row is found in the repository.
+- Map database row values to the expected configuration object format.
+- Ensure proper handling of optional fields and default values for SFTP and network paths.
+- Update mirror configuration with validation for mirror modes (none, sftp, network).
+- Handle password updates securely by checking for existing password presence. If `sftpPassword` is provided and not empty, use it; otherwise, retain the existing password when the mode is SFTP. Update the mirror configuration with validated settings, ensuring proper handling of optional fields and default values for SFTP and network paths. return this.getMirrorConfig();
+  }
+
+  async testMirrorConfig(body) {
+    const { testSftpConnection, testNetworkPathWritable } = await import('../../utils/mirrorStorage.js');
+    const mode = String(body.mirrorMode || 'none').toLowerCase();
+    if (mode === 'sftp') {
+      return testSftpConnection({
+        host: body.sftpHost,
+        port: body.sftpPort || 22,
+        username: body.sftpUsername,
+        password: body.sftpPassword,
+        remotePath: body.sftpRemotePath,
+      });
+    }
+    if (mode === 'network') {
+      return testNetworkPathWritable(body.networkPath);
+    }
+    throw Object.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.repository.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The service `updateMirrorConfig` now merges existing passwords when no new password is provided. Add service methods before final `}` of ScanAdminService class
+
+- Controller methods
+- Routes
+- scan.controller import replicate
+- package.json dependency
+- Fix service - updateMirrorConfig should load existing and merge password
+
+```js
+async updateMirrorConfig(body) {
+  const mode = String(body.mirrorMode || 'none').toLowerCase();
+  if (!['none', 'sftp', 'network'].includes(mode)) {
+    throw Object.assign(new Error('mirrorMode must be none, sftp, or network'), { statusCode: 400 });
+  }
+  const existing = await this.repo.getMirrorConfig();
+  let sftpPassword = undefined;
+  if (body.sftpPassword !
+``` The `updateMirrorConfig` method now properly handles password merging by loading existing passwords when no new password is provided. It processes the mirror configuration update with the following steps:
+
+- Check if the mirror mode is valid (none, sftp, or network)
+- Load existing configuration
+- Merge passwords if no new password is provided
+- Update the mirror configuration with new values
+- Return the updated mirror configuration
+
+The method ensures that existing passwords are preserved when no new password is specified during updates.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.service.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Controller add:
+- Defines an asynchronous function named `getMirrorConfig`
+- Takes three parameters: `req`, `res`, and `next`
+- Function is intended to handle requests related to mirror configuration
+- Uses `async/await` syntax for handling asynchronous operations
+- Likely part of a controller class or module for API endpoints - Adds `updateMirrorConfig` function that updates mirror settings and returns success message
+- Includes `testMirrorConfig` function that tests mirror configuration and returns success message
+- Both functions use async/await and error handling with `next(e)`
+- Functions are added to the controller module before the closing brace</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scan/scan.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/modules/scan/scan.controller.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/modules/scan/scan.controller.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.controller.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.routes.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/api/package.json</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+- Run npm install in the api directory
+- Create a SidebarContext
+- Update the Layout component
+- Update the Header component Create the AdminOffsiteStorage.jsx component and update api.js. Add a new tab to AdminSettings and render it. Fix the circular dependency in mirrorStorage by ensuring scanOutputPaths doesn't import mirror. Run a quick API test. For uploadDirSftp using ssh2-sftp-client, confirm that `await sftp.put(localPath, remotePath)` accepts file paths as the first argument. Remove the problematic line in JSDoc for mirrorStorage. Restructure Layout with clear sections and manage head eval visibility. - Wrap the app with SidebarProvider in Layout.jsx, ensuring the provider wraps children within the Layout route
+- Use useSidebar from context in the Header component
+- Create SidebarContext with local storage persistence for sidebar collapse state
+- Initialize collapsed state from localStorage with fallback to false
+- Set up useEffect to save collapsed state to localStorage when it changes
+- Export SidebarProvider and useSidebar hook for context usage The SidebarProvider should wrap both the Header and body components within the Layout, ensuring the sidebar toggle functionality works across the entire layout. This involves updating the Layout component to include the provider around the relevant sections. The SidebarProvider must wrap the entire Layout component, including Header and body, to ensure proper context availability. The Header component should now use the useSidebar hook and include a menu button, but only when not on the login page. The CSS structure uses .layout-body and .sidebar classes for styling.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/contexts/SidebarContext.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Layout.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Layout.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Header.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/services/api.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **1** result in **1** directory</summary>
+
+Directory: **d:/Scanning&Evaluation/web** (1 file)
+
+| File |
+|------|
+| `../../../web\src\pages\AdminSettings.jsx` |
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/services/api.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin",
+  "pattern": "Mirror|mirror"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin",
+  "pattern": "Mirror|mirror",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    },
+    {
+      "matchCount": 10,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.repository.js"
+    },
+    {
+      "matchCount": 6,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.controller.js"
+    },
+    {
+      "matchCount": 18,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.service.js"
+    }
+  ],
+  "totalFiles": 4,
+  "totalMatches": 37
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/utils/mirrorStorage.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Header.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/utils/mirrorStorage.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+testMirrorConfig returns a value; if the test throws an error, the controller must handle it, as the service throws exceptions for network or SFTP errors. The `ok()` wrapper needs to be examined for error handling behavior.  
+The test endpoint returns 422 on failure, which the frontend should handle.  
+On success, the service returns data from `testSftpConnection` or `testNetworkPathWritable`, and the controller uses `return ok(res, data, 'Connection test succeeded')`, meaning `data` is the returned value.  
+
+Implementation steps:
+- Update Layout.jsx with SidebarProvider, useSidebar, and restructured sections:
+  - Navigation
+  - Management (admin-only items for canSeeScanAdmin)
+  - Scanner admin (scan block) - only visible to canSeeScanAdmin - Head evaluation section is restricted to users with `canSeeHeadEval` permission, which includes Admin and HeadEvaluator roles.
+- On mobile, the sidebar is currently hidden, but user preference is for an overlay or burger menu that defaults to collapsed to maximize main content area. Default state should be collapsed unless user toggles otherwise.
+- For desktop, default state may be expanded, while mobile defaults to collapsed to save space.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.routes.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Mirror routes require authorization from Admin or ScanAdmin only.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/web/src/components/Layout.jsx",
+  "pattern": "api"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src/components/Layout.jsx",
+  "pattern": "api",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "web/src/components/Layout.jsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Remove unused API import.
+
+For mobile: modify CSS so the sidebar slides in as a fixed overlay when `layout--mobile-sidebar-open` or when not collapsed, instead of using `display: none`. For mobile, keep the sidebar in the DOM for the burger button to work. When collapsed, hide it with width 0, overflow hidden, and disabled pointer events. When open, show it as a fixed overlay. - On mobile (max-width 768px), use `transform: translateX(-100%)` for collapsed state and `width: 220px` for open state with smooth transitions.
+- For all sizes, apply `width: 0`, `min-width: 0`, `overflow: hidden`, `opacity: 0`, and transitions for collapsed state.
+- Use `transform: translateX(-100%)` for smoother sliding effect on mobile.
+- Add `.sidebar--drawer` class with `position: fixed`, `z-index`, and full height for open mobile sidebar.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin/scanadmin.routes.js",
+  "pattern": "mirror-config"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin/scanadmin.routes.js",
+  "pattern": "mirror-config",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "api/src/modules/scanadmin/scanadmin.routes.js"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Good, single occurrence
+
+- Run `npm install` in the api directory Implement all files
+
+- AdminOffsiteStorage can be a separate file in pages or components, using `components/AdminOffsiteStorage.jsx`
+- visibleSettingsTabs function filters tabs based on user role:
+  - Removes 'audit' tab if user is not admin
+  - Removes 'offsite' tab if user is neither admin nor scan admin
+- Tabs array is filtered accordingly based on role checks</details></think>
+
+_**Agent (composer-2)**_
+
+Completing the remaining work: running `npm install` for `ssh2-sftp-client`, wiring the sidebar (burger + grouped nav + mobile drawer), and adding the Admin Settings "Offsite storage" tab with API integration.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "d:/Scanning&Evaluation/api" && npm install ssh2-sftp-client@^11.0.0 --save</summary>
+
+```bash
+cd "d:/Scanning&Evaluation/api" && npm install ssh2-sftp-client@^11.0.0 --save
+```
+
+```
+At line:1 char:33
++ cd "d:/Scanning&amp;Evaluation/api" &amp;&amp; npm install ssh2-sftp-client@^11.0 ...
++                                 ~~
+The token '&amp;&amp;' is not a valid statement separator in this version.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidEndOfLine
+ 
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/AdminOffsiteStorage.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: Set-Location "d:/Scanning&Evaluation/api"; npm install ssh2-sftp-client@^11.0.0 --save</summary>
+
+```bash
+Set-Location "d:/Scanning&Evaluation/api"; npm install ssh2-sftp-client@^11.0.0 --save
+```
+
+```
+]633;C]633;P;Cwd=d:\\Scanning&amp;Evaluation]633;P;HasRichCommandDetection=True]633;A$ ]633;B]633;E;Set-Location "d:/Scanning&amp;Evaluation/api"\x3b npm install ssh2-sftp-client@^11.0.0 --saveSet-Location "d:/Scanning&amp;Evaluation/api"; npm install ssh2-sftp-client@^11.0.0 --save
+]633;C
+added 10 packages, and audited 226 packages in 1m
+
+27 packages are looking for funding
+  run &#96;npm fund&#96; for details
+
+4 vulnerabilities (2 moderate, 2 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run &#96;npm audit&#96; for details.
+]633;D;0
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tig\.cursor\projects\d-Scanning-Evaluation/terminals/49580.txt</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tig\.cursor\projects\d-Scanning-Evaluation/terminals/49580.txt</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="await">
+<details>
+<summary>Tool use: **await**</summary>
+
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="await"><details>
+<summary>Tool use: **await**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: C:\Users\tig\.cursor\projects\d-Scanning-Evaluation/terminals/49580.txt</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+npm install succeeded.
+
+Now update:
+- api - Updated AdminSettings.jsx with tabs, visible settings tabs, active tab effect, and rendering logic
+- Modified Layout.jsx, Layout.css, Header, and Header.css
+- Fixed AdminOffsiteStorage to properly handle form values for number inputs like sftpPort
+- Resolved issues with form fields in AdminOffsiteStorage by explicitly splitting form fields for clarity
+- Added 'offsite' tab visibility for both Admin and ScanAdmin roles
+- Updated subtitle in AdminSettings header to include mention of offsite storage option Let me fix AdminOffsiteStorage - the dynamic map is wrong because `form.sftpPort` could be NaN. Also fix: when type is number, onChange should handle empty values.
+
+I'll simplify the SFTP fields with explicit inputs.
+
+For Layout, I'll add useMediaQuery for backdrop - implement in Layout.jsx:
+
+- Add useIsMobile hook with breakpoint at 768px
+- Use useState and useEffect for media query handling
+- Set initial state based on current screen size
+- Listen for media query changes
+- Implement in Layout.jsx file The backdrop should be a div instead of a button.
+
+In Layout.jsx:
+- Added useIsMobile hook with 768px breakpoint
+- Implemented media query listener with useState and useEffect
+- Set initial state based on screen size
+- Added event listener for media query changes
+
+In Header.jsx:
+- Imported useSidebar hook
+- Added menu toggle button before brand element
+- Used Menu and X icons from lucide-react
+- Implemented sidebar toggle functionality When sidebar is collapsed, show Menu icon; when expanded, show Menu icon (hamburger that toggles). Use Menu icon consistently for toggle behavior.
+
+CSS .header-menu-btn should match header-icon-btn styling.
+
+Layout structure:
+- Use SidebarProvider wrapper
+- Header component rendered at top
+- Layout body contains sidebar and content
+- On mobile, show backdrop div when sidebar is collapsed
+- Sidebar visibility depends on collapsed state
+- Backdrop onClick triggers toggle action For mobile devices, added a `sidebar--drawer` class that applies fixed positioning and transforms the sidebar off-screen when collapsed. The sidebar maintains a width of 220px when collapsed and uses `translateX(-100%)` to hide it completely. On larger screens, the sidebar behaves normally without these mobile-specific styles. For desktop, we use width: 0 for collapsed  different behavior from mobile. So we use two approaches:
+- Desktop: width transition
+- Mobile: transform
+
+```css
+.sidebar { ... transition: width 0.2s, transform 0.2s; }
+
+@media (min-width: 769px) {
+  .sidebar.sidebar--collapsed {
+    width: 0;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    bottom: 0;
+    z-index: 200;
+    width: min(260px, 85vw);
+    transform: translateX(0);
+```</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/api/package.json",
+  "pattern": "ssh2-sftp"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api/package.json",
+  "pattern": "ssh2-sftp",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "api\\package.json"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/services/api.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Update AdminSettings with the new tab and import functionality.</details></think>
+
+_**Agent (composer-2)**_
+
+Implementing Layout with `SidebarProvider`, mobile drawer, and grouped navigation; updating Header and styles.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Layout.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Layout.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Layout.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+On mobile devices, when the sidebar does not have the mobile class...</details></think>
+
+_**Agent (composer-2)**_
+
+Fixing a CSS conflict: desktop collapse used `width: 0`, which breaks the mobile slide-out drawer. Overriding mobile rules so the drawer keeps its width and uses `transform` when collapsed.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/Layout.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The sidebar has a collapsed state with `width: 0` and is positioned before the media block. The sidebar's collapsed state uses `width: 0` and is positioned before the media block. For mobile views, when collapsed, the class `.sidebar.sidebar--mobile.sidebar--collapsed` overrides the base width with `min(260px...)` due to higher specificity (0,3,0 vs 0,2,0). This ensures proper styling for collapsed mobile sidebars. For non-collapsed mobile sidebars, `.sidebar.sidebar--mobile` overrides the base `.sidebar` styles appropriately. When transitioning from collapsed state on mobile, the sidebar must reset its width from the collapsed rule (`width: 0`) using the more specific three-class selector `.sidebar.sidebar--mobile:not(.sidebar--collapsed)`.
+
+For non-collapsed mobile sidebars, the `.sidebar.sidebar--mobile` class overrides desktop styles to ensure proper width.
+
+Specificity rules:
+- `.sidebar` has 0,1,0 specificity
+- `.sidebar.sidebar--mobile` has 0,2,0 specificity
+- `.sidebar.sidebar--mobile.sidebar--collapsed` has 0,3,0 specificity
+
+This ensures that collapsed mobile sidebars use `width: 0`, while non-collapsed ones use `min(260px...)` instead of the default `width: 220px`. The mobile sidebar uses 0,2,0 specificity, overriding desktop styles. When collapsed on mobile, the three-class selector `.sidebar.sidebar--mobile.sidebar--collapsed` correctly applies `width: 0` and `transform`, with `opacity: 1` taking precedence over the base `opacity: 0`.
+
+For the header, a menu button was added, and the backdrops `z-index` was adjusted to be below the sidebar (19 vs 20).
+
+The initial collapsed state on first visit checks `localStorage` for `"scaneval_sidebar_collapsed"` set to `'1'` to determine if the sidebar should be collapsed.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.repository.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Header.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Header.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Header.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The header requires a provider, as the login page may not utilize the SidebarProvider.</details></think>
+
+_**Agent (composer-2)**_
+
+Defaulting the sidebar to closed on mobile and exposing `setCollapsed` from `SidebarContext`.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/contexts/SidebarContext.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "**/App*.jsx",
+  "path": "d:/Scanning\u0026Evaluation/web/src",
+  "pattern": "Header|Layout"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src",
+  "pattern": "Header|Layout",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "web\\src\\App.jsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/App.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The header resides within the Layout component, which is protected and always includes the SidebarProvider. When LayoutInner mounts and isNarrow is true, set collapsed to true to close the sidebar on mobile load. For desktop users, use localStorage to determine initial state. Simplify by checking matchMedia for narrow screens during initial render to decide whether to start with collapsed sidebar. This avoids complex logic around localStorage and resize events.
+
+- Use matchMedia to detect narrow screens on initial render
+- Set collapsed state based on screen size at mount time
+- Preserve existing localStorage behavior for desktop users
+- Avoid complex conditional effects for resize handling</details></think>
+
+_**Agent (composer-2)**_
+
+Updating `SidebarContext` to default the sidebar closed on first visit when the viewport is narrow, and applying AdminSettings and AdminOffsiteStorage updates.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/contexts/SidebarContext.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/AdminOffsiteStorage.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/AdminOffsiteStorage.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Fix the save() method in AdminOffsiteStorage so that sftpPort is properly converted to a number before sending.</details></think>
+
+_**Agent (composer-2)**_
+
+Scoping desktop-only collapse rules so mobile transform works.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Layout.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+On mobile devices without sidebar navigation, the mobile class is applied.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/AdminOffsiteStorage.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/AdminOffsiteStorage.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+- Remove unused imports from AdminSettings.
+- Check if ToggleLeft and ToggleRight are actually used.
+- Verify usage through linting tools.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "d:/Scanning\u0026Evaluation/web/src/pages/AdminSettings.jsx",
+    "d:/Scanning\u0026Evaluation/web/src/components/Layout.jsx",
+    "d:/Scanning\u0026Evaluation/web/src/components/Header.jsx",
+    "d:/Scanning\u0026Evaluation/web/src/components/AdminOffsiteStorage.jsx",
+    "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin/scanadmin.controller.js"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/pages/AdminSettings.jsx"
+    },
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/components/Layout.jsx"
+    },
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/components/Header.jsx"
+    },
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/components/AdminOffsiteStorage.jsx"
+    },
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/api/src/modules/scanadmin/scanadmin.controller.js"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/scanadmin/scanadmin.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+All good.  
+- **testMirrorConfig** throws an error that needs to be handled by the error handler and passed to Express.  
+- It's necessary to verify that errors include a statusCode property.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/web/src/pages/AdminSettings.jsx",
+  "pattern": "ToggleLeft|ToggleRight"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src/pages/AdminSettings.jsx",
+  "pattern": "ToggleLeft|ToggleRight",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\pages\\AdminSettings.jsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/AdminSettings.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write">
+<details>
+<summary>Tool use: **todo_write**</summary>
+
+
+Parameters:
+
+```json
+{
+  "merge": true
+}
+```
+Result:
+
+```json
+{
+  "finalTodos": [
+    {
+      "content": "Add DB migration + mirrorStorage util + ssh2-sftp-client",
+      "id": "1",
+      "status": "completed"
+    },
+    {
+      "content": "Scanadmin repo/service/controller/routes + scan.controller hook",
+      "id": "2",
+      "status": "completed"
+    },
+    {
+      "content": "web: api.js, SidebarContext, Layout, Header, AdminOffsite tab",
+      "id": "3",
+      "status": "completed"
+    }
+  ],
+  "initialTodos": [
+    {
+      "content": "Add DB migration + mirrorStorage util + ssh2-sftp-client",
+      "id": "1",
+      "status": "in_progress"
+    },
+    {
+      "content": "Scanadmin repo/service/controller/routes + scan.controller hook",
+      "id": "2",
+      "status": "pending"
+    },
+    {
+      "content": "web: api.js, SidebarContext, Layout, Header, AdminOffsite tab",
+      "id": "3",
+      "status": "pending"
+    }
+  ],
+  "success": true,
+  "wasMerge": true
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write"><details>
+<summary>Tool use: **todo_write**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Final summary for user:
+
+- On mobile devices, when the sidebar loads with collapsed=true, it requires both sidebar--collapsed and sidebar--mobile classes for proper styling.
+- Verify that the mobile-specific rules apply correctly when the sidebar is initially collapsed.</details></think>
+
+_**Agent (composer-2)**_
+
+Using the initial `matchMedia` value so the mobile class applies on the first paint.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/Layout.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/api",
+  "pattern": "replicateBookletToMirrorIfConfigured"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api",
+  "pattern": "replicateBookletToMirrorIfConfigured",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\scan\\scan.controller.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\utils\\mirrorStorage.js"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+Here is what was completed to finish the feature set.
+
+### Navigation (burger + grouped menu)
+- **`web/src/contexts/SidebarContext.jsx`** – Persists open/closed state; if there is no saved preference, **narrow viewports (≤768px) start with the menu closed**; wide screens start open.
+- **`web/src/components/Layout.jsx`** – Wraps the app in **`SidebarProvider`**, groups links into **Navigation**, **Management**, **Scanner admin** (unchanged), and **Head evaluation** (only **Admin** and **HeadEvaluator** — no longer under Management for all roles), and **closes the drawer after a link tap on small screens**. **`api` import removed.**
+- **`web/src/components/Layout.css`** – Desktop: collapsed sidebar **shrinks to zero width** (min-width 769px only). Mobile: **fixed drawer + dimmed backdrop**; slide with `transform` (no conflict with the old `display: none` rule, which is removed).
+- **`web/src/components/Header.jsx` + `Header.css`** (button reuses `header-icon-btn`) – **Menu (burger)** toggles the sidebar (no-op on routes without the provider, e.g. login).
+
+### Offsite copy (admin UI + API already wired)
+- **`web/src/services/api.js`** – `scanadmin.getMirrorConfig`, `updateMirrorConfig`, `testMirrorConfig`.
+- **`web/src/components/AdminOffsiteStorage.jsx`** – Form for **none / SFTP / network share**, **Save**, **Test connection & path**, password handling with **“already set”** hint.
+- **`web/src/pages/AdminSettings.jsx`** – New tab **“Offsite storage”** (after **Email templates**), subtitle updated, **`ToggleLeft` / `ToggleRight` unused imports removed**.
+
+### API package
+- **`ssh2-sftp-client`** is installed in **`api/`** (matches **`package.json`**).
+
+**Already in place from earlier work:** `GET/PUT/POST` **`/api/scanadmin/mirror-config`** (+ `/test`), DB migration **`17_scan_mirror_config`**, and **`replicateBookletToMirrorIfConfigured`** after booklet save in **`scan.controller.js`**.
+
+Apply the **ScanningDB** migration in your environment if it is not there yet. Offsite copy runs **in addition to** the existing **local scan output path**; use **Admin → Offsite storage** for SFTP or UNC–style **network** paths, and **Scan settings → Scan output paths** for the primary local folder.
+
+---
+
+_**User**_
+
+Fix : Evaluate screen camera is not displaying there should not any skip face must be identified before evalutaion.
+
+---
+
+_**Agent (composer-2)**_
+
+Locating the identity-verification flow on the Evaluate page to fix the camera preview and remove the skip option.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "d:/Scanning\u0026Evaluation/web",
+  "query": "Where is identity verification or face verification on evaluate screen?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 88,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 89,
+            "text": "          /* labels may be hidden */"
+          },
+          {
+            "lineNumber": 90,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 91
+          },
+          {
+            "lineNumber": 92,
+            "text": "        if (!mounted) return;"
+          },
+          {
+            "lineNumber": 93,
+            "text": "        const inputs = (await navigator.mediaDevices.enumerateDevices()).filter((d) =\u003e d.kind === 'videoinput');"
+          },
+          {
+            "lineNumber": 94,
+            "text": "        setDevices(inputs);"
+          },
+          {
+            "lineNumber": 95,
+            "text": "        if (inputs.length === 0) {"
+          },
+          {
+            "lineNumber": 96,
+            "text": "          setPhase('error');"
+          },
+          {
+            "lineNumber": 97,
+            "text": "          setMessage('No camera was detected. Connect a webcam or allow camera access, then reload.');"
+          },
+          {
+            "lineNumber": 98,
+            "text": "          return;"
+          },
+          {
+            "lineNumber": 99,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 100,
+            "text": "        setSelectedDeviceId((prev) =\u003e {"
+          },
+          {
+            "lineNumber": 101,
+            "text": "          if (prev \u0026\u0026 inputs.some((d) =\u003e d.deviceId === prev)) return prev;"
+          },
+          {
+            "lineNumber": 102,
+            "text": "          try {"
+          },
+          {
+            "lineNumber": 103,
+            "text": "            const stored = localStorage.getItem('evalPreferredCameraId');"
+          },
+          {
+            "lineNumber": 104,
+            "text": "            if (stored \u0026\u0026 inputs.some((d) =\u003e d.deviceId === stored)) return stored;"
+          },
+          {
+            "lineNumber": 105,
+            "text": "          } catch {"
+          },
+          {
+            "lineNumber": 106,
+            "text": "            /* ignore */"
+          },
+          {
+            "lineNumber": 107,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 108,
+            "text": "          return inputs[0].deviceId;"
+          },
+          {
+            "lineNumber": 109,
+            "text": "        });"
+          },
+          {
+            "lineNumber": 110,
+            "text": "        setPhase('pick_camera');"
+          },
+          {
+            "lineNumber": 111,
+            "text": "        setMessage('Choose which camera to use, then click “Start camera”.');"
+          },
+          {
+            "lineNumber": 112,
+            "text": "      } catch (err) {"
+          },
+          {
+            "lineNumber": 113,
+            "text": "        if (!mounted) return;"
+          },
+          {
+            "lineNumber": 114,
+            "text": "        setPhase('error');"
+          },
+          {
+            "lineNumber": 115,
+            "text": "        setMessage(&#96;Setup failed: ${err.message || 'Unknown error'}&#96;);"
+          },
+          {
+            "lineNumber": 116,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 117,
+            "text": "    })();"
+          },
+          {
+            "lineNumber": 118,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 119,
+            "text": "      mounted = false;"
+          },
+          {
+            "lineNumber": 120,
+            "text": "      stopStream();"
+          },
+          {
+            "lineNumber": 121,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 122,
+            "text": "  }, []);"
+          },
+          {
+            "lineNumber": 123
+          },
+          {
+            "lineNumber": 124,
+            "text": "  const startCamera = async () =\u003e {"
+          },
+          {
+            "lineNumber": 125,
+            "text": "    setPhase('starting');"
+          },
+          {
+            "lineNumber": 126,
+            "text": "    setMessage('Starting camera…');"
+          },
+          {
+            "lineNumber": 127,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 128,
+            "text": "      const candidates = selectedDeviceId"
+          },
+          {
+            "lineNumber": 129,
+            "text": "        ? ["
+          },
+          {
+            "lineNumber": 130,
+            "text": "            {"
+          },
+          {
+            "lineNumber": 131,
+            "text": "              audio: false,"
+          },
+          {
+            "lineNumber": 132,
+            "text": "              video: {"
+          },
+          {
+            "lineNumber": 133,
+            "text": "                deviceId: { ideal: selectedDeviceId },"
+          },
+          {
+            "lineNumber": 134,
+            "text": "                width: { ideal: 1280 },"
+          },
+          {
+            "lineNumber": 135,
+            "text": "                height: { ideal: 720 },"
+          },
+          {
+            "lineNumber": 136,
+            "text": "              },"
+          },
+          {
+            "lineNumber": 137,
+            "text": "            },"
+          },
+          {
+            "lineNumber": 138,
+            "text": "            { audio: false, video: { deviceId: { ideal: selectedDeviceId } } },"
+          },
+          {
+            "lineNumber": 139,
+            "text": "          ]"
+          },
+          {
+            "lineNumber": 140,
+            "text": "        : ["
+          },
+          {
+            "lineNumber": 141,
+            "text": "            { audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } },"
+          },
+          {
+            "lineNumber": 142,
+            "text": "            { audio: false, video: { facingMode: 'user' } },"
+          },
+          {
+            "lineNumber": 143,
+            "text": "          ];"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 143
+          },
+          "startPosition": {
+            "line": 87
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\FaceVerifyModal.jsx",
+        "signatures": {}
+      },
+      "score": 0.5025947093963623
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 142,
+            "text": "            { audio: false, video: { facingMode: 'user' } },"
+          },
+          {
+            "lineNumber": 143,
+            "text": "          ];"
+          },
+          {
+            "lineNumber": 144,
+            "text": "      let stream;"
+          },
+          {
+            "lineNumber": 145,
+            "text": "      for (const constraints of candidates) {"
+          },
+          {
+            "lineNumber": 146,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 147,
+            "text": "          stream = await navigator.mediaDevices.getUserMedia(constraints);"
+          },
+          {
+            "lineNumber": 148,
+            "text": "          break;"
+          },
+          {
+            "lineNumber": 149,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 150,
+            "text": "          /* try next */"
+          },
+          {
+            "lineNumber": 151,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 152,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 153,
+            "text": "      if (!stream) {"
+          },
+          {
+            "lineNumber": 154,
+            "text": "        throw new Error('Could not open any camera with these settings');"
+          },
+          {
+            "lineNumber": 155,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 156,
+            "text": "      streamRef.current = stream;"
+          },
+          {
+            "lineNumber": 157,
+            "text": "      if (videoRef.current) {"
+          },
+          {
+            "lineNumber": 158,
+            "text": "        const v = videoRef.current;"
+          },
+          {
+            "lineNumber": 159,
+            "text": "        v.srcObject = stream;"
+          },
+          {
+            "lineNumber": 160,
+            "text": "        v.muted = true;"
+          },
+          {
+            "lineNumber": 161,
+            "text": "        v.playsInline = true;"
+          },
+          {
+            "lineNumber": 162,
+            "text": "        v.setAttribute('playsinline', '');"
+          },
+          {
+            "lineNumber": 163,
+            "text": "        v.setAttribute('webkit-playsinline', '');"
+          },
+          {
+            "lineNumber": 164,
+            "text": "        await new Promise((r) =\u003e {"
+          },
+          {
+            "lineNumber": 165,
+            "text": "          v.onloadedmetadata = () =\u003e r();"
+          },
+          {
+            "lineNumber": 166,
+            "text": "        });"
+          },
+          {
+            "lineNumber": 167,
+            "text": "        await v.play().catch(() =\u003e {});"
+          },
+          {
+            "lineNumber": 168,
+            "text": "        await waitForVideoFrame(v);"
+          },
+          {
+            "lineNumber": 169,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 170,
+            "text": "      setPhase('ready');"
+          },
+          {
+            "lineNumber": 171,
+            "text": "      setMessage('Position your face in the frame and click Verify.');"
+          },
+          {
+            "lineNumber": 172,
+            "text": "      if (selectedDeviceId) {"
+          },
+          {
+            "lineNumber": 173,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 174,
+            "text": "          localStorage.setItem('evalPreferredCameraId', selectedDeviceId);"
+          },
+          {
+            "lineNumber": 175,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 176,
+            "text": "          /* ignore */"
+          },
+          {
+            "lineNumber": 177,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 178,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 179,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 180,
+            "text": "      setPhase('pick_camera');"
+          },
+          {
+            "lineNumber": 181,
+            "text": "      setMessage(&#96;Could not open that camera: ${err.message}. Try another device.&#96;);"
+          },
+          {
+            "lineNumber": 182,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 183,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 184
+          },
+          {
+            "lineNumber": 185,
+            "text": "  const handleVerify = async () =\u003e {"
+          },
+          {
+            "lineNumber": 186,
+            "text": "    setPhase('verifying');"
+          },
+          {
+            "lineNumber": 187,
+            "text": "    setMessage('Capturing and verifying…');"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 187
+          },
+          "startPosition": {
+            "line": 141
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\FaceVerifyModal.jsx",
+        "signatures": {}
+      },
+      "score": 0.47986409068107605
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 44,
+            "text": "        videoEl.removeEventListener('playing', tick);"
+          },
+          {
+            "lineNumber": 45,
+            "text": "        resolve();"
+          },
+          {
+            "lineNumber": 46,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 47,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 48,
+            "text": "    videoEl.addEventListener('loadeddata', tick);"
+          },
+          {
+            "lineNumber": 49,
+            "text": "    videoEl.addEventListener('playing', tick);"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    tick();"
+          },
+          {
+            "lineNumber": 51,
+            "text": "  });"
+          },
+          {
+            "lineNumber": 52,
+            "text": "}"
+          },
+          {
+            "lineNumber": 53
+          },
+          {
+            "lineNumber": 54,
+            "text": "async function captureWebcamFrame(videoEl) {"
+          },
+          {
+            "lineNumber": 55,
+            "text": "  await waitForVideoFrame(videoEl);"
+          },
+          {
+            "lineNumber": 56,
+            "text": "  const canvas = document.createElement('canvas');"
+          },
+          {
+            "lineNumber": 57,
+            "text": "  const w = videoEl.videoWidth || 640;"
+          },
+          {
+            "lineNumber": 58,
+            "text": "  const h = videoEl.videoHeight || 480;"
+          },
+          {
+            "lineNumber": 59,
+            "text": "  canvas.width = w;"
+          },
+          {
+            "lineNumber": 60,
+            "text": "  canvas.height = h;"
+          },
+          {
+            "lineNumber": 61,
+            "text": "  canvas.getContext('2d').drawImage(videoEl, 0, 0);"
+          },
+          {
+            "lineNumber": 62,
+            "text": "  return canvas;"
+          },
+          {
+            "lineNumber": 63,
+            "text": "}"
+          },
+          {
+            "lineNumber": 64
+          },
+          {
+            "lineNumber": 65,
+            "text": "export default function FaceVerifyModal({ evaluationId, verifyAction = 'warn_continue', onDone, onBlock }) {"
+          },
+          {
+            "lineNumber": 66,
+            "text": "  const [phase, setPhase] = useState('init');"
+          },
+          {
+            "lineNumber": 67,
+            "text": "  const [result, setResult] = useState(null);"
+          },
+          {
+            "lineNumber": 68,
+            "text": "  const [message, setMessage] = useState('');"
+          },
+          {
+            "lineNumber": 69,
+            "text": "  const [devices, setDevices] = useState([]);"
+          },
+          {
+            "lineNumber": 70,
+            "text": "  const [selectedDeviceId, setSelectedDeviceId] = useState('');"
+          },
+          {
+            "lineNumber": 71,
+            "text": "  const videoRef = useRef(null);"
+          },
+          {
+            "lineNumber": 72,
+            "text": "  const streamRef = useRef(null);"
+          },
+          {
+            "lineNumber": 73
+          },
+          {
+            "lineNumber": 74,
+            "text": "  const stopStream = () =\u003e streamRef.current?.getTracks().forEach((t) =\u003e t.stop());"
+          },
+          {
+            "lineNumber": 75
+          },
+          {
+            "lineNumber": 76,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 77,
+            "text": "    let mounted = true;"
+          },
+          {
+            "lineNumber": 78,
+            "text": "    (async () =\u003e {"
+          },
+          {
+            "lineNumber": 79,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 80,
+            "text": "        setMessage('Loading face recognition models…');"
+          },
+          {
+            "lineNumber": 81,
+            "text": "        await loadModels();"
+          },
+          {
+            "lineNumber": 82,
+            "text": "        if (!mounted) return;"
+          },
+          {
+            "lineNumber": 83
+          },
+          {
+            "lineNumber": 84,
+            "text": "        setMessage('Requesting camera permission so we can list your devices…');"
+          },
+          {
+            "lineNumber": 85,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 86,
+            "text": "          const tmp = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });"
+          },
+          {
+            "lineNumber": 87,
+            "text": "          tmp.getTracks().forEach((t) =\u003e t.stop());"
+          },
+          {
+            "lineNumber": 88,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 89,
+            "text": "          /* labels may be hidden */"
+          },
+          {
+            "lineNumber": 90,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 91
+          },
+          {
+            "lineNumber": 92,
+            "text": "        if (!mounted) return;"
+          },
+          {
+            "lineNumber": 93,
+            "text": "        const inputs = (await navigator.mediaDevices.enumerateDevices()).filter((d) =\u003e d.kind === 'videoinput');"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 93
+          },
+          "startPosition": {
+            "line": 43
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\FaceVerifyModal.jsx",
+        "signatures": {}
+      },
+      "score": 0.47821760177612305
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 219,
+            "text": "          } catch {"
+          },
+          {
+            "lineNumber": 220,
+            "text": "            faceMatchResult = 'Skipped';"
+          },
+          {
+            "lineNumber": 221,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 222,
+            "text": "        } else {"
+          },
+          {
+            "lineNumber": 223,
+            "text": "          faceMatchResult = 'Skipped';"
+          },
+          {
+            "lineNumber": 224,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 225,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 226
+          },
+          {
+            "lineNumber": 227,
+            "text": "      canvas.toBlob("
+          },
+          {
+            "lineNumber": 228,
+            "text": "        async (blob) =\u003e {"
+          },
+          {
+            "lineNumber": 229,
+            "text": "          try {"
+          },
+          {
+            "lineNumber": 230,
+            "text": "            const fd = new FormData();"
+          },
+          {
+            "lineNumber": 231,
+            "text": "            fd.append('photo', blob, 'verify.jpg');"
+          },
+          {
+            "lineNumber": 232,
+            "text": "            fd.append('evaluationId', evaluationId || '');"
+          },
+          {
+            "lineNumber": 233,
+            "text": "            fd.append('faceMatchResult', faceMatchResult);"
+          },
+          {
+            "lineNumber": 234,
+            "text": "            if (score !== null) fd.append('faceMatchScore', score);"
+          },
+          {
+            "lineNumber": 235,
+            "text": "            fd.append('captureType', 'SessionStart');"
+          },
+          {
+            "lineNumber": 236,
+            "text": "            await api.eval.saveCapturedPhoto(fd);"
+          },
+          {
+            "lineNumber": 237,
+            "text": "          } catch {"
+          },
+          {
+            "lineNumber": 238,
+            "text": "            /* non-blocking */"
+          },
+          {
+            "lineNumber": 239,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 240,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 241,
+            "text": "        'image/jpeg',"
+          },
+          {
+            "lineNumber": 242,
+            "text": "        0.85"
+          },
+          {
+            "lineNumber": 243,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 244
+          },
+          {
+            "lineNumber": 245,
+            "text": "      setResult({ faceMatchResult, score });"
+          },
+          {
+            "lineNumber": 246,
+            "text": "      setPhase('result');"
+          },
+          {
+            "lineNumber": 247,
+            "text": "      stopStream();"
+          },
+          {
+            "lineNumber": 248,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 249,
+            "text": "      setPhase('error');"
+          },
+          {
+            "lineNumber": 250,
+            "text": "      setMessage(&#96;Verification failed: ${err.message}&#96;);"
+          },
+          {
+            "lineNumber": 251,
+            "text": "      stopStream();"
+          },
+          {
+            "lineNumber": 252,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 253,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 254
+          },
+          {
+            "lineNumber": 255,
+            "text": "  const handleProceed = () =\u003e {"
+          },
+          {
+            "lineNumber": 256,
+            "text": "    if (result?.faceMatchResult === 'Mismatch' \u0026\u0026 verifyAction === 'block') {"
+          },
+          {
+            "lineNumber": 257,
+            "text": "      onBlock?.();"
+          },
+          {
+            "lineNumber": 258,
+            "text": "    } else {"
+          },
+          {
+            "lineNumber": 259,
+            "text": "      onDone?.({ faceMatchResult: result?.faceMatchResult, score: result?.score });"
+          },
+          {
+            "lineNumber": 260,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 261,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 262
+          },
+          {
+            "lineNumber": 263,
+            "text": "  const handleSkip = () =\u003e {"
+          },
+          {
+            "lineNumber": 264,
+            "text": "    stopStream();"
+          },
+          {
+            "lineNumber": 265,
+            "text": "    onDone?.({ faceMatchResult: 'Skipped', score: null });"
+          },
+          {
+            "lineNumber": 266,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 267
+          },
+          {
+            "lineNumber": 268,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 269,
+            "text": "    \u003cdiv className=\"fv-overlay\"\u003e"
+          },
+          {
+            "lineNumber": 270,
+            "text": "      \u003cdiv className=\"fv-modal fv-modal-wide\"\u003e"
+          },
+          {
+            "lineNumber": 271,
+            "text": "        \u003cdiv className=\"fv-header\"\u003e"
+          },
+          {
+            "lineNumber": 272,
+            "text": "          \u003cdiv className=\"fv-header-icon\"\u003e"
+          },
+          {
+            "lineNumber": 273,
+            "text": "            "
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 12,
+            "line": 272
+          },
+          "startPosition": {
+            "line": 218
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\FaceVerifyModal.jsx",
+        "signatures": {}
+      },
+      "score": 0.47477054595947266
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 70,
+            "text": "function usePageTimer() {"
+          },
+          {
+            "lineNumber": 71,
+            "text": "  const startRef = useRef(Date.now());"
+          },
+          {
+            "lineNumber": 72,
+            "text": "  const reset = () =\u003e { startRef.current = Date.now(); };"
+          },
+          {
+            "lineNumber": 73,
+            "text": "  const elapsed = () =\u003e Math.floor((Date.now() - startRef.current) / 1000);"
+          },
+          {
+            "lineNumber": 74,
+            "text": "  return { reset, elapsed };"
+          },
+          {
+            "lineNumber": 75,
+            "text": "}"
+          },
+          {
+            "lineNumber": 76
+          },
+          {
+            "lineNumber": 77,
+            "text": "export default function Evaluate() {"
+          },
+          {
+            "lineNumber": 78,
+            "text": "  const { bookletId } = useParams();"
+          },
+          {
+            "lineNumber": 79,
+            "text": "  const navigate = useNavigate();"
+          },
+          {
+            "lineNumber": 80
+          },
+          {
+            "lineNumber": 81,
+            "text": "  const [loading, setLoading] = useState(true);"
+          },
+          {
+            "lineNumber": 82,
+            "text": "  const [error, setError] = useState('');"
+          },
+          {
+            "lineNumber": 83,
+            "text": "  const [bookletData, setBookletData] = useState(null);    // { booklet, metadata, questionScheme, questionSets }"
+          },
+          {
+            "lineNumber": 84,
+            "text": "  const [evaluationId, setEvaluationId] = useState(null);"
+          },
+          {
+            "lineNumber": 85,
+            "text": "  const [currentPage, setCurrentPage] = useState(1);"
+          },
+          {
+            "lineNumber": 86,
+            "text": "  const [marks, setMarks] = useState({});                  // { schemeId: marksAwarded }"
+          },
+          {
+            "lineNumber": 87,
+            "text": "  const [annotations, setAnnotations] = useState({});      // { pageNumber: [{ type, x, y, note }] }"
+          },
+          {
+            "lineNumber": 88,
+            "text": "  /** { pageNumber: [{ id, type, x, y, w, h, fullPage? }] } — saved on server per booklet */"
+          },
+          {
+            "lineNumber": 89,
+            "text": "  const [sharedByPage, setSharedByPage] = useState({});"
+          },
+          {
+            "lineNumber": 90,
+            "text": "  const sharedRef = useRef({});"
+          },
+          {
+            "lineNumber": 91,
+            "text": "  const [activeTool, setActiveTool] = useState('tick');"
+          },
+          {
+            "lineNumber": 92,
+            "text": "  const [saving, setSaving] = useState(false);"
+          },
+          {
+            "lineNumber": 93,
+            "text": "  const [submitting, setSubmitting] = useState(false);"
+          },
+          {
+            "lineNumber": 94,
+            "text": "  const [visitedPages, setVisitedPages] = useState(new Set());"
+          },
+          {
+            "lineNumber": 95,
+            "text": "  /** Thumbnail rail filter: all | visited | unvisited */"
+          },
+          {
+            "lineNumber": 96,
+            "text": "  const [thumbFilter, setThumbFilter] = useState('all');"
+          },
+          {
+            "lineNumber": 97,
+            "text": "  const [showQPaper, setShowQPaper] = useState(false);"
+          },
+          {
+            "lineNumber": 98,
+            "text": "  const [commentInput, setCommentInput] = useState('');"
+          },
+          {
+            "lineNumber": 99,
+            "text": "  const [commentPos, setCommentPos] = useState(null);"
+          },
+          {
+            "lineNumber": 100,
+            "text": "  const [draftStroke, setDraftStroke] = useState(null);"
+          },
+          {
+            "lineNumber": 101,
+            "text": "  const dragRef = useRef(null);"
+          },
+          {
+            "lineNumber": 102
+          },
+          {
+            "lineNumber": 103,
+            "text": "  // Timers"
+          },
+          {
+            "lineNumber": 104,
+            "text": "  const pageTimer = usePageTimer();"
+          },
+          {
+            "lineNumber": 105,
+            "text": "  const [pageSeconds, setPageSeconds] = useState(0);"
+          },
+          {
+            "lineNumber": 106,
+            "text": "  const timerRef = useRef(null);"
+          },
+          {
+            "lineNumber": 107
+          },
+          {
+            "lineNumber": 108,
+            "text": "  // Image zoom"
+          },
+          {
+            "lineNumber": 109,
+            "text": "  const [zoom, setZoom] = useState(1.0);"
+          },
+          {
+            "lineNumber": 110,
+            "text": "  const imgRef = useRef(null);"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 110
+          },
+          "startPosition": {
+            "line": 69
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\pages\\Evaluate.jsx",
+        "signatures": {}
+      },
+      "score": 0.45680201053619385
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 2,
+            "text": " * FaceVerifyModal — identity check before evaluation; user picks camera then verifies face."
+          },
+          {
+            "lineNumber": 3,
+            "text": " */"
+          },
+          {
+            "lineNumber": 4,
+            "text": "import { useState, useEffect, useRef } from 'react';"
+          },
+          {
+            "lineNumber": 5,
+            "text": "import { Camera, ShieldCheck, ShieldAlert, AlertTriangle, Loader2, X, CheckCircle2 } from 'lucide-react';"
+          },
+          {
+            "lineNumber": 6,
+            "text": "import * as faceapi from 'face-api.js';"
+          },
+          {
+            "lineNumber": 7,
+            "text": "import { api } from '../services/api';"
+          },
+          {
+            "lineNumber": 8,
+            "text": "import './FaceVerifyModal.css';"
+          },
+          {
+            "lineNumber": 9
+          },
+          {
+            "lineNumber": 10,
+            "text": "const MODEL_URL = '/face-api-models';"
+          },
+          {
+            "lineNumber": 11,
+            "text": "let modelsLoaded = false;"
+          },
+          {
+            "lineNumber": 12
+          },
+          {
+            "lineNumber": 13,
+            "text": "async function loadModels() {"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  if (modelsLoaded) return;"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  await Promise.all(["
+          },
+          {
+            "lineNumber": 16,
+            "text": "    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),"
+          },
+          {
+            "lineNumber": 17,
+            "text": "    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),"
+          },
+          {
+            "lineNumber": 18,
+            "text": "    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  ]);"
+          },
+          {
+            "lineNumber": 20,
+            "text": "  modelsLoaded = true;"
+          },
+          {
+            "lineNumber": 21,
+            "text": "}"
+          },
+          {
+            "lineNumber": 22
+          },
+          {
+            "lineNumber": 23,
+            "text": "async function getDescriptor(imgElement) {"
+          },
+          {
+            "lineNumber": 24,
+            "text": "  const detection = await faceapi"
+          },
+          {
+            "lineNumber": 25,
+            "text": "    .detectSingleFace(imgElement, new faceapi.TinyFaceDetectorOptions())"
+          },
+          {
+            "lineNumber": 26,
+            "text": "    .withFaceLandmarks(true)"
+          },
+          {
+            "lineNumber": 27,
+            "text": "    .withFaceDescriptor();"
+          },
+          {
+            "lineNumber": 28,
+            "text": "  return detection?.descriptor || null;"
+          },
+          {
+            "lineNumber": 29,
+            "text": "}"
+          },
+          {
+            "lineNumber": 30
+          },
+          {
+            "lineNumber": 31,
+            "text": "async function waitForVideoFrame(videoEl) {"
+          },
+          {
+            "lineNumber": 32,
+            "text": "  if (!videoEl) return;"
+          },
+          {
+            "lineNumber": 33,
+            "text": "  if (videoEl.videoWidth \u003e= 2 \u0026\u0026 videoEl.videoHeight \u003e= 2) return;"
+          },
+          {
+            "lineNumber": 34,
+            "text": "  await new Promise((resolve, reject) =\u003e {"
+          },
+          {
+            "lineNumber": 35,
+            "text": "    const t = setTimeout(() =\u003e {"
+          },
+          {
+            "lineNumber": 36,
+            "text": "      videoEl.removeEventListener('loadeddata', tick);"
+          },
+          {
+            "lineNumber": 37,
+            "text": "      videoEl.removeEventListener('playing', tick);"
+          },
+          {
+            "lineNumber": 38,
+            "text": "      reject(new Error('Video not ready'));"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    }, 8000);"
+          },
+          {
+            "lineNumber": 40,
+            "text": "    const tick = () =\u003e {"
+          },
+          {
+            "lineNumber": 41,
+            "text": "      if (videoEl.videoWidth \u003e= 2 \u0026\u0026 videoEl.videoHeight \u003e= 2) {"
+          },
+          {
+            "lineNumber": 42,
+            "text": "        clearTimeout(t);"
+          },
+          {
+            "lineNumber": 43,
+            "text": "        videoEl.removeEventListener('loadeddata', tick);"
+          },
+          {
+            "lineNumber": 44,
+            "text": "        videoEl.removeEventListener('playing', tick);"
+          },
+          {
+            "lineNumber": 45,
+            "text": "        resolve();"
+          },
+          {
+            "lineNumber": 46,
+            "text": "      }"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 46
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\FaceVerifyModal.jsx",
+        "signatures": {}
+      },
+      "score": 0.4320605993270874
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 284,
+            "text": "  }, [usePdfViewer, bookletId]);"
+          },
+          {
+            "lineNumber": 285
+          },
+          {
+            "lineNumber": 286,
+            "text": "  // ── PDF thumbnails (progressive) ───────────────────────────────────────────"
+          },
+          {
+            "lineNumber": 287,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 288,
+            "text": "    if (!usePdfViewer || pdfNumPages \u003c 1) return undefined;"
+          },
+          {
+            "lineNumber": 289,
+            "text": "    const pdf = pdfDocRef.current;"
+          },
+          {
+            "lineNumber": 290,
+            "text": "    if (!pdf) return undefined;"
+          },
+          {
+            "lineNumber": 291,
+            "text": "    let cancelled = false;"
+          },
+          {
+            "lineNumber": 292,
+            "text": "    setPdfThumbs({});"
+          },
+          {
+            "lineNumber": 293,
+            "text": "    (async () =\u003e {"
+          },
+          {
+            "lineNumber": 294,
+            "text": "      for (let p = 1; p \u003c= pdfNumPages; p += 1) {"
+          },
+          {
+            "lineNumber": 295,
+            "text": "        if (cancelled) return;"
+          },
+          {
+            "lineNumber": 296,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 297,
+            "text": "          const dataUrl = await renderPageToDataUrl(pdf, p, PDF_THUMB_SCALE);"
+          },
+          {
+            "lineNumber": 298,
+            "text": "          if (!cancelled) {"
+          },
+          {
+            "lineNumber": 299,
+            "text": "            setPdfThumbs((prev) =\u003e ({ ...prev, [p]: dataUrl }));"
+          },
+          {
+            "lineNumber": 300,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 301,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 302,
+            "text": "          /* leave slot empty; show placeholder in UI */"
+          },
+          {
+            "lineNumber": 303,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 304,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 305,
+            "text": "    })();"
+          },
+          {
+            "lineNumber": 306,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 307,
+            "text": "      cancelled = true;"
+          },
+          {
+            "lineNumber": 308,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 309,
+            "text": "  }, [usePdfViewer, pdfNumPages, bookletId]);"
+          },
+          {
+            "lineNumber": 310
+          },
+          {
+            "lineNumber": 311,
+            "text": "  // ── PDF main page image for current page (annotations use same overlay as JPEG) ──"
+          },
+          {
+            "lineNumber": 312,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 313,
+            "text": "    if (!usePdfViewer || pdfNumPages \u003c 1) return undefined;"
+          },
+          {
+            "lineNumber": 314,
+            "text": "    const pdf = pdfDocRef.current;"
+          },
+          {
+            "lineNumber": 315,
+            "text": "    if (!pdf) return undefined;"
+          },
+          {
+            "lineNumber": 316,
+            "text": "    const page = Math.min(Math.max(1, currentPage), pdfNumPages);"
+          },
+          {
+            "lineNumber": 317,
+            "text": "    let cancelled = false;"
+          },
+          {
+            "lineNumber": 318,
+            "text": "    (async () =\u003e {"
+          },
+          {
+            "lineNumber": 319,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 320,
+            "text": "        const dataUrl = await renderPageToDataUrl(pdf, page, PDF_PAGE_RENDER_SCALE);"
+          },
+          {
+            "lineNumber": 321,
+            "text": "        if (!cancelled) setPdfMainUrl(dataUrl);"
+          },
+          {
+            "lineNumber": 322,
+            "text": "      } catch {"
+          },
+          {
+            "lineNumber": 323,
+            "text": "        if (!cancelled) setPdfMainUrl('');"
+          },
+          {
+            "lineNumber": 324,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 325,
+            "text": "    })();"
+          },
+          {
+            "lineNumber": 326,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 327,
+            "text": "      cancelled = true;"
+          },
+          {
+            "lineNumber": 328,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 329,
+            "text": "  }, [usePdfViewer, pdfNumPages, currentPage, bookletId]);"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 330
+          },
+          "startPosition": {
+            "line": 283
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\pages\\Evaluate.jsx",
+        "signatures": {}
+      },
+      "score": 0.427855908870697
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 182,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 183,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 184
+          },
+          {
+            "lineNumber": 185,
+            "text": "  const handleVerify = async () =\u003e {"
+          },
+          {
+            "lineNumber": 186,
+            "text": "    setPhase('verifying');"
+          },
+          {
+            "lineNumber": 187,
+            "text": "    setMessage('Capturing and verifying…');"
+          },
+          {
+            "lineNumber": 188,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 189,
+            "text": "      const canvas = await captureWebcamFrame(videoRef.current);"
+          },
+          {
+            "lineNumber": 190,
+            "text": "      const captured = await getDescriptor(canvas);"
+          },
+          {
+            "lineNumber": 191
+          },
+          {
+            "lineNumber": 192,
+            "text": "      let faceMatchResult = 'Skipped';"
+          },
+          {
+            "lineNumber": 193,
+            "text": "      let score = null;"
+          },
+          {
+            "lineNumber": 194
+          },
+          {
+            "lineNumber": 195,
+            "text": "      if (!captured) {"
+          },
+          {
+            "lineNumber": 196,
+            "text": "        faceMatchResult = 'Error';"
+          },
+          {
+            "lineNumber": 197,
+            "text": "        setMessage('No face detected in camera. Please ensure good lighting.');"
+          },
+          {
+            "lineNumber": 198,
+            "text": "      } else {"
+          },
+          {
+            "lineNumber": 199,
+            "text": "        const user = JSON.parse(localStorage.getItem('user') || '{}');"
+          },
+          {
+            "lineNumber": 200,
+            "text": "        const photoPath = user.profilePhotoPath;"
+          },
+          {
+            "lineNumber": 201
+          },
+          {
+            "lineNumber": 202,
+            "text": "        if (photoPath) {"
+          },
+          {
+            "lineNumber": 203,
+            "text": "          try {"
+          },
+          {
+            "lineNumber": 204,
+            "text": "            const img = new Image();"
+          },
+          {
+            "lineNumber": 205,
+            "text": "            img.crossOrigin = 'anonymous';"
+          },
+          {
+            "lineNumber": 206,
+            "text": "            img.src = api.files.profilePhotoUrl(photoPath);"
+          },
+          {
+            "lineNumber": 207,
+            "text": "            await new Promise((res, rej) =\u003e {"
+          },
+          {
+            "lineNumber": 208,
+            "text": "              img.onload = res;"
+          },
+          {
+            "lineNumber": 209,
+            "text": "              img.onerror = rej;"
+          },
+          {
+            "lineNumber": 210,
+            "text": "            });"
+          },
+          {
+            "lineNumber": 211,
+            "text": "            const profileDesc = await getDescriptor(img);"
+          },
+          {
+            "lineNumber": 212,
+            "text": "            if (profileDesc) {"
+          },
+          {
+            "lineNumber": 213,
+            "text": "              const distance = faceapi.euclideanDistance(captured, profileDesc);"
+          },
+          {
+            "lineNumber": 214,
+            "text": "              score = Math.max(0, Math.round((1 - distance) * 100));"
+          },
+          {
+            "lineNumber": 215,
+            "text": "              faceMatchResult = score \u003e= 50 ? 'Matched' : 'Mismatch';"
+          },
+          {
+            "lineNumber": 216,
+            "text": "            } else {"
+          },
+          {
+            "lineNumber": 217,
+            "text": "              faceMatchResult = 'Skipped';"
+          },
+          {
+            "lineNumber": 218,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 219,
+            "text": "          } catch {"
+          },
+          {
+            "lineNumber": 220,
+            "text": "            faceMatchResult = 'Skipped';"
+          },
+          {
+            "lineNumber": 221,
+            "text": "          }"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 221
+          },
+          "startPosition": {
+            "line": 181
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\FaceVerifyModal.jsx",
+        "signatures": {}
+      },
+      "score": 0.40705549716949463
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 30,
+            "text": "const SHARED_STAMP_TOOLS = ["
+          },
+          {
+            "lineNumber": 31,
+            "text": "  { id: 'stamp_blank', label: 'BLANK', title: 'Blank answer sheet (stamp)', color: '#475569' },"
+          },
+          {
+            "lineNumber": 32,
+            "text": "  {"
+          },
+          {
+            "lineNumber": 33,
+            "text": "    id: 'stamp_page_crossed',"
+          },
+          {
+            "lineNumber": 34,
+            "text": "    label: '✕ Page',"
+          },
+          {
+            "lineNumber": 35,
+            "text": "    title: 'Student crossed entire page (diagonal marks)',"
+          },
+          {
+            "lineNumber": 36,
+            "text": "    color: '#b91c1c',"
+          },
+          {
+            "lineNumber": 37,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 38,
+            "text": "];"
+          },
+          {
+            "lineNumber": 39
+          },
+          {
+            "lineNumber": 40,
+            "text": "/** Normalise MySQL / API field casing for question scheme rows */"
+          },
+          {
+            "lineNumber": 41,
+            "text": "function normalizeSchemeRow(q) {"
+          },
+          {
+            "lineNumber": 42,
+            "text": "  if (!q) return null;"
+          },
+          {
+            "lineNumber": 43,
+            "text": "  return {"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    SchemeID: q.SchemeID ?? q.schemeId,"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    SetID: q.SetID ?? q.setId ?? null,"
+          },
+          {
+            "lineNumber": 46,
+            "text": "    PageNumber: q.PageNumber ?? q.pageNumber,"
+          },
+          {
+            "lineNumber": 47,
+            "text": "    QuestionNumber: q.QuestionNumber ?? q.questionNumber ?? '',"
+          },
+          {
+            "lineNumber": 48,
+            "text": "    SubQuestionCode: q.SubQuestionCode ?? q.subQuestionCode ?? '',"
+          },
+          {
+            "lineNumber": 49,
+            "text": "    MaxMarks: q.MaxMarks ?? q.maxMarks ?? 0,"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    SortOrder: q.SortOrder ?? q.sortOrder ?? 0,"
+          },
+          {
+            "lineNumber": 51,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 52,
+            "text": "}"
+          },
+          {
+            "lineNumber": 53
+          },
+          {
+            "lineNumber": 54,
+            "text": "function normalizeSetRow(s) {"
+          },
+          {
+            "lineNumber": 55,
+            "text": "  if (!s) return null;"
+          },
+          {
+            "lineNumber": 56,
+            "text": "  return {"
+          },
+          {
+            "lineNumber": 57,
+            "text": "    SetID: s.SetID ?? s.setId,"
+          },
+          {
+            "lineNumber": 58,
+            "text": "    SetLabel: s.SetLabel ?? s.setLabel ?? &#96;Set ${s.SetID ?? ''}&#96;,"
+          },
+          {
+            "lineNumber": 59,
+            "text": "    SetType: s.SetType ?? s.setType ?? 'AnswerAll',"
+          },
+          {
+            "lineNumber": 60,
+            "text": "    TotalQuestions: s.TotalQuestions ?? s.totalQuestions,"
+          },
+          {
+            "lineNumber": 61,
+            "text": "    AttemptQuestions: s.AttemptQuestions ?? s.attemptQuestions ?? 0,"
+          },
+          {
+            "lineNumber": 62,
+            "text": "    MarksPerQuestion: s.MarksPerQuestion ?? s.marksPerQuestion ?? 0,"
+          },
+          {
+            "lineNumber": 63,
+            "text": "    QuestionRangeFrom: s.QuestionRangeFrom ?? s.questionRangeFrom,"
+          },
+          {
+            "lineNumber": 64,
+            "text": "    QuestionRangeTo: s.QuestionRangeTo ?? s.questionRangeTo,"
+          },
+          {
+            "lineNumber": 65,
+            "text": "    SortOrder: s.SortOrder ?? s.sortOrder ?? 0,"
+          },
+          {
+            "lineNumber": 66,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 67,
+            "text": "}"
+          },
+          {
+            "lineNumber": 68
+          },
+          {
+            "lineNumber": 69,
+            "text": "// Per-page timer hook"
+          },
+          {
+            "lineNumber": 70,
+            "text": "function usePageTimer() {"
+          },
+          {
+            "lineNumber": 71,
+            "text": "  const startRef = useRef(Date.now());"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 71
+          },
+          "startPosition": {
+            "line": 29
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\pages\\Evaluate.jsx",
+        "signatures": {}
+      },
+      "score": 0.39181628823280334
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 60,
+            "text": "  const videoRef  = useRef(null);"
+          },
+          {
+            "lineNumber": 61,
+            "text": "  const streamRef = useRef(null);"
+          },
+          {
+            "lineNumber": 62,
+            "text": "  const onDoneRef = useRef(onDone);"
+          },
+          {
+            "lineNumber": 63,
+            "text": "  onDoneRef.current = onDone;"
+          },
+          {
+            "lineNumber": 64
+          },
+          {
+            "lineNumber": 65,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 66,
+            "text": "    let mounted = true;"
+          },
+          {
+            "lineNumber": 67,
+            "text": "    (async () =\u003e {"
+          },
+          {
+            "lineNumber": 68,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 69,
+            "text": "        const saved = localStorage.getItem('evalPreferredCameraId');"
+          },
+          {
+            "lineNumber": 70,
+            "text": "        const tryConstraints = ["
+          },
+          {
+            "lineNumber": 71,
+            "text": "          saved"
+          },
+          {
+            "lineNumber": 72,
+            "text": "            ? { audio: false, video: { deviceId: { ideal: saved }, width: { ideal: 1280 }, height: { ideal: 720 } } }"
+          },
+          {
+            "lineNumber": 73,
+            "text": "            : { audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } },"
+          },
+          {
+            "lineNumber": 74,
+            "text": "          saved"
+          },
+          {
+            "lineNumber": 75,
+            "text": "            ? { audio: false, video: { deviceId: { ideal: saved } } }"
+          },
+          {
+            "lineNumber": 76,
+            "text": "            : { audio: false, video: { facingMode: 'user' } },"
+          },
+          {
+            "lineNumber": 77,
+            "text": "          { audio: false, video: true },"
+          },
+          {
+            "lineNumber": 78,
+            "text": "        ];"
+          },
+          {
+            "lineNumber": 79,
+            "text": "        let stream;"
+          },
+          {
+            "lineNumber": 80,
+            "text": "        for (const c of tryConstraints) {"
+          },
+          {
+            "lineNumber": 81,
+            "text": "          try {"
+          },
+          {
+            "lineNumber": 82,
+            "text": "            stream = await navigator.mediaDevices.getUserMedia(c);"
+          },
+          {
+            "lineNumber": 83,
+            "text": "            break;"
+          },
+          {
+            "lineNumber": 84,
+            "text": "          } catch {"
+          },
+          {
+            "lineNumber": 85,
+            "text": "            /* try next */"
+          },
+          {
+            "lineNumber": 86,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 87,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 88,
+            "text": "        if (!stream) throw new Error('No camera stream');"
+          },
+          {
+            "lineNumber": 89,
+            "text": "        if (!mounted) {"
+          },
+          {
+            "lineNumber": 90,
+            "text": "          stream.getTracks().forEach((t) =\u003e t.stop());"
+          },
+          {
+            "lineNumber": 91,
+            "text": "          return;"
+          },
+          {
+            "lineNumber": 92,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 93,
+            "text": "        streamRef.current = stream;"
+          },
+          {
+            "lineNumber": 94,
+            "text": "        const el = videoRef.current;"
+          },
+          {
+            "lineNumber": 95,
+            "text": "        el.srcObject = stream;"
+          },
+          {
+            "lineNumber": 96,
+            "text": "        el.muted = true;"
+          },
+          {
+            "lineNumber": 97,
+            "text": "        el.playsInline = true;"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 97
+          },
+          "startPosition": {
+            "line": 59
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\CountdownCapture.jsx",
+        "signatures": {}
+      },
+      "score": 0.37595075368881226
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "import { useState, useEffect, useRef, useCallback, useMemo } from 'react';"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import { useParams, useNavigate } from 'react-router-dom';"
+          },
+          {
+            "lineNumber": 3,
+            "text": "import { api } from '../services/api';"
+          },
+          {
+            "lineNumber": 4,
+            "text": "import { loadPdfFromUrl, renderPageToDataUrl } from '../utils/pdfBooklet';"
+          },
+          {
+            "lineNumber": 5,
+            "text": "import FaceVerifyModal from '../components/FaceVerifyModal';"
+          },
+          {
+            "lineNumber": 6,
+            "text": "import CountdownCapture from '../components/CountdownCapture';"
+          },
+          {
+            "lineNumber": 7,
+            "text": "import './Evaluate.css';"
+          },
+          {
+            "lineNumber": 8
+          },
+          {
+            "lineNumber": 9,
+            "text": "/** Render scale for main PDF page (CSS zoom still applied like JPEG booklets) */"
+          },
+          {
+            "lineNumber": 10,
+            "text": "const PDF_PAGE_RENDER_SCALE = 1.65;"
+          },
+          {
+            "lineNumber": 11,
+            "text": "const PDF_THUMB_SCALE = 0.18;"
+          },
+          {
+            "lineNumber": 12
+          },
+          {
+            "lineNumber": 13,
+            "text": "const ANNOTATION_TOOLS = ["
+          },
+          {
+            "lineNumber": 14,
+            "text": "  { id: 'tick',            label: '✓',  title: 'Correct (tap)',    color: '#22c55e' },"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  { id: 'tick_draw',       label: '✓˜', title: 'Draw tick mark',   color: '#22c55e' },"
+          },
+          {
+            "lineNumber": 16,
+            "text": "  { id: 'pencil',          label: '✎',  title: 'Pencil / ink',    color: '#1e293b' },"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  { id: 'cross',           label: '✗',  title: 'Wrong',            color: '#ef4444' },"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  { id: 'half_tick',       label: '½',  title: 'Partially Correct',color: '#f59e0b' },"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  { id: 'query',           label: '?',  title: 'Needs Review',     color: '#3b82f6' },"
+          },
+          {
+            "lineNumber": 20,
+            "text": "  { id: 'answer_repeated', label: '↻',  title: 'Answer Repeated',  color: '#8b5cf6' },"
+          },
+          {
+            "lineNumber": 21,
+            "text": "  { id: 'not_attempted',   label: '—',  title: 'Not Attempted',    color: '#94a3b8' },"
+          },
+          {
+            "lineNumber": 22,
+            "text": "  { id: 'illegible',       label: '~',  title: 'Illegible',        color: '#f97316' },"
+          },
+          {
+            "lineNumber": 23,
+            "text": "  { id: 'comment',         label: '💬', title: 'Comment',          color: '#06b6d4' },"
+          },
+          {
+            "lineNumber": 24,
+            "text": "];"
+          },
+          {
+            "lineNumber": 25
+          },
+          {
+            "lineNumber": 26,
+            "text": "const DRAWING_TOOL_IDS = new Set(['pencil', 'tick_draw']);"
+          },
+          {
+            "lineNumber": 27
+          },
+          {
+            "lineNumber": 28,
+            "text": "/** Booklet-level (server JSON) — visible to all evaluator roles; not tied to one evaluation session */"
+          },
+          {
+            "lineNumber": 29,
+            "text": "const SHARED_STAMP_IDS = new Set(['stamp_blank', 'stamp_page_crossed']);"
+          },
+          {
+            "lineNumber": 30,
+            "text": "const SHARED_STAMP_TOOLS = ["
+          },
+          {
+            "lineNumber": 31,
+            "text": "  { id: 'stamp_blank', label: 'BLANK', title: 'Blank answer sheet (stamp)', color: '#475569' },"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 31
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\web\\src\\pages\\Evaluate.jsx",
+        "signatures": {}
+      },
+      "score": 0.37322890758514404
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 2,
+            "text": " * CountdownCapture — shows a 3-2-1 countdown overlay then captures a webcam frame"
+          },
+          {
+            "lineNumber": 3,
+            "text": " * and posts it to /api/eval/captured-photo for random monitoring checks."
+          },
+          {
+            "lineNumber": 4,
+            "text": " */"
+          },
+          {
+            "lineNumber": 5,
+            "text": "import { useState, useEffect, useRef, useCallback } from 'react';"
+          },
+          {
+            "lineNumber": 6,
+            "text": "import { Camera } from 'lucide-react';"
+          },
+          {
+            "lineNumber": 7,
+            "text": "import * as faceapi from 'face-api.js';"
+          },
+          {
+            "lineNumber": 8,
+            "text": "import { api } from '../services/api';"
+          },
+          {
+            "lineNumber": 9,
+            "text": "import './CountdownCapture.css';"
+          },
+          {
+            "lineNumber": 10
+          },
+          {
+            "lineNumber": 11,
+            "text": "const MODEL_URL = '/face-api-models';"
+          },
+          {
+            "lineNumber": 12,
+            "text": "let modelsLoaded = false;"
+          },
+          {
+            "lineNumber": 13
+          },
+          {
+            "lineNumber": 14,
+            "text": "async function ensureModels() {"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  if (modelsLoaded) return;"
+          },
+          {
+            "lineNumber": 16,
+            "text": "  await Promise.all(["
+          },
+          {
+            "lineNumber": 17,
+            "text": "    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),"
+          },
+          {
+            "lineNumber": 18,
+            "text": "    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),"
+          },
+          {
+            "lineNumber": 19,
+            "text": "    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),"
+          },
+          {
+            "lineNumber": 20,
+            "text": "  ]);"
+          },
+          {
+            "lineNumber": 21,
+            "text": "  modelsLoaded = true;"
+          },
+          {
+            "lineNumber": 22,
+            "text": "}"
+          },
+          {
+            "lineNumber": 23
+          },
+          {
+            "lineNumber": 24,
+            "text": "function waitVideoReady(video) {"
+          },
+          {
+            "lineNumber": 25,
+            "text": "  return new Promise((resolve, reject) =\u003e {"
+          },
+          {
+            "lineNumber": 26,
+            "text": "    if (!video) {"
+          },
+          {
+            "lineNumber": 27,
+            "text": "      reject(new Error('No video element'));"
+          },
+          {
+            "lineNumber": 28,
+            "text": "      return;"
+          },
+          {
+            "lineNumber": 29,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 30,
+            "text": "    const cleanup = () =\u003e {"
+          },
+          {
+            "lineNumber": 31,
+            "text": "      video.removeEventListener('loadedmetadata', onMeta);"
+          },
+          {
+            "lineNumber": 32,
+            "text": "      video.removeEventListener('loadeddata', onMeta);"
+          },
+          {
+            "lineNumber": 33,
+            "text": "      clearTimeout(to);"
+          },
+          {
+            "lineNumber": 34,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 35,
+            "text": "    const done = () =\u003e {"
+          },
+          {
+            "lineNumber": 36,
+            "text": "      cleanup();"
+          },
+          {
+            "lineNumber": 37,
+            "text": "      resolve();"
+          },
+          {
+            "lineNumber": 38,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    const onMeta = () =\u003e {"
+          },
+          {
+            "lineNumber": 40,
+            "text": "      if (video.videoWidth \u003e= 2 \u0026\u0026 video.videoHeight \u003e= 2) done();"
+          },
+          {
+            "lineNumber": 41,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 42,
+            "text": "    const to = setTimeout(() =\u003e {"
+          },
+          {
+            "lineNumber": 43,
+            "text": "      cleanup();"
+          },
+          {
+            "lineNumber": 44,
+            "text": "      reject(new Error('Video timeout'));"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    }, 12000);"
+          },
+          {
+            "lineNumber": 46,
+            "text": "    if (video.videoWidth \u003e= 2 \u0026\u0026 video.videoHeight \u003e= 2) {"
+          },
+          {
+            "lineNumber": 47,
+            "text": "      cleanup();"
+          },
+          {
+            "lineNumber": 48,
+            "text": "      resolve();"
+          },
+          {
+            "lineNumber": 49,
+            "text": "      return;"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 51,
+            "text": "    video.addEventListener('loadedmetadata', onMeta);"
+          },
+          {
+            "lineNumber": 52,
+            "text": "    video.addEventListener('loadeddata', onMeta);"
+          },
+          {
+            "lineNumber": 53,
+            "text": "  });"
+          },
+          {
+            "lineNumber": 54,
+            "text": "}"
+          },
+          {
+            "lineNumber": 55
+          },
+          {
+            "lineNumber": 56,
+            "text": "export default function CountdownCapture({ evaluationId, onDone }) {"
+          },
+          {
+            "lineNumber": 57,
+            "text": "  const [count, setCount]     = useState(3);"
+          },
+          {
+            "lineNumber": 58,
+            "text": "  const [phase, setPhase]     = useState('countdown'); // countdown|capturing|done"
+          },
+          {
+            "lineNumber": 59,
+            "text": "  const [videoReady, setVideoReady] = useState(false);"
+          },
+          {
+            "lineNumber": 60,
+            "text": "  const videoRef  = useRef(null);"
+          },
+          {
+            "lineNumber": 61,
+            "text": "  const streamRef = useRef(null);"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 61
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\CountdownCapture.jsx",
+        "signatures": {}
+      },
+      "score": 0.3592948913574219
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 96,
+            "text": "        el.muted = true;"
+          },
+          {
+            "lineNumber": 97,
+            "text": "        el.playsInline = true;"
+          },
+          {
+            "lineNumber": 98,
+            "text": "        el.setAttribute('playsinline', '');"
+          },
+          {
+            "lineNumber": 99,
+            "text": "        el.setAttribute('webkit-playsinline', '');"
+          },
+          {
+            "lineNumber": 100,
+            "text": "        await el.play().catch(() =\u003e {});"
+          },
+          {
+            "lineNumber": 101,
+            "text": "        await waitVideoReady(el);"
+          },
+          {
+            "lineNumber": 102,
+            "text": "        if (!mounted) {"
+          },
+          {
+            "lineNumber": 103,
+            "text": "          stream.getTracks().forEach((t) =\u003e t.stop());"
+          },
+          {
+            "lineNumber": 104,
+            "text": "          return;"
+          },
+          {
+            "lineNumber": 105,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 106,
+            "text": "        setVideoReady(true);"
+          },
+          {
+            "lineNumber": 107,
+            "text": "      } catch {"
+          },
+          {
+            "lineNumber": 108,
+            "text": "        if (!mounted) return;"
+          },
+          {
+            "lineNumber": 109,
+            "text": "        setPhase('done');"
+          },
+          {
+            "lineNumber": 110,
+            "text": "        setTimeout(() =\u003e onDoneRef.current?.({ faceMatchResult: 'Error', score: null }), 400);"
+          },
+          {
+            "lineNumber": 111,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 112,
+            "text": "    })();"
+          },
+          {
+            "lineNumber": 113,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 114,
+            "text": "      mounted = false;"
+          },
+          {
+            "lineNumber": 115,
+            "text": "      streamRef.current?.getTracks().forEach((t) =\u003e t.stop());"
+          },
+          {
+            "lineNumber": 116,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 117,
+            "text": "  }, []);"
+          },
+          {
+            "lineNumber": 118
+          },
+          {
+            "lineNumber": 119,
+            "text": "  const doCapture = useCallback(async () =\u003e {"
+          },
+          {
+            "lineNumber": 120,
+            "text": "    setPhase('capturing');"
+          },
+          {
+            "lineNumber": 121,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 122,
+            "text": "      await ensureModels();"
+          },
+          {
+            "lineNumber": 123
+          },
+          {
+            "lineNumber": 124,
+            "text": "      const canvas  = document.createElement('canvas');"
+          },
+          {
+            "lineNumber": 125,
+            "text": "      const video   = videoRef.current;"
+          },
+          {
+            "lineNumber": 126,
+            "text": "      const w = video?.videoWidth  || 0;"
+          },
+          {
+            "lineNumber": 127,
+            "text": "      const h = video?.videoHeight || 0;"
+          },
+          {
+            "lineNumber": 128,
+            "text": "      if (w \u003c 2 || h \u003c 2) {"
+          },
+          {
+            "lineNumber": 129,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 130,
+            "text": "          await waitVideoReady(video);"
+          },
+          {
+            "lineNumber": 131,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 132,
+            "text": "          /* use fallback size below */"
+          },
+          {
+            "lineNumber": 133,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 134,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 135,
+            "text": "      const vw = video?.videoWidth  || 640;"
+          },
+          {
+            "lineNumber": 136,
+            "text": "      const vh = video?.videoHeight || 480;"
+          },
+          {
+            "lineNumber": 137,
+            "text": "      canvas.width  = vw;"
+          },
+          {
+            "lineNumber": 138,
+            "text": "      canvas.height = vh;"
+          },
+          {
+            "lineNumber": 139,
+            "text": "      canvas.getContext('2d').drawImage(video, 0, 0);"
+          },
+          {
+            "lineNumber": 140
+          },
+          {
+            "lineNumber": 141,
+            "text": "      // Compare with profile photo"
+          },
+          {
+            "lineNumber": 142,
+            "text": "      const user = JSON.parse(localStorage.getItem('user') || '{}');"
+          },
+          {
+            "lineNumber": 143,
+            "text": "      let faceMatchResult = 'Skipped';"
+          },
+          {
+            "lineNumber": 144,
+            "text": "      let score = null;"
+          },
+          {
+            "lineNumber": 145
+          },
+          {
+            "lineNumber": 146,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 147,
+            "text": "        const [capturedDetection, profileDesc] = await Promise.all(["
+          },
+          {
+            "lineNumber": 148,
+            "text": "          "
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 10,
+            "line": 147
+          },
+          "startPosition": {
+            "line": 95
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\components\\CountdownCapture.jsx",
+        "signatures": {}
+      },
+      "score": 0.3435668349266052
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 622,
+            "text": "\u003clabel className=\"field-label\"\u003eActive\u003c/label\u003e"
+          },
+          {
+            "lineNumber": 623,
+            "text": "                      \u003cselect className=\"field-input\" value={editForm.isActive}"
+          },
+          {
+            "lineNumber": 624,
+            "text": "                        onChange={e =\u003e setEditForm(f =\u003e ({ ...f, isActive: parseInt(e.target.value, 10) }))}\u003e"
+          },
+          {
+            "lineNumber": 625,
+            "text": "                        \u003coption value={1}\u003eYes\u003c/option\u003e"
+          },
+          {
+            "lineNumber": 626,
+            "text": "                        \u003coption value={0}\u003eNo\u003c/option\u003e"
+          },
+          {
+            "lineNumber": 627,
+            "text": "                      \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 628,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 629,
+            "text": "                  \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 630,
+            "text": "                  \u003cdiv className=\"form-actions\"\u003e"
+          },
+          {
+            "lineNumber": 631,
+            "text": "                    \u003cbutton type=\"submit\" className=\"btn btn-primary\"\u003eSave changes\u003c/button\u003e"
+          },
+          {
+            "lineNumber": 632,
+            "text": "                    \u003cbutton type=\"button\" className=\"btn btn-secondary\" onClick={() =\u003e setEditUser(null)}\u003eCancel\u003c/button\u003e"
+          },
+          {
+            "lineNumber": 633,
+            "text": "                  \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 634,
+            "text": "                \u003c/form\u003e"
+          },
+          {
+            "lineNumber": 635,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 636,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 637,
+            "text": "          )}"
+          },
+          {
+            "lineNumber": 638
+          },
+          {
+            "lineNumber": 639,
+            "text": "          {/* Update photo modal */}"
+          },
+          {
+            "lineNumber": 640,
+            "text": "          {photoUpdateUser \u0026\u0026 ("
+          },
+          {
+            "lineNumber": 641,
+            "text": "            \u003cdiv className=\"modal-overlay\" onClick={() =\u003e setPhotoUpdateUser(null)}\u003e"
+          },
+          {
+            "lineNumber": 642,
+            "text": "              \u003cdiv className=\"modal-card modal-card-sm\" onClick={e =\u003e e.stopPropagation()}\u003e"
+          },
+          {
+            "lineNumber": 643,
+            "text": "                \u003cdiv className=\"modal-header\"\u003e"
+          },
+          {
+            "lineNumber": 644,
+            "text": "                  \u003ch3\u003eUpdate photo — {photoUpdateUser.FullName}\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 645,
+            "text": "                  \u003cbutton type=\"button\" className=\"modal-close\" onClick={() =\u003e setPhotoUpdateUser(null)}\u003e\u003cX size={18} /\u003e\u003c/button\u003e"
+          },
+          {
+            "lineNumber": 646,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 647,
+            "text": "                \u003cform onSubmit={savePhotoUpdate} className=\"modal-form\"\u003e"
+          },
+          {
+            "lineNumber": 648,
+            "text": "                  \u003cdiv className=\"field-group\"\u003e"
+          },
+          {
+            "lineNumber": 649,
+            "text": "                    \u003clabel className=\"field-label\"\u003eProfile photo\u003c/label\u003e"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 649
+          },
+          "startPosition": {
+            "column": 22,
+            "line": 621
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\pages\\AdminSettings.jsx",
+        "signatures": {}
+      },
+      "score": 0.33394813537597656
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 192,
+            "text": "if (!byPage[a.PageNumber]) byPage[a.PageNumber] = [];"
+          },
+          {
+            "lineNumber": 193,
+            "text": "          byPage[a.PageNumber].push({"
+          },
+          {
+            "lineNumber": 194,
+            "text": "            type: a.type,"
+          },
+          {
+            "lineNumber": 195,
+            "text": "            x: a.x,"
+          },
+          {
+            "lineNumber": 196,
+            "text": "            y: a.y,"
+          },
+          {
+            "lineNumber": 197,
+            "text": "            note: a.note,"
+          },
+          {
+            "lineNumber": 198,
+            "text": "            payload: a.payload ?? null,"
+          },
+          {
+            "lineNumber": 199,
+            "text": "          });"
+          },
+          {
+            "lineNumber": 200,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 201,
+            "text": "        setAnnotations(byPage);"
+          },
+          {
+            "lineNumber": 202
+          },
+          {
+            "lineNumber": 203,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 204,
+            "text": "          const sh = await api.eval.getBookletSharedAnnotations(bookletId);"
+          },
+          {
+            "lineNumber": 205,
+            "text": "          const pages = sh?.pages || {};"
+          },
+          {
+            "lineNumber": 206,
+            "text": "          const norm = {};"
+          },
+          {
+            "lineNumber": 207,
+            "text": "          Object.keys(pages).forEach((k) =\u003e {"
+          },
+          {
+            "lineNumber": 208,
+            "text": "            const n = parseInt(k, 10);"
+          },
+          {
+            "lineNumber": 209,
+            "text": "            if (Number.isFinite(n)) norm[n] = Array.isArray(pages[k]) ? pages[k] : [];"
+          },
+          {
+            "lineNumber": 210,
+            "text": "          });"
+          },
+          {
+            "lineNumber": 211,
+            "text": "          setSharedByPage(norm);"
+          },
+          {
+            "lineNumber": 212,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 213,
+            "text": "          setSharedByPage({});"
+          },
+          {
+            "lineNumber": 214,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 215
+          },
+          {
+            "lineNumber": 216,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 217,
+            "text": "          const av = await api.files.bookletAvailability(bookletId);"
+          },
+          {
+            "lineNumber": 218,
+            "text": "          if (av.totalPages \u003e 0) {"
+          },
+          {
+            "lineNumber": 219,
+            "text": "            setBookletMedia({ mode: 'pages', hint: av.message || '' });"
+          },
+          {
+            "lineNumber": 220,
+            "text": "          } else if (av.hasPdf) {"
+          },
+          {
+            "lineNumber": 221,
+            "text": "            setBookletMedia({"
+          },
+          {
+            "lineNumber": 222,
+            "text": "              mode: 'pdf',"
+          },
+          {
+            "lineNumber": 223,
+            "text": "              hint: av.message || 'Only PDF on server — use PDF viewer below.',"
+          },
+          {
+            "lineNumber": 224,
+            "text": "            });"
+          },
+          {
+            "lineNumber": 225,
+            "text": "          } else {"
+          },
+          {
+            "lineNumber": 226,
+            "text": "            setBookletMedia({"
+          },
+          {
+            "lineNumber": 227,
+            "text": "              mode: 'none',"
+          },
+          {
+            "lineNumber": 228,
+            "text": "              hint:"
+          },
+          {
+            "lineNumber": 229,
+            "text": "                av.message ||"
+          },
+          {
+            "lineNumber": 230,
+            "text": "                'No answer images or PDF on server. Check scan output path and PDF upload.',"
+          },
+          {
+            "lineNumber": 231,
+            "text": "            });"
+          },
+          {
+            "lineNumber": 232,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 233,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 234,
+            "text": "          setBookletMedia({ mode: 'unknown', hint: '' });"
+          },
+          {
+            "lineNumber": 235,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 236,
+            "text": "      } catch (err) {"
+          },
+          {
+            "lineNumber": 237,
+            "text": "        setError(err.message || 'Failed to load booklet');"
+          },
+          {
+            "lineNumber": 238,
+            "text": "      } finally {"
+          },
+          {
+            "lineNumber": 239,
+            "text": "        setLoading(false);"
+          },
+          {
+            "lineNumber": 240,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 241,
+            "text": "    })();"
+          },
+          {
+            "lineNumber": 242,
+            "text": "  }, [bookletId]);"
+          },
+          {
+            "lineNumber": 243
+          },
+          {
+            "lineNumber": 244,
+            "text": "  // ── Load PDF document (evaluator booklet PDF-only mode) ───────────────────"
+          },
+          {
+            "lineNumber": 245,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 246,
+            "text": "    if (!usePdfViewer || !bookletId) {"
+          },
+          {
+            "lineNumber": 247,
+            "text": "      pdfDocRef.current = null;"
+          },
+          {
+            "lineNumber": 248,
+            "text": "      setPdfNumPages(0);"
+          },
+          {
+            "lineNumber": 249,
+            "text": "      setPdfThumbs({});"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 249
+          },
+          "startPosition": {
+            "column": 10,
+            "line": 191
+          }
+        },
+        "relativeWorkspacePath": ".\\web\\src\\pages\\Evaluate.jsx",
+        "signatures": {}
+      },
+      "score": 0.2708481550216675
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{jsx,tsx,js,ts}",
+  "path": "d:/Scanning\u0026Evaluation/web",
+  "pattern": "Skip|Identity Verification|Verify Identity"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web",
+  "pattern": "Skip|Identity Verification|Verify Identity",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\pages\\ScanTemplateForm.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\utils\\scanTemplateForm.js"
+    },
+    {
+      "matchCount": 14,
+      "uri": "web\\src\\components\\FaceVerifyModal.jsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "web\\src\\components\\CountdownCapture.jsx"
+    }
+  ],
+  "totalFiles": 4,
+  "totalMatches": 18
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I need to read the full FaceVerifyModal.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **1** result in **1** directory</summary>
+
+Directory: **d:/Scanning&Evaluation/web** (1 file)
+
+| File |
+|------|
+| `../../../web/src/components/FaceVerifyModal.css` |
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/web/src/pages/Evaluate.jsx",
+  "pattern": "FaceVerify|faceVerify|photo_verify"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src/pages/Evaluate.jsx",
+  "pattern": "FaceVerify|faceVerify|photo_verify",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "web/src/pages/Evaluate.jsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I see the bug now! When `phase === 'ready' || phase === 'verifying'`, the video element is rendered with `key={selectedDeviceId || 'default'}`. When `startCamera` runs, it sets the stream on `videoRef.current`, but during the `starting` phase, there's no video element mounted yet since the video only appears when the phase becomes `ready` or `verifying`. This means the stream assignment happens before the video element exists in the DOM, causing issues with rendering.
+
+The phases are:
+- init: loader, no video
+- pick_camera: select + start button
+- starting: no video element yet
+- ready/verifying: video element mounts and displays the stream When `startCamera` runs during the `starting` phase:
+- The phase changes to `starting`, which unmounts any existing video element
+- A loader overlay is shown instead of a video element
+- The stream is acquired and assigned to `videoRef.current`
+- However, since no video element exists in the DOM during `starting` phase, `videoRef.current` is null
+- This causes the stream assignment to fail silently, leaving the video element without a stream when it eventually mounts during `ready` or `verifying` phase
+
+The issue occurs because:
+- During `starting`: No video element exists  `videoRef.current` is null
+- During `ready`/`verifying`: Video element exists  `videoRef.current` is valid
+- Stream assignment happens during `starting` phase but cannot attach to null reference The stream is stored in `streamRef` but never attached to a video element during the `starting` phase when no video exists. When `setPhase('ready')` runs, a new `<video>` element mounts with `ref={videoRef}`, but `srcObject` was never set on it because the assignment only happened when `videoRef.current` existed (which was null during `starting`). 
+
+The fix requires a `useEffect` that runs when `phase` is `'ready'` and `streamRef.current` is available, to assign `srcObject` to `videoRef.current` and play the video. When the phase becomes 'ready' or 'verifying', a new video element mounts with a fresh key, so we must ensure the stream is properly attached. A `useEffect` should run during these phases to assign the stream to the video element and start playback.
+
+- Assign `srcObject`, `muted`, and `playsInline` properties
+- Call `play()` on the video element
+- Clean up by pausing the video on unmount The issue occurs when transitioning between phases, particularly from `ready` to `verifying`, where the same video element and stream persist but the effect might re-run unnecessarily. To avoid clearing `srcObject` during phase transitions like `ready`  `verifying`, we should refine how the stream is handled.
+
+A better approach is to avoid setting the stream on the video element directly when it doesn't exist. Instead:
+- After acquiring the stream via `getUserMedia`, store it in `streamRef`.
+- Update the phase to `ready`.
+- Use a `useEffect` to attach the stream to the video element only when it mounts.
+
+This ensures the stream is always available for assignment when the video element becomes active, without prematurely attempting to assign it during inactive phases. When `setPhase('starting')` is called, the stream is stored in `streamRef` and the phase updates to `ready`. A `useEffect` then runs when the phase is `ready` or `verifying`, assigning the stream to the video element and starting playback.
+
+- The effect checks if the video element and stream exist before assignment
+- It sets `srcObject`, `muted`, and `playsInline` properties
+- It attempts to play the video and waits for the first frame
+- If playback fails, it continues without error
+- The effect runs whenever `phase` or `selectedDeviceId` changes</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/pages/Evaluate.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/pages/Evaluate.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I've confirmed the bug: `startCamera` sets `streamRef`. The issue occurs because `current = stream` attempts to use `videoRef.current`, which is null during `starting` since the video element only mounts when `phase === 'ready' | 'verifying'`. The stream was never bound due to the mount order.
+
+**Fix:** Use `useLayoutEffect` to attach `streamRef` to `videoRef` when phase is `ready` or `verifying`, and import `useLayoutEffect` from 'react'.
+
+**Edge case handling:** When video mounts, assign `srcObject`. If ref is null in layout effect, retry once using `requestAnimationFrame` or `setTimeout(0)`.
+
+**Remove key from video?** The key ensures proper remounting when device changes, maintaining consistency between device selection and video mounting phases. When transitioning from starting to ready, the same key preserves the mount, while device changes trigger a new mount correctly.
+
+- Unbind video source before stopping streams to prevent issues.
+- Remove `handleSkip` function. - Remove the Skip button in the ready state.
+- For error states, change "Skip Verification" to "Check camera permissions" with a "Retry setup" option that resets the phase to `pick_camera`, clears streams, and re-enumerates devices.
+- Remove `handleSkip` function and the skipped path from `handleProceed`.
+- Replace "Back to home" with `window.location` or a callback instead of navigation.
+- Simplify error handling to avoid navigating to home within modals. For no profile photos, show a blocking message: "Profile photo not on file. Contact administrator" with only a "Go back" option  no skipping allowed.  
+Update `handleProceed` logic:  
+- Show "Proceed to Evaluation" only for **Matched** results.  
+- For **Mismatch** with non-block: use `verifyAction` to determine if blocking applies.  
+- Remove "Verification Skipped" message for mandatory cases. If a warning occurs, proceed is still restricted for "mandatory" casesonly **Matched** results allow proceeding.  
+For **Error** (no face in frame), show "Retry" and disable "Proceed".  
+For **Skipped** (no profile or failed to load), block with a message and provide only "Go to dashboard" or `onBlock` options.
+
+Revised product logic:
+- Use `photo_verify_action` to determine blocking or warning behavior.
+- Prevent skipping, ensure camera works, and avoid bypassing verification.
+
+Minimal changes:
+- Fix camera functionality.
+- Remove all skip UI and prevent calling `onDone` from skip paths.
+- Allow **Proceed to Evaluation** only when `faceMatchResult === 'Matched'`. For Mismatch, Error, and Skipped states, display appropriate UI elements like Retry or block policies based on configuration. For Mismatch with warn_continue, show "Try again" instead of allowing Proceed. 
+
+To tighten the flow, only **Matched** results should allow proceeding to Evaluation, regardless of verifyAction settings. The verifyAction may still control navigation behavior for Mismatches but not allow proceeding.</details></think>
+
+_**Agent (composer-2)**_
+
+Identifying the issue: `startCamera` assigns the MediaStream to `videoRef.current` while `phase === 'starting'`, but the `<video>` only mounts when `phase === 'ready'`, so `videoRef.current` is null and the stream is never bound. Attaching the stream in a `useLayoutEffect` when the video mounts, removing all Skip actions, and allowing evaluation to proceed only after a successful match.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+Consolidating duplicate `useLayoutEffect` hooks into one.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I'll replace the two useLayoutEffects with one that:
+- Combines their functionalities
+- Reduces redundant effect calls
+- Improves performance by consolidating side effects
+- Maintains the same visual and layout behavior
+- Ensures proper cleanup of both effects in a single hook</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I'll replace two useLayoutEffects with one that uses double rAF if needed, or single rAF if possible. 2. Remove the if(videoRef) block from startCamera and directly set stream and setPhase ready.
+3. Use `deviceId: { exact: selectedDeviceId }` as a fallback when ideal constraints failthis aligns with existing dual constraint logic.
+4. For no profile case: use 'NoProfile' result type, display message and go home button.
+5. In handleProceed: proceed to onDone only for Matched; block for Mismatch+block; otherwise, reset to pick_camera with "Try again".
+6. Add reset function:
+- Reset result to null
+- Stop stream
+- Clear video source object
+- Set phase back to 'pick_camera' setMessage('Choose which camera to use, then click "Start camera".');
+For error phase (init failure): use "Reload page" or navigate home - not skip. User can try "Check permissions and reload" with window.location.reload()
+
+Result UI:
+- Matched: one button Proceed
+- Mismatch, !block: show "Face does not match your profile" + Try again button (onClick resetToCameraPick)
+- Mismatch, block: Go back
+- Error (no face): Try again
+- Skipped/NoProfile: no proceed - "Contact administrator" + Go to dashboard When there's no photo path, set faceMatchResult to 'NoProfile'.  
+For profile load errors, use 'NoProfile' instead of 'ProfileLoadError'.  
+Treat skipped results as 'NoProfile' with new label.  
+Remove second useLayoutEffect, keep first with microtask to clear video source when not ready.  
+Use 'NoProfile' for shield check cases.</details></think>
+
+_**Agent (composer-2)**_
+
+Merging the duplicate effects into one and completing the rest of the changes.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+- Add resetToCameraPick and handleProceed functions for Matched state
+- Update result UI to show for all states
+- Remove handleSkip function
+- Fix error button functionality
+- Add NoProfile and Error handling in result section For result faceMatchResult types, keep all states (Matched, Mismatch, Error, NoProfile, Skipped) in UI for safety. Update className for NoProfile and Error states, add AlertTriangle for Error state.
+
+Reset camera functionality:
+- Clear result and reset message
+- Stop video stream
+- Set phase back to pick_camera
+
+Handle proceed function needs completion.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The code still executes setResult for the else branch despite introducing an early return.</details></think>
+
+_**Agent (composer-2)**_
+
+Fixing the `!captured` branch: removing the early return and setting `_msg` in the final `setResult`.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The error result title currently uses "result" and needs to be fixed.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+When errDetail is null, setResult is called with faceMatchResult, score, and other relevant data. If errDetail is null, spreading it in an object literal will not cause errors due to ES2018 object spread behavior, but for safety, using `(errDetail || {})` ensures compatibility across all environments.
+
+- `setResult({ faceMatchResult, score, ...(errDetail || {}) });` prevents potential errors when errDetail is null or undefined.
+- In `captureWebcamFrame`, if the video is not ready, an error may occur; wrapping the call in a try-catch block is recommended to handle such failures gracefully.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+When errDetail is an object, we use . The fix was incorrect; it should be `setResult({ faceMatchResult, score, ...(errDetail || {}) });`.  
+- `errDetail` is always an object or null, so `...(errDetail || {})` is the correct approach.  
+- The previous condition `...(errDetail && typeof errDetail === 'object' ? errDetail : {})` was unnecessarily complex but functionally correct.  
+- Bug: `errDetail` is `null` for Matched, Mismatch, NoProfile  the spread works fine.  
+- For NoProfile, `errDetail` remains null  this is also correct.  
+- Lint issues were found in FaceVerifyModal.  
+- Conflict: result title uses `result.`</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/components/FaceVerifyModal.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:/Scanning\u0026Evaluation/web/src/components/FaceVerifyModal.jsx",
+  "pattern": "Skip|handleSkip|Skipped"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web/src/components/FaceVerifyModal.jsx",
+  "pattern": "Skip|handleSkip|Skipped",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "d:/Scanning\u0026Evaluation/web/src/components/FaceVerifyModal.jsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/components/FaceVerifyModal.jsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+- Check if `useEffect` is actually used in the file.
+- If not used, remove the import statement for `useEffect`.
+- Verify that removing the import doesn't break any functionality.</details></think>
+
+_**Agent (composer-2)**_
+
+Here is what was wrong and what we changed.
+
+### Why the camera area was black
+`startCamera()` opened the `MediaStream` and wrote it to `videoRef.current` while the phase was still **`starting`**. In that phase there is **no `<video>` in the tree**, so `videoRef.current` was always **`null`**, the stream was never bound, and you still advanced to **`ready`** where the `<video>` first mounts—without a `srcObject`.
+
+**Fix:** a `useLayoutEffect` runs when `phase` is `ready` or `verifying` and attaches `streamRef.current` to the mounted `<video>`, with a short `requestAnimationFrame` retry if the ref is not ready yet. `startCamera` only stores the stream and sets `ready`; it no longer depends on the ref.
+
+### No bypassing verification
+- Removed **Skip** and **Skip Verification**; there is no code path that calls `onDone` with `Skipped` anymore.
+- **Proceed to evaluation** only after **`Matched`**.
+- **Mismatch** (admin “warn” mode): only **Try again** (no continue with a mismatch).
+- **Mismatch** (block mode): **Go back** (uses `onBlock` like before).
+- **Error** (no face, load errors, etc.): **Try again** (back to camera selection).
+- **No profile photo**: **Go to dashboard** (uses `onBlock` — same as `Evaluate`’s `navigate('/')`).
+- **Setup error** (no camera, init failure): **Reload page** instead of skip.
+
+### Other tweaks
+- Slightly more forgiving **face detection** options (`inputSize: 224`, `scoreThreshold: 0.3`).
+- Extra `getUserMedia` candidate: **`deviceId: { exact: ... }`** if `ideal` fails.
+- Styling: `.fv-result.noprofile` for the no-photo case.
+
+Files touched: `web/src/components/FaceVerifyModal.jsx`, `web/src/components/FaceVerifyModal.css`.
+
+---
+
+_**User**_
+
+Unable to login as admin with existing password i have not changed any thing. check the login page
+
+---
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The user cannot log in as admin using their current password.</details></think>
+
+_**Agent (composer-2)**_
+
+Tracing the login flow (frontend and API) to find why admin login fails.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/pages/Login.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "**/*.{js,ts}",
+  "path": "d:/Scanning\u0026Evaluation/api",
+  "pattern": "login|/auth"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/api",
+  "pattern": "login|/auth",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.repository.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\eval\\eval.routes.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\admin\\admin.service.js"
+    },
+    {
+      "matchCount": 8,
+      "uri": "api\\src\\middleware\\auditLog.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\admin\\admin.routes.js"
+    },
+    {
+      "matchCount": 27,
+      "uri": "api\\src\\modules\\auth\\auth.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\middleware\\security.js"
+    },
+    {
+      "matchCount": 6,
+      "uri": "api\\src\\modules\\auth\\auth.service.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\config\\swagger.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\auth\\auth.repository.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scan\\files.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scanqc\\scanqc.service.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scan\\scan.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\headeval\\headeval.routes.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\index.js"
+    },
+    {
+      "matchCount": 4,
+      "uri": "api\\src\\modules\\auth\\auth.controller.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\answersheet\\answersheet.routes.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\services\\mailer.js"
+    }
+  ],
+  "totalFiles": 19,
+  "totalMatches": 66
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/auth/auth.service.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/auth/auth.repository.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The auth service checks if `scanStaffLogin` is enabled; if so, it uses the 'scan' source and queries the `Scan_Users` table instead of the main `Users` table.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/modules/auth/auth.controller.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/docker/mysql-init/02_seed.sql</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The seed reveals an admin user with username "admin" and a password hash for "password123".</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/middleware/security.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/services/api.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+I found a critical bug in api.js. The code treats all 401 responses as session expiration, even though login failures also return 401. This causes failed logins to show "Session expired" instead of proper error messages.
+
+The flow is:
+- Login requests return 401 for invalid credentials
+- The request() function redirects to login and throws "Session expired" on any 401
+- This masks the actual login error messages
+
+This needs to distinguish between genuine session timeouts and login failures.</details></think>
+
+_**Agent (composer-2)**_
+
+Checking how the API returns failed login responses:
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/utils/response.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/api/src/middleware/errorHandler.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Failed login attempts return a 401 status code with the response body `{ success: false, message: 'Invalid credentials' }` due to the error handler.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/services/api.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+The bug is clear: lines 34-40 execute for all 401 responses, including failed login attempts.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{js,jsx}",
+  "path": "d:/Scanning\u0026Evaluation/web",
+  "pattern": "auth/login|/login"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:/Scanning\u0026Evaluation/web",
+  "pattern": "auth/login|/login",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "web/src/services/api.js"
+    },
+    {
+      "matchCount": 3,
+      "uri": "web\\src\\services\\api.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "web/src/pages/ScanQcPortal.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/ChangePassword.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/ForgotPassword.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/components/Header.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/Login.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/HeadEvalLogin.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/e2e/smoke.spec.js"
+    },
+    {
+      "matchCount": 7,
+      "uri": "web/src/App.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\components\\Header.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/src/pages/ResetPassword.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web/e2e/admin-login.spec.js"
+    }
+  ],
+  "totalFiles": 13,
+  "totalMatches": 24
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/src/pages/HeadEvalLogin.jsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Head eval uses the same login, so the same 401 bug would apply.</details></think>
+
+_**Agent (composer-2)**_
+
+Identifying the issue: the API client treats every HTTP 401 as a session expiry and redirects to `/login`. Failed login returns 401 with `Invalid credentials`, so the client clears storage, redirects, and throws "Session expired" — masking the real error and breaking the login flow. Fixing `request()` in `api.js` to treat POST `/auth/login` failures as normal auth errors (no redirect). Improving the login page with trimmed inputs and clearer copy about the scanner-staff checkbox.
+
+
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/services/api.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/Login.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/Login.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/Login.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Password trimming should consider that users may intentionally include leading or trailing spaces in their passwords, so using replace for trimming might inadvertently remove valid input.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:/Scanning&Evaluation/web/src/pages/Login.jsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<think><details><summary>Thought Process</summary>
+Read the end-to-end admin-login specification to determine if updates are needed if it depended on specific behavior.</details></think>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "d:/Scanning\u0026Evaluation/web/src/services/api.js",
+    "d:/Scanning\u0026Evaluation/web/src/pages/Login.jsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/services/api.js"
+    },
+    {
+      "relativeWorkspacePath": "d:/Scanning\u0026Evaluation/web/src/pages/Login.jsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:/Scanning&Evaluation/web/e2e/admin-login.spec.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2)**_
+
+Here is what was going wrong and what we changed.
+
+### Root cause: wrong handling of `401` on login
+
+Failed login is answered with **HTTP 401** and a JSON body like  
+`{ success: false, message: "Invalid credentials" }`.
+
+In `web/src/services/api.js`, **every** `401` was treated as an expired session: it cleared `localStorage`, **sent the browser to `/login` again**, and threw **`"Session expired"`** — **before** the real `message` from the server was used.
+
+So a normal bad attempt (wrong password, wrong user, or **“Scanner staff”** checked for an evaluation `admin` user) never surfaced as **Invalid credentials**; it looked like a session/redirect problem and was easy to misread as “I can’t log in with my real password.”
+
+### Fix in `api.js`
+
+- For **`POST /auth/login`** with `401` and `success: false`, the client now **only** throws **`data.message`** (e.g. *Invalid credentials*) and does **not** clear the session or redirect.
+- The old redirect + “Session expired” behavior stays for **401** on **other** calls when a **token** is present.
+
+### Login page adjustments (`Login.jsx`)
+
+- **Trim** username and password so accidental spaces do not break login.
+- Clearer **subtitle** and **checkbox** text: evaluation **admin** should use the default sign-in; the **“Scanner staff”** path hits the **scanner** DB, so an evaluation `admin` account there can fail even with the “same” password.
+
+After pulling these changes, try again with **“Scanner staff” unchecked**, user **`admin`**, and the password that matches your **Evaluation** DB (seed default is `password123` if you use the repo seed). If it still fails, you should now see the **real** API message (e.g. *Invalid credentials*, *Account is suspended*, *Profile photo is required* for evaluators, etc.), which will narrow it down.

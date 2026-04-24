@@ -3,28 +3,8 @@ import {
   Clock, ChevronRight, Loader2,
   Camera, Navigation, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ShieldCheck,
 } from 'lucide-react';
-import * as faceapi from 'face-api.js';
 import { api } from '../services/api';
 import './SessionContextModal.css';
-
-const FACE_MODEL_URL = '/face-api-models';
-let loginFaceModelsLoaded = false;
-async function loadLoginFaceModels() {
-  if (loginFaceModelsLoaded) return;
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL_URL),
-    faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
-  ]);
-  loginFaceModelsLoaded = true;
-}
-
-function faceDetectorOptsPrimary() {
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.25 });
-}
-function faceDetectorOptsFallback() {
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.15 });
-}
 
 const PERIODS = [
   { value: 'Morning',   label: 'Morning   (8 AM – 12 PM)' },
@@ -173,88 +153,38 @@ export default function SessionContextModal({ onComplete }) {
     (async () => {
       try {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (!user.profilePhotoPath) {
+        const regPath = user.profilePhotoPath || user.ProfilePhotoPath;
+        if (!regPath) {
           setVerifyPhase('error');
           setVerifyMessage('No registration photo on file. Contact your administrator.');
           return;
         }
-        await loadLoginFaceModels();
-        // face-api.js: chain may not return a native Promise — do not use .catch() on it
-        let capDet = null;
-        try {
-          capDet = await faceapi
-            .detectSingleFace(canvas, faceDetectorOptsPrimary())
-            .withFaceLandmarks(true)
-            .withFaceDescriptor();
-        } catch {
-          capDet = null;
-        }
-        if (!capDet) {
-          try {
-            capDet = await faceapi
-              .detectSingleFace(canvas, faceDetectorOptsFallback())
-              .withFaceLandmarks(true)
-              .withFaceDescriptor();
-          } catch {
-            capDet = null;
-          }
-        }
 
-        const profileDesc = await new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = async () => {
-            try {
-              let det = null;
-              try {
-                det = await faceapi
-                  .detectSingleFace(img, faceDetectorOptsPrimary())
-                  .withFaceLandmarks(true)
-                  .withFaceDescriptor();
-              } catch {
-                det = null;
-              }
-              if (!det) {
-                try {
-                  det = await faceapi
-                    .detectSingleFace(img, faceDetectorOptsFallback())
-                    .withFaceLandmarks(true)
-                    .withFaceDescriptor();
-                } catch {
-                  det = null;
-                }
-              }
-              resolve(det?.descriptor || null);
-            } catch {
-              resolve(null);
-            }
-          };
-          img.onerror = () => resolve(null);
-          img.src = api.files.profilePhotoUrl(user.profilePhotoPath);
-        });
-
-        if (!profileDesc) {
+        const vr = await api.auth.verifyLoginFace({ liveImageBase64: previewUrl });
+        if (!vr.verified) {
           setVerifyPhase('error');
-          setVerifyMessage('Could not read your registration photo. Contact your administrator.');
-          return;
-        }
-        if (!capDet?.descriptor) {
-          setVerifyPhase('error');
-          setVerifyMessage('No clear face detected. Improve lighting, face the camera squarely, and retake.');
-          return;
-        }
-        const dist = faceapi.euclideanDistance(capDet.descriptor, profileDesc);
-        const score = Math.max(0, Math.round((1 - dist) * 100));
-        if (score < 50) {
-          setVerifyPhase('error');
+          const pct =
+            vr.matchPercentage != null && Number.isFinite(Number(vr.matchPercentage))
+              ? Math.round(Number(vr.matchPercentage))
+              : null;
           setVerifyMessage(
-            `Face does not match your registration photo (${score}% similarity, need ≥50%). Retake or contact your administrator.`
+            pct != null
+              ? `${vr.message || 'Face does not match your registration photo.'} (${pct}% similarity.)`
+              : (vr.message || 'Face does not match your registration photo. Retake or contact your administrator.')
           );
           return;
         }
 
         setVerifyPhase('uploading');
-        setVerifyMessage(`Identity verified (${score}% match). Saving login photo…`);
+        const pctOk =
+          vr.matchPercentage != null && Number.isFinite(Number(vr.matchPercentage))
+            ? Math.round(Number(vr.matchPercentage))
+            : null;
+        setVerifyMessage(
+          pctOk != null
+            ? `Identity verified (${pctOk}% match). Saving login photo…`
+            : 'Identity verified. Saving login photo…'
+        );
 
         const blob = await new Promise((resolve, reject) => {
           canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode image'))), 'image/jpeg', 0.85);
@@ -265,16 +195,15 @@ export default function SessionContextModal({ onComplete }) {
         setPhotoPath(result.photoPath);
         setCapturedBlob(blob);
         setVerifyPhase('done');
-        setVerifyMessage(`Verified (${score}% match). You can continue.`);
+        setVerifyMessage(
+          pctOk != null
+            ? `Verified (${pctOk}% match). You can continue.`
+            : 'Verified. You can continue.'
+        );
       } catch (err) {
         const msg = err?.message || '';
-        const modelsMissing = /<!DOCTYPE|is not valid JSON|Failed to fetch|404/i.test(String(msg));
         setVerifyPhase('error');
-        setVerifyMessage(
-          modelsMissing
-            ? 'Face models could not be loaded (check web/public/face-api-models). Install models and try again.'
-            : (msg || 'Verification or upload failed. Retake or try again.')
-        );
+        setVerifyMessage(msg || 'Verification or upload failed. Retake or try again.');
       }
     })();
   };

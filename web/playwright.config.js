@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * E2E tests hit the Vite dev server (default http://localhost:5173) which proxies /api → API.
- * Start the API first: `docker compose up -d` (api on :4000) or `cd api && npm run dev`.
+ * Start the API first: `cd api && npm run dev` (api on :4000 by default).
  *
  * Override base URL (e.g. Docker web on :8080): PLAYWRIGHT_BASE_URL=http://localhost:8080 npm run test:e2e
  */

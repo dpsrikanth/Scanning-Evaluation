@@ -6,7 +6,7 @@ import AdminController from './admin.controller.js';
 import { getEvalDb } from '../../config/database.js';
 import { authenticate, authorize } from '../../middleware/auth.js';
 import auditLog from '../../middleware/auditLog.js';
-import { uploadProfilePhoto, uploadQuestionPaper } from '../../middleware/upload.js';
+import { uploadProfilePhoto, uploadQuestionPaper, getProfilePhotoDir } from '../../middleware/upload.js';
 import env from '../../config/env.js';
 
 const router = Router();
@@ -351,7 +351,9 @@ router.get('/users/:userId/photo', authorize('Admin'), controller.getUserPhoto);
  *         description: Photo not found on server
  */
 router.get('/photo-file/:filename', authenticate, (req, res) => {
-  const filePath = path.join(env.storage.scanOutputPath, 'profiles', req.params.filename);
+  // Must match upload.js profileStorage (COMMON_STORAGE_PATH/profiles), not scan_output/profiles
+  const safeName = path.basename(req.params.filename);
+  const filePath = path.join(getProfilePhotoDir(), safeName);
   res.sendFile(path.resolve(filePath), err => {
     if (err) res.status(404).json({ message: 'Photo not found' });
   });

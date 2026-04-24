@@ -5,6 +5,7 @@ import logger from '../../utils/logger.js';
 import { syncBookletToEval } from './syncScanToEval.js';
 import { getEvalDb, getScanDb } from '../../config/database.js';
 import { getActiveScanOutputPath } from './scanOutputPaths.js';
+import { replicateBookletToMirrorIfConfigured } from '../../utils/mirrorStorage.js';
 
 export default class ScanController {
   constructor(scanService) {
@@ -129,6 +130,26 @@ export default class ScanController {
 
       // Sync to EvaluationDB so the booklet appears in Admin → Assign Booklets
       await syncBookletToEval(getEvalDb(), booklet);
+
+      if (pdfMeta?.saved && pdfMeta.absolutePath && result.bookletId) {
+        const localDir = path.dirname(pdfMeta.absolutePath);
+        const bid = result.bookletId;
+        setImmediate(() => {
+          replicateBookletToMirrorIfConfigured({
+            scanDb: getScanDb(),
+            bookletId: bid,
+            localBookletDir: localDir,
+          })
+            .then((r) => {
+              if (r?.ok && r?.mode) {
+                logger.info('MIRROR_REPLICATED', { bookletId: bid, mode: r.mode, detail: r.detail });
+              } else if (r && !r.ok) {
+                logger.warn('MIRROR_SKIPPED', { bookletId: bid, detail: r.detail });
+              }
+            })
+            .catch((e) => logger.warn('MIRROR_ERR', { bookletId: bid, error: e.message }));
+        });
+      }
 
       return created(res, payload, userMessage);
     } catch (err) {

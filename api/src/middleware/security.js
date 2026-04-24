@@ -110,12 +110,18 @@ export function requestId(req, res, next) {
 // -----------------------------------------------------------
 // Input sanitisation — strip null bytes, trim strings
 // -----------------------------------------------------------
+/** Do not trim: passwords, OTP, JWT-style tokens, or other secrets (trim can break logins and hide failed updates). */
+function shouldTrimStringKey(key) {
+  return !/password|otpCode|resetToken|token$/i.test(key);
+}
+
 export function sanitizeInput(req, _res, next) {
   const clean = (obj) => {
     if (!obj || typeof obj !== 'object') return;
     for (const key of Object.keys(obj)) {
       if (typeof obj[key] === 'string') {
-        obj[key] = obj[key].replace(/\0/g, '').trim();
+        const s = obj[key].replace(/\0/g, '');
+        obj[key] = shouldTrimStringKey(key) ? s.trim() : s;
       } else if (typeof obj[key] === 'object') {
         clean(obj[key]);
       }

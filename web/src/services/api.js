@@ -31,12 +31,24 @@ async function request(url, options = {}) {
     throw new Error(`Invalid API response (${res.status})`);
   }
 
+  /* POST /auth/login returns 401 for wrong password — must not run session-expiry redirect (that hid real errors). */
   if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('sessionId');
-    window.location.href = '/login';
-    throw new Error('Session expired');
+    const method = (options.method || 'GET').toUpperCase();
+    const isLoginFailure = method === 'POST' && url === '/auth/login' && data.success === false;
+    if (isLoginFailure) {
+      throw new Error(data.message || 'Invalid credentials');
+    }
+    if (getToken()) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('sessionId');
+      window.location.href = '/login';
+      throw new Error('Session expired');
+    }
+    if (data.success === false) {
+      throw new Error(data.message || 'Unauthorized');
+    }
+    throw new Error('Unauthorized');
   }
 
   if (data.success === false) {
@@ -82,6 +94,12 @@ export const api = {
       request('/auth/login-photo', {
         method: 'POST',
         body: formData,
+      }),
+    /** Compare live JPEG/PNG (base64 or data URL) to the user’s registered profile photo via face-matching-api. */
+    verifyLoginFace: (body) =>
+      request('/auth/verify-login-face', {
+        method: 'POST',
+        body: JSON.stringify(body),
       }),
     sessionContext: (data) =>
       request('/auth/session-context', {
@@ -182,9 +200,18 @@ export const api = {
       const token = getToken();
       return `${API_BASE}/files/qpaper/${encodeURIComponent(filename)}?token=${encodeURIComponent(token || '')}`;
     },
-    profilePhotoUrl: (filename) => {
+    /** For <img src>; query token must be encoded (JWT may contain +, /, =). */
+    profilePhotoUrl: (filePath) => {
+      if (!filePath) return null;
+      const filename = filePath.split(/[/\\]/).pop() || filePath;
       const token = getToken();
-      return filename ? `${API_BASE}/admin/photo-file/${filename.split('/').pop()}?token=${token}` : null;
+      return `${API_BASE}/admin/photo-file/${encodeURIComponent(filename)}?token=${encodeURIComponent(token || '')}`;
+    },
+    /** Same resource as profilePhotoUrl but without ?token= — use with Authorization: Bearer (avoids CORS/taint on cross-origin <img> for face-api). */
+    profilePhotoFileUrl: (filePath) => {
+      if (!filePath) return null;
+      const filename = filePath.split(/[/\\]/).pop() || filePath;
+      return `${API_BASE}/admin/photo-file/${encodeURIComponent(filename)}`;
     },
   },
 
@@ -341,6 +368,12 @@ export const api = {
 
     updateScanQcSettings: (data) =>
       request('/scanadmin/qc-settings', { method: 'PATCH', body: JSON.stringify(data) }),
+
+    getMirrorConfig: () => request('/scanadmin/mirror-config'),
+    updateMirrorConfig: (data) =>
+      request('/scanadmin/mirror-config', { method: 'PUT', body: JSON.stringify(data) }),
+    testMirrorConfig: (data) =>
+      request('/scanadmin/mirror-config/test', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   qpaper: {

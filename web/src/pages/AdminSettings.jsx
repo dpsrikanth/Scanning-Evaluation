@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import {
   Settings, Users, Mail, FileText, Plus, KeyRound, Trash2,
   CheckCircle2, AlertCircle, Plug, Loader2, Pencil, Eye,
-  ArrowLeft, ToggleLeft, ToggleRight,
+  ArrowLeft,
   Camera, Activity, Clock, Search, ChevronDown, ChevronUp, Shield,
-  X
+  X, CloudUpload,
 } from 'lucide-react';
+import AdminOffsiteStorage from '../components/AdminOffsiteStorage';
 import * as faceapi from 'face-api.js';
 import { api } from '../services/api';
 import './AdminSettings.css';
@@ -59,6 +60,7 @@ const TABS = [
   { id: 'users',      label: 'Users',            icon: Users },
   { id: 'smtp',       label: 'SMTP & Email',     icon: Mail },
   { id: 'templates',  label: 'Email Templates',  icon: FileText },
+  { id: 'offsite',    label: 'Offsite storage',  icon: CloudUpload },
   { id: 'monitoring', label: 'Monitoring',        icon: Camera },
   { id: 'audit',      label: 'Audit Log',         icon: Activity },
 ];
@@ -113,6 +115,9 @@ export default function AdminSettings() {
   const [photoUpdateFile, setPhotoUpdateFile] = useState(null);
   const [photoUpdatePreview, setPhotoUpdatePreview] = useState(null);
   const [photoUpdateSaving, setPhotoUpdateSaving] = useState(false);
+  const [showPhotoUpdateCamera, setShowPhotoUpdateCamera] = useState(false);
+  const photoUpdateVideoRef = useRef(null);
+  const photoUpdateStreamRef = useRef(null);
 
   const flash = (text, type = 'success') => { setMsg({ text, type }); setTimeout(() => setMsg({ text: '', type: '' }), 4000); };
 
@@ -141,6 +146,41 @@ export default function AdminSettings() {
       if (streamRef.current) streamRef.current = null;
     };
   }, [showCamera]);
+
+  // Update-photo modal: start/stop webcam (separate from create-user camera)
+  useEffect(() => {
+    if (!showPhotoUpdateCamera) return;
+    let stream = null;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      .then(s => {
+        stream = s;
+        photoUpdateStreamRef.current = s;
+        if (photoUpdateVideoRef.current) photoUpdateVideoRef.current.srcObject = s;
+      })
+      .catch(() => setShowPhotoUpdateCamera(false));
+    return () => {
+      stream?.getTracks().forEach(t => t.stop());
+      if (photoUpdateStreamRef.current) photoUpdateStreamRef.current = null;
+    };
+  }, [showPhotoUpdateCamera]);
+
+  // When camera UI mounts after stream is ready, attach stream to <video>
+  useEffect(() => {
+    if (!showPhotoUpdateCamera) return;
+    const s = photoUpdateStreamRef.current;
+    const v = photoUpdateVideoRef.current;
+    if (s && v && v.srcObject !== s) {
+      v.srcObject = s;
+      v.play().catch(() => {});
+    }
+  }, [showPhotoUpdateCamera]);
+
+  useEffect(() => {
+    if (photoUpdateUser) return;
+    photoUpdateStreamRef.current?.getTracks().forEach(t => t.stop());
+    photoUpdateStreamRef.current = null;
+    setShowPhotoUpdateCamera(false);
+  }, [photoUpdateUser]);
 
   // Face detection when a profile photo preview is set (file upload or camera capture)
   useEffect(() => {
@@ -316,7 +356,20 @@ export default function AdminSettings() {
   };
 
   const openPhotoUpdate = (u) => {
+    photoUpdateStreamRef.current?.getTracks().forEach(t => t.stop());
+    photoUpdateStreamRef.current = null;
+    setShowPhotoUpdateCamera(false);
     setPhotoUpdateUser(u);
+    setPhotoUpdateFile(null);
+    setPhotoUpdatePreview(null);
+    setPhotoUpdateSaving(false);
+  };
+
+  const closePhotoUpdateModal = () => {
+    photoUpdateStreamRef.current?.getTracks().forEach(t => t.stop());
+    photoUpdateStreamRef.current = null;
+    setShowPhotoUpdateCamera(false);
+    setPhotoUpdateUser(null);
     setPhotoUpdateFile(null);
     setPhotoUpdatePreview(null);
     setPhotoUpdateSaving(false);
@@ -330,9 +383,7 @@ export default function AdminSettings() {
       fd.append('profilePhoto', photoUpdateFile);
       await api.admin.uploadPhoto(photoUpdateUser.UserID, fd);
       flash('Photo updated.');
-      setPhotoUpdateUser(null);
-      setPhotoUpdateFile(null);
-      setPhotoUpdatePreview(null);
+      closePhotoUpdateModal();
       loadUsers();
     } catch (err) { flash('Error: ' + err.message, 'error'); }
     finally { setPhotoUpdateSaving(false); }
@@ -387,7 +438,7 @@ export default function AdminSettings() {
         <div className="admin-page-icon"><Settings size={24} /></div>
         <div>
           <h1 className="admin-page-title">Admin Settings</h1>
-          <p className="admin-page-subtitle">Manage users, SMTP configuration, and email templates</p>
+          <p className="admin-page-subtitle">Manage users, offsite copy (SFTP / network), SMTP, email templates, and monitoring</p>
         </div>
       </div>
 
@@ -634,42 +685,108 @@ export default function AdminSettings() {
             </div>
           )}
 
-          {/* Update photo modal */}
+          {/* Update photo modal: upload, camera capture, or both — with preview */}
           {photoUpdateUser && (
-            <div className="modal-overlay" onClick={() => setPhotoUpdateUser(null)}>
+            <div className="modal-overlay" onClick={closePhotoUpdateModal}>
               <div className="modal-card modal-card-sm" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                   <h3>Update photo — {photoUpdateUser.FullName}</h3>
-                  <button type="button" className="modal-close" onClick={() => setPhotoUpdateUser(null)}><X size={18} /></button>
+                  <button type="button" className="modal-close" onClick={closePhotoUpdateModal}><X size={18} /></button>
                 </div>
                 <form onSubmit={savePhotoUpdate} className="modal-form">
                   <div className="field-group">
                     <label className="field-label">Profile photo</label>
-                    <div className="photo-upload-row">
-                      {photoUpdatePreview && (
+                    <p className="photo-tip-text" style={{ marginTop: 0 }}>Upload a file or use your camera, then review the preview before saving.</p>
+                    <div className="photo-upload-row" style={{ flexWrap: 'wrap' }}>
+                      {photoUpdatePreview && !showPhotoUpdateCamera && (
                         <img src={photoUpdatePreview} alt="Preview" className="photo-preview" />
                       )}
-                      <label className="btn btn-secondary photo-upload-btn">
-                        <Camera size={13} /> {photoUpdateFile ? 'Change photo' : 'Choose photo'}
-                        <input type="file" accept="image/*" style={{ display: 'none' }}
-                          onChange={e => {
-                            const file = e.target.files[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = ev => {
-                              setPhotoUpdatePreview(ev.target.result);
-                              setPhotoUpdateFile(file);
-                            };
-                            reader.readAsDataURL(file);
-                          }} />
-                      </label>
+                      {!showPhotoUpdateCamera ? (
+                        <>
+                          <label className="btn btn-secondary photo-upload-btn">
+                            <Camera size={13} /> {photoUpdateFile ? 'Change photo' : 'Choose file'}
+                            <input type="file" accept="image/*" style={{ display: 'none' }}
+                              onChange={e => {
+                                const file = e.target.files[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = ev => {
+                                  setPhotoUpdatePreview(ev.target.result);
+                                  setPhotoUpdateFile(file);
+                                };
+                                reader.readAsDataURL(file);
+                              }} />
+                          </label>
+                          <button
+                            type="button"
+                            className="btn btn-secondary photo-upload-btn"
+                            onClick={() => { setShowPhotoUpdateCamera(true); }}
+                          >
+                            <Camera size={13} /> Capture from camera
+                          </button>
+                          {photoUpdateFile && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => { setPhotoUpdateFile(null); setPhotoUpdatePreview(null); }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <div className="photo-camera-box" style={{ width: '100%' }}>
+                          <video ref={photoUpdateVideoRef} autoPlay playsInline muted className="photo-camera-video" />
+                          <div className="photo-camera-actions">
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                if (!photoUpdateVideoRef.current || !photoUpdateStreamRef.current) return;
+                                const video = photoUpdateVideoRef.current;
+                                const canvas = document.createElement('canvas');
+                                canvas.width = video.videoWidth || 640;
+                                canvas.height = video.videoHeight || 480;
+                                canvas.getContext('2d').drawImage(video, 0, 0);
+                                photoUpdateStreamRef.current.getTracks().forEach(t => t.stop());
+                                photoUpdateStreamRef.current = null;
+                                setShowPhotoUpdateCamera(false);
+                                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                                canvas.toBlob(
+                                  (blob) => {
+                                    if (!blob) return;
+                                    const file = new File([blob], 'profile-capture.jpg', { type: 'image/jpeg' });
+                                    setPhotoUpdateFile(file);
+                                    setPhotoUpdatePreview(dataUrl);
+                                  },
+                                  'image/jpeg',
+                                  0.9
+                                );
+                              }}
+                            >
+                              Capture
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                photoUpdateStreamRef.current?.getTracks().forEach(t => t.stop());
+                                photoUpdateStreamRef.current = null;
+                                setShowPhotoUpdateCamera(false);
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="form-actions">
-                    <button type="submit" className="btn btn-primary" disabled={!photoUpdateFile || photoUpdateSaving}>
+                    <button type="submit" className="btn btn-primary" disabled={!photoUpdateFile || photoUpdateSaving || showPhotoUpdateCamera}>
                       {photoUpdateSaving ? <><Loader2 size={14} className="spin" /> Saving…</> : 'Update photo'}
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={() => setPhotoUpdateUser(null)}>Cancel</button>
+                    <button type="button" className="btn btn-secondary" onClick={closePhotoUpdateModal}>Cancel</button>
                   </div>
                 </form>
               </div>
@@ -822,6 +939,10 @@ export default function AdminSettings() {
       )}
 
       {/* ── Templates ──────────────────────────────────────────── */}
+      {activeTab === 'offsite' && (
+        <AdminOffsiteStorage flash={flash} />
+      )}
+
       {activeTab === 'templates' && (
         <div>
           {editTemplate ? (

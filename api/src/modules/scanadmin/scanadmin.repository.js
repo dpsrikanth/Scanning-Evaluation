@@ -602,4 +602,46 @@ export default class ScanAdminRepository {
   async deleteOutputPath(pathId) {
     await this.db.execute(`DELETE FROM Scan_OutputPaths WHERE PathID = ?`, [pathId]);
   }
+
+  // ── Offsite mirror (SFTP / network path) ─────────────────────────────────
+
+  async getMirrorConfig() {
+    try {
+      const [rows] = await this.db.execute('SELECT * FROM Scan_MirrorConfig WHERE ConfigID = 1');
+      return rows[0] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async upsertMirrorConfig(c) {
+    const en = c.mirrorEnabled ? 1 : 0;
+    const mode = c.mirrorMode || 'none';
+    const host = c.sftpHost != null ? String(c.sftpHost) : null;
+    const port = Math.max(1, Math.min(65535, parseInt(c.sftpPort, 10) || 22));
+    const user = c.sftpUsername != null ? String(c.sftpUsername) : null;
+    const rem = c.sftpRemotePath != null ? String(c.sftpRemotePath) : null;
+    const net = c.networkPath != null ? String(c.networkPath) : null;
+    const existing = await this.getMirrorConfig();
+    if (!existing) {
+      const pass = c.sftpPassword != null ? String(c.sftpPassword) : '';
+      await this.db.execute(
+        `INSERT INTO Scan_MirrorConfig (ConfigID, MirrorEnabled, MirrorMode, SftpHost, SftpPort, SftpUsername, SftpPassword, SftpRemotePath, NetworkPath)
+         VALUES (1,?,?,?,?,?,?,?,?)`,
+        [en, mode, host, port, user, pass, rem, net]
+      );
+      return;
+    }
+    if (c.sftpPassword !== undefined && c.sftpPassword !== null && String(c.sftpPassword).length > 0) {
+      await this.db.execute(
+        `UPDATE Scan_MirrorConfig SET MirrorEnabled=?, MirrorMode=?, SftpHost=?, SftpPort=?, SftpUsername=?, SftpPassword=?, SftpRemotePath=?, NetworkPath=? WHERE ConfigID=1`,
+        [en, mode, host, port, user, String(c.sftpPassword), rem, net]
+      );
+    } else {
+      await this.db.execute(
+        `UPDATE Scan_MirrorConfig SET MirrorEnabled=?, MirrorMode=?, SftpHost=?, SftpPort=?, SftpUsername=?, SftpRemotePath=?, NetworkPath=? WHERE ConfigID=1`,
+        [en, mode, host, port, user, rem, net]
+      );
+    }
+  }
 }
