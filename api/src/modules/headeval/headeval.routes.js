@@ -283,4 +283,8 @@ router.delete('/assign/:allocationId', controller.unassign);
  */
 router.get('/summary/:paperId', controller.summary);
 
+router.get('/allocation-settings', controller.getAllocationSettings);
+router.put('/allocation-settings', controller.setAllocationSettings);
+router.post('/auto-assign', controller.autoAssign);
+
 export default router;

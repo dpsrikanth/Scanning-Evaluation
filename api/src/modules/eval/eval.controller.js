@@ -27,7 +27,7 @@ export default class EvalController {
 
   openBooklet = async (req, res, next) => {
     try {
-      const result = await this.service.openBooklet(req.params.bookletId);
+      const result = await this.service.openBooklet(req.params.bookletId, req.user);
       return ok(res, result);
     } catch (err) {
       next(err);
@@ -38,7 +38,7 @@ export default class EvalController {
     try {
       const { bookletId, type } = req.body;
       const result = await this.service.startEvaluation(
-        bookletId, req.user.userId, type, req.user.username
+        bookletId, req.user.userId, type, req.user.username, req.user
       );
       return created(res, result);
     } catch (err) {

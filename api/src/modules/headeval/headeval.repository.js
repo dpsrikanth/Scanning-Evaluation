@@ -1,6 +1,32 @@
+const ALLOCATION_MODE_KEY = 'allocation_mode';
+const MODES = new Set(['automatic', 'manual']);
+
 export default class HeadEvalRepository {
   constructor(db) {
     this.db = db;
+  }
+
+  async getAllocationMode() {
+    const [rows] = await this.db.execute(
+      `SELECT SettingValue FROM System_Settings WHERE SettingKey = ?`,
+      [ALLOCATION_MODE_KEY]
+    );
+    const v = String(rows[0]?.SettingValue ?? 'automatic').toLowerCase();
+    return v === 'manual' ? 'manual' : 'automatic';
+  }
+
+  async setAllocationMode(mode) {
+    const m = String(mode ?? '').toLowerCase();
+    if (!MODES.has(m)) {
+      throw Object.assign(new Error('allocationMode must be automatic or manual'), { statusCode: 400 });
+    }
+    await this.db.execute(
+      `INSERT INTO System_Settings (SettingKey, SettingValue, Description)
+       VALUES (?, ?, 'Booklet assignment: automatic | manual')
+       ON DUPLICATE KEY UPDATE SettingValue = VALUES(SettingValue)`,
+      [ALLOCATION_MODE_KEY, m]
+    );
+    return m;
   }
 
   // ── Unassigned booklets for a given paper ────────────────────────────────────
@@ -54,38 +80,248 @@ export default class HeadEvalRepository {
     return rows;
   }
 
+  async assignOneBookletInTransaction(conn, { bookletId, toUserId, allocationType, assignedBy }) {
+    const [active] = await conn.execute(
+      `SELECT AllocationID FROM AllocationQueue
+       WHERE BookletID = ? AND IsDeleted = 0
+         AND EvaluationStatus IN ('Allocated', 'InProgress')`,
+      [bookletId]
+    );
+    if (active.length > 0) {
+      return { status: 'already_allocated' };
+    }
+
+    await conn.execute(
+      `INSERT INTO AllocationQueue
+         (BookletID, AllocatedToUserID, AllocationType, EvaluationStatus,
+          SessionDate, CreatedBy)
+       VALUES (?, ?, ?, 'Allocated', CURDATE(), ?)`,
+      [bookletId, toUserId, allocationType, assignedBy]
+    );
+    await conn.execute(
+      `UPDATE Eval_Booklets SET EvaluationStatus = 'Allocated', ModifiedAt = NOW()
+       WHERE BookletID = ? AND IsDeleted = 0`,
+      [bookletId]
+    );
+    return { status: 'assigned' };
+  }
+
   // ── Bulk assign booklets to an evaluator ─────────────────────────────────────
   async assignBooklets({ bookletIds, toUserId, allocationType = 'Primary', assignedBy }) {
     const results = [];
     for (const bookletId of bookletIds) {
-      // Check not already allocated
-      const [existing] = await this.db.execute(
-        `SELECT AllocationID FROM AllocationQueue
-         WHERE BookletID = ? AND AllocationType = ? AND IsDeleted = 0`,
-        [bookletId, allocationType]
-      );
-      if (existing.length > 0) {
-        results.push({ bookletId, status: 'already_allocated' });
-        continue;
+      const conn = await this.db.getConnection();
+      try {
+        await conn.beginTransaction();
+        const [ob] = await conn.execute(
+          `SELECT b.BookletID, b.EvaluationStatus
+           FROM Eval_Booklets b
+           WHERE b.BookletID = ? AND b.IsDeleted = 0 FOR UPDATE`,
+          [bookletId]
+        );
+        if (!ob[0] || ob[0].EvaluationStatus !== 'Open') {
+          await conn.rollback();
+          results.push({ bookletId, status: 'not_open' });
+          continue;
+        }
+        const [act] = await conn.execute(
+          `SELECT 1 FROM AllocationQueue
+           WHERE BookletID = ? AND IsDeleted = 0
+             AND EvaluationStatus IN ('Allocated', 'InProgress')`,
+          [bookletId]
+        );
+        if (act.length > 0) {
+          await conn.rollback();
+          results.push({ bookletId, status: 'already_allocated' });
+          continue;
+        }
+        const r = await this.assignOneBookletInTransaction(conn, {
+          bookletId,
+          toUserId,
+          allocationType,
+          assignedBy,
+        });
+        await conn.commit();
+        results.push({ bookletId, ...r });
+      } catch (e) {
+        try {
+          await conn.rollback();
+        } catch { /* */ }
+        throw e;
+      } finally {
+        conn.release();
       }
-
-      await this.db.execute(
-        `INSERT INTO AllocationQueue
-           (BookletID, AllocatedToUserID, AllocationType, EvaluationStatus,
-            SessionDate, CreatedBy)
-         VALUES (?, ?, ?, 'Allocated', CURDATE(), ?)`,
-        [bookletId, toUserId, allocationType, assignedBy]
-      );
-
-      await this.db.execute(
-        `UPDATE Eval_Booklets SET EvaluationStatus = 'Allocated', ModifiedAt = NOW()
-         WHERE BookletID = ?`,
-        [bookletId]
-      );
-
-      results.push({ bookletId, status: 'assigned' });
     }
     return results;
+  }
+
+  /**
+   * Open booklets for a paper with no active (Allocated/InProgress) allocation.
+   */
+  async listOpenBookletsWithoutActiveAllocation(paperId, limit = 50) {
+    const lim = Math.min(500, Math.max(1, parseInt(String(limit), 10) || 50));
+    const [rows] = await this.db.execute(
+      `SELECT b.BookletID
+       FROM Eval_Booklets b
+       WHERE b.PaperID = ? AND b.EvaluationStatus = 'Open' AND b.IsDeleted = 0
+         AND NOT EXISTS (
+           SELECT 1 FROM AllocationQueue aq
+            WHERE aq.BookletID = b.BookletID AND aq.IsDeleted = 0
+              AND aq.EvaluationStatus IN ('Allocated', 'InProgress')
+         )
+       ORDER BY b.CreatedAt ASC
+       LIMIT ${lim}`,
+      [paperId]
+    );
+    return rows.map((r) => r.BookletID);
+  }
+
+  /**
+   * Auto-assign many open booklets for a paper (per-booklet transaction).
+   */
+  async autoAssignForPaper({ paperId, limit = 50, assignedBy = 'auto' }) {
+    const mode = await this.getAllocationMode();
+    if (mode !== 'automatic') {
+      throw Object.assign(
+        new Error('Auto-assign is only available when allocation mode is set to automatic'),
+        { statusCode: 409 }
+      );
+    }
+    const paper = parseInt(String(paperId), 10);
+    if (!Number.isFinite(paper) || paper < 1) {
+      throw Object.assign(new Error('paperId is required'), { statusCode: 400 });
+    }
+
+    const candidates = await this.listOpenBookletsWithoutActiveAllocation(paper, limit);
+    const results = [];
+    for (const bookletId of candidates) {
+      const conn = await this.db.getConnection();
+      try {
+        await conn.beginTransaction();
+        const [ob] = await conn.execute(
+          `SELECT b.BookletID, b.PaperID, b.EvaluationStatus
+           FROM Eval_Booklets b
+           WHERE b.BookletID = ? AND b.IsDeleted = 0 FOR UPDATE`,
+          [bookletId]
+        );
+        if (!ob[0] || ob[0].EvaluationStatus !== 'Open') {
+          await conn.rollback();
+          results.push({ bookletId, status: 'skipped' });
+          continue;
+        }
+        const [act] = await conn.execute(
+          `SELECT 1 FROM AllocationQueue
+           WHERE BookletID = ? AND IsDeleted = 0
+             AND EvaluationStatus IN ('Allocated', 'InProgress')`,
+          [bookletId]
+        );
+        if (act.length > 0) {
+          await conn.rollback();
+          results.push({ bookletId, status: 'already_allocated' });
+          continue;
+        }
+        const evalId = await this._pickEvaluatorUserIdOnConn(conn);
+        if (evalId == null) {
+          await conn.rollback();
+          results.push({ bookletId, status: 'no_evaluator' });
+          continue;
+        }
+        const r = await this.assignOneBookletInTransaction(conn, {
+          bookletId,
+          toUserId: evalId,
+          allocationType: 'Primary',
+          assignedBy,
+        });
+        await conn.commit();
+        results.push({ bookletId, ...r });
+      } catch (e) {
+        try {
+          await conn.rollback();
+        } catch { /* */ }
+        throw e;
+      } finally {
+        conn.release();
+      }
+    }
+    return { results, paperId: paper };
+  }
+
+  async _pickEvaluatorUserIdOnConn(conn) {
+    const [rows] = await conn.execute(
+      `SELECT u.UserID,
+              COUNT(aq.AllocationID) AS currentLoad
+       FROM Users u
+       JOIN Roles r ON u.RoleID = r.RoleID
+       LEFT JOIN AllocationQueue aq ON aq.AllocatedToUserID = u.UserID
+                                    AND aq.SessionDate = CURDATE()
+                                    AND aq.IsDeleted = 0
+       WHERE u.IsActive = 1 AND u.IsDeleted = 0
+         AND r.RoleName IN ('Evaluator', 'Moderator')
+         AND u.UserStatus = 'Active'
+       GROUP BY u.UserID, u.FullName
+       ORDER BY currentLoad ASC, u.FullName ASC
+       LIMIT 1`
+    );
+    return rows[0]?.UserID ?? null;
+  }
+
+  /**
+   * Auto-assign a single booklet after sync (no 409 for manual — silently skip).
+   * @returns {{ assigned?: boolean, status: string, bookletId: string, evaluatorId?: number }}
+   */
+  async tryAutoAssignOneBooklet({ bookletId, paperId, assignedBy = 'sync' }) {
+    const mode = await this.getAllocationMode();
+    if (mode !== 'automatic') {
+      return { status: 'skipped_mode', bookletId };
+    }
+    if (!bookletId || !paperId) {
+      return { status: 'skipped_missing_ids', bookletId: bookletId ?? '' };
+    }
+
+    const conn = await this.db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [ob] = await conn.execute(
+        `SELECT b.BookletID, b.PaperID, b.EvaluationStatus
+         FROM Eval_Booklets b
+         WHERE b.BookletID = ? AND b.PaperID = ? AND b.IsDeleted = 0 FOR UPDATE`,
+        [bookletId, paperId]
+      );
+      if (!ob[0] || ob[0].EvaluationStatus !== 'Open') {
+        await conn.rollback();
+        return { status: 'skipped_not_open', bookletId };
+      }
+      const [act] = await conn.execute(
+        `SELECT 1 FROM AllocationQueue
+         WHERE BookletID = ? AND IsDeleted = 0
+           AND EvaluationStatus IN ('Allocated', 'InProgress')`,
+        [bookletId]
+      );
+      if (act.length > 0) {
+        await conn.rollback();
+        return { status: 'already_allocated', bookletId };
+      }
+      const evalId = await this._pickEvaluatorUserIdOnConn(conn);
+      if (evalId == null) {
+        await conn.rollback();
+        return { status: 'no_evaluator', bookletId };
+      }
+      await this.assignOneBookletInTransaction(conn, {
+        bookletId,
+        toUserId: evalId,
+        allocationType: 'Primary',
+        assignedBy,
+      });
+      await conn.commit();
+      return { status: 'assigned', bookletId, evaluatorId: evalId, assigned: true };
+    } catch (e) {
+      try {
+        await conn.rollback();
+      } catch { /* */ }
+      return { status: 'error', bookletId, message: e.message };
+    } finally {
+      conn.release();
+    }
   }
 
   // ── Unassign a single allocation (only if still Allocated, not started) ───────

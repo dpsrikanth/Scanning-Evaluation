@@ -98,7 +98,8 @@ INSERT INTO System_Settings (SettingKey, SettingValue, Description) VALUES
   ('photo_capture_interval_max',  '30',             'Maximum minutes between random captures'),
   ('min_time_default',            '300',            'Default minimum seconds per answer sheet (red-flag threshold)'),
   ('min_time_warning_email',      '1',              'Send email alert to Admin/HE when evaluator is red-flagged'),
-  ('tab_switch_flag_threshold',   '3',              'Number of tab switches per page before flagging as suspicious')
+  ('tab_switch_flag_threshold',   '3',              'Number of tab switches per page before flagging as suspicious'),
+  ('allocation_mode',             'automatic',     'Booklet assignment: automatic | manual (Head Eval can override; default automatic)')
 ON DUPLICATE KEY UPDATE SettingKey = SettingKey;
 
 -- ── 7. Verify completion ───────────────────────────────────────────────────

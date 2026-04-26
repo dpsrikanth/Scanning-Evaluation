@@ -1,4 +1,5 @@
 import logger from '../../utils/logger.js';
+import HeadEvalRepository from '../headeval/headeval.repository.js';
 
 /**
  * Inserts or updates a booklet in EvaluationDB.Eval_Booklets so it appears in
@@ -40,6 +41,29 @@ export async function syncBookletToEval(evalDb, booklet) {
       examId: booklet.examId,
       paperId: booklet.paperId,
     });
+    if (booklet.paperId) {
+      try {
+        const heRepo = new HeadEvalRepository(evalDb);
+        const ar = await heRepo.tryAutoAssignOneBooklet({
+          bookletId: booklet.bookletId,
+          paperId: booklet.paperId,
+          assignedBy: 'sync',
+        });
+        if (ar.status === 'assigned') {
+          logger.info('tryAutoAssignOneBooklet after sync', {
+            module: 'upload',
+            bookletId: booklet.bookletId,
+            evaluatorId: ar.evaluatorId,
+          });
+        }
+      } catch (autoErr) {
+        logger.warn('tryAutoAssignOneBooklet after sync failed (non-fatal)', {
+          module: 'upload',
+          bookletId: booklet.bookletId,
+          error: autoErr.message,
+        });
+      }
+    }
   } catch (err) {
     logger.warn('syncBookletToEval failed (upload still succeeded)', {
       module: 'upload',

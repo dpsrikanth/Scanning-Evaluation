@@ -58,4 +58,29 @@ export default class HeadEvalController {
       return ok(res, await this.service.getPapers(req.params.examId));
     } catch (err) { next(err); }
   };
+
+  getAllocationSettings = async (req, res, next) => {
+    try {
+      return ok(res, await this.service.getAllocationSettings());
+    } catch (err) { next(err); }
+  };
+
+  setAllocationSettings = async (req, res, next) => {
+    try {
+      const result = await this.service.setAllocationSettings(req.body || {});
+      return ok(res, result, 'Allocation settings updated');
+    } catch (err) { next(err); }
+  };
+
+  autoAssign = async (req, res, next) => {
+    try {
+      const paperId = req.body?.paperId ?? req.query?.paperId;
+      const limit = req.body?.limit ?? req.query?.limit;
+      const result = await this.service.autoAssignForPaper(
+        { paperId, limit },
+        req.user.username
+      );
+      return ok(res, result, 'Auto-assign completed');
+    } catch (err) { next(err); }
+  };
 }

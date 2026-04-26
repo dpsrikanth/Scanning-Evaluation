@@ -11,7 +11,11 @@ export default class EvalService {
     return this.repo.getPendingBooklets(evaluatorId, limit, offset);
   }
 
-  async openBooklet(bookletId) {
+  static mustHaveAllocationRole(roleName) {
+    return roleName === 'Evaluator' || roleName === 'Moderator';
+  }
+
+  async openBooklet(bookletId, user) {
     const data = await this.repo.getBookletForEvaluation(bookletId);
     if (!data.booklet) {
       throw Object.assign(
@@ -22,6 +26,17 @@ export default class EvalService {
         ),
         { statusCode: 404 }
       );
+    }
+
+    const role = user?.roleName;
+    if (user && EvalService.mustHaveAllocationRole(role)) {
+      const alloc = await this.repo.getActiveAllocationForEvaluator(bookletId, user.userId);
+      if (!alloc) {
+        throw Object.assign(
+          new Error('This booklet is not assigned to you or is not available to open.'),
+          { statusCode: 403 }
+        );
+      }
     }
 
     let totalPages = parseInt(data.booklet.TotalPages, 10);
@@ -44,13 +59,57 @@ export default class EvalService {
     return data;
   }
 
-  async startEvaluation(bookletId, evaluatorId, type = 'Primary', createdBy) {
+  async startEvaluation(bookletId, evaluatorId, type = 'Primary', createdBy, user) {
+    const evalType = type != null && type !== '' ? String(type) : 'Primary';
+    const needAllocation = Boolean(
+      user && EvalService.mustHaveAllocationRole(user.roleName)
+    );
+
+    if (needAllocation) {
+      const alloc = await this.repo.getActiveAllocationForEvaluator(bookletId, evaluatorId);
+      if (!alloc) {
+        throw Object.assign(
+          new Error('No active allocation for this booklet. Open it from your assigned list.'),
+          { statusCode: 403 }
+        );
+      }
+    }
+
+    if (needAllocation) {
+      const done = await this.repo.hasSubmittedEvaluation(bookletId, evaluatorId, evalType);
+      if (done) {
+        throw Object.assign(
+          new Error('This evaluation was already submitted.'),
+          { statusCode: 409 }
+        );
+      }
+    }
+
+    const existingId = await this.repo.findInProgressEvaluation(bookletId, evaluatorId, evalType);
+    if (existingId != null) {
+      if (needAllocation) {
+        const alloc = await this.repo.getActiveAllocationForEvaluator(bookletId, evaluatorId);
+        if (alloc && alloc.EvaluationStatus === 'Allocated') {
+          await this.repo.setAllocationStatus(alloc.AllocationID, 'InProgress');
+        }
+      }
+      return { evaluationId: existingId };
+    }
+
     const evaluationId = await this.repo.createEvaluation({
       bookletId,
       evaluatorId,
-      type,
+      type: evalType,
       createdBy,
     });
+
+    if (needAllocation) {
+      const alloc = await this.repo.getActiveAllocationForEvaluator(bookletId, evaluatorId);
+      if (alloc && alloc.EvaluationStatus === 'Allocated') {
+        await this.repo.setAllocationStatus(alloc.AllocationID, 'InProgress');
+      }
+    }
+
     return { evaluationId };
   }
 
@@ -124,6 +183,7 @@ export default class EvalService {
 
     await this.repo.updateAllPagesVisited(evaluationId, true);
     await this.repo.submitEvaluation(evaluationId, totalMarks);
+    await this.repo.completeAllocationForEvaluation(evaluationId);
     return { evaluationId, totalMarks, submitted: true };
   }
 

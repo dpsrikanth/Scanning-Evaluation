@@ -60,7 +60,10 @@ export default function HeadEvalAssign() {
   const [evaluators, setEvaluators]         = useState([]);
   const [selectedBooklets, setSelectedBooklets] = useState(new Set());
   const [selectedEvaluator, setSelectedEvaluator] = useState('');
-  const [allocationType, setAllocationType] = useState('Primary');
+  const [allocationMode, setAllocationMode] = useState('automatic');
+  const [modeLoading, setModeLoading]       = useState(true);
+  const [savingMode, setSavingMode]         = useState(false);
+  const [autoAssigning, setAutoAssigning]   = useState(false);
   const [loading, setLoading]               = useState(false);
   const [assigning, setAssigning]           = useState(false);
   const [syncing, setSyncing]               = useState(false);
@@ -89,6 +92,32 @@ export default function HeadEvalAssign() {
   };
 
   useEffect(() => { api.headeval.getExams().then(setExams).catch(() => {}); }, []);
+
+  useEffect(() => {
+    api.headeval.getAllocationSettings()
+      .then((d) => {
+        if (d?.allocationMode === 'manual' || d?.allocationMode === 'automatic') {
+          setAllocationMode(d.allocationMode);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setModeLoading(false));
+  }, []);
+
+  const saveAllocationMode = async (mode) => {
+    if (mode === allocationMode || savingMode) return;
+    setSavingMode(true);
+    setMessage('');
+    try {
+      const d = await api.headeval.setAllocationSettings(mode);
+      setAllocationMode(d.allocationMode === 'manual' ? 'manual' : 'automatic');
+      setMessage('Assignment mode saved.');
+    } catch (e) {
+      alert(e.message || 'Failed to save mode');
+    } finally {
+      setSavingMode(false);
+    }
+  };
 
   const onExamChange = async (examId) => {
     setSelectedExam(examId); setSelectedPaper(''); setLot([]); setPapers([]);
@@ -125,14 +154,40 @@ export default function HeadEvalAssign() {
     if (!window.confirm(`Assign ${selectedBooklets.size} booklet(s) to selected evaluator?`)) return;
     setAssigning(true); setMessage('');
     try {
-      const results = await api.headeval.assign(Array.from(selectedBooklets), parseInt(selectedEvaluator), allocationType);
+      const results = await api.headeval.assign(Array.from(selectedBooklets), parseInt(selectedEvaluator), 'Primary');
       const assigned = results.filter(r => r.status === 'assigned').length;
       const already  = results.filter(r => r.status === 'already_allocated').length;
-      setMessage(`Assigned: ${assigned}${already ? `, Already allocated: ${already}` : ''}`);
+      const notOpen  = results.filter(r => r.status === 'not_open').length;
+      setMessage(
+        `Assigned: ${assigned}${already ? `, Already allocated: ${already}` : ''}${
+          notOpen ? `, Not open: ${notOpen}` : ''
+        }`
+      );
       setSelectedBooklets(new Set());
       await loadLot();
     } catch (err) { alert('Assignment failed: ' + err.message); }
     finally { setAssigning(false); }
+  };
+
+  const handleAutoAssignPaper = async () => {
+    if (!selectedPaper) {
+      alert('Select a paper and load the lot first.');
+      return;
+    }
+    setAutoAssigning(true);
+    setMessage('');
+    try {
+      const d = await api.headeval.autoAssign(selectedPaper, 200);
+      const r = d?.results || [];
+      const ok = r.filter((x) => x.status === 'assigned').length;
+      const skip = r.filter((x) => x.status === 'skipped' || x.status === 'already_allocated').length;
+      setMessage(`Auto-assign: ${ok} booklets assigned${skip ? ` (${skip} skipped)` : ''}.`);
+      await loadLot();
+    } catch (e) {
+      alert(e.message || 'Auto-assign failed');
+    } finally {
+      setAutoAssigning(false);
+    }
   };
 
   return (
@@ -143,7 +198,9 @@ export default function HeadEvalAssign() {
           <div className="toolbar-icon-wrap"><ClipboardList size={20} /></div>
           <div>
             <h2 className="toolbar-title">Assign Answer Booklets</h2>
-            <p className="toolbar-subtitle">Select a paper, load the unassigned lot, and allocate to evaluators</p>
+            <p className="toolbar-subtitle">
+              Default is automatic assignment; use manual to assign by hand. Primary evaluation only.
+            </p>
           </div>
         </div>
 
@@ -163,14 +220,38 @@ export default function HeadEvalAssign() {
               {papers.map(p => <option key={p.PaperID} value={p.PaperID}>{p.PaperCode} — {p.PaperName}</option>)}
             </select>
           </div>
-          <div className="filter-field">
-            <span className="filter-label">Allocation Type</span>
-            <select className="filter-select" value={allocationType} onChange={e => setAllocationType(e.target.value)}>
-              <option value="Primary">Primary</option>
-              <option value="Secondary">Secondary</option>
-              <option value="Moderation">Moderation</option>
-            </select>
+          <div className="filter-field filter-field-mode">
+            <span className="filter-label">Assignment mode</span>
+            <div className="mode-toggle" role="group" aria-label="Assignment mode">
+              <button
+                type="button"
+                className={`mode-btn ${allocationMode === 'automatic' ? 'mode-btn-active' : ''}`}
+                onClick={() => saveAllocationMode('automatic')}
+                disabled={modeLoading || savingMode}
+              >
+                Automatic
+              </button>
+              <button
+                type="button"
+                className={`mode-btn ${allocationMode === 'manual' ? 'mode-btn-active' : ''}`}
+                onClick={() => saveAllocationMode('manual')}
+                disabled={modeLoading || savingMode}
+              >
+                Manual
+              </button>
+            </div>
           </div>
+          {allocationMode === 'automatic' && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleAutoAssignPaper}
+              disabled={!selectedPaper || autoAssigning}
+              style={{ alignSelf: 'flex-end' }}
+              title="Assign all open booklets in this paper to evaluators (load-balanced)"
+            >
+              {autoAssigning ? <><Loader2 size={13} className="spin" /> Auto-assigning…</> : <>Run auto-assign</>}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={loadLot} disabled={!selectedPaper || loading}
             style={{ alignSelf: 'flex-end' }}>
             {loading ? <><Loader2 size={13} className="spin" /> Loading…</> : <><RefreshCw size={13} /> Load Lot</>}

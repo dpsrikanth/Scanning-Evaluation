@@ -424,5 +424,16 @@ export const api = {
     getSummary: (paperId) => request(`/headeval/summary/${paperId}`),
     getExams: () => request('/headeval/exams'),
     getPapers: (examId) => request(`/headeval/exams/${examId}/papers`),
+    getAllocationSettings: () => request('/headeval/allocation-settings'),
+    setAllocationSettings: (allocationMode) =>
+      request('/headeval/allocation-settings', {
+        method: 'PUT',
+        body: JSON.stringify({ allocationMode }),
+      }),
+    autoAssign: (paperId, limit = 200) =>
+      request('/headeval/auto-assign', {
+        method: 'POST',
+        body: JSON.stringify({ paperId, limit }),
+      }),
   },
 };

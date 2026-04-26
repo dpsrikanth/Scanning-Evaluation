@@ -451,4 +451,65 @@ export default class EvalRepository {
       [visited ? 1 : 0, evaluationId]
     );
   }
+
+  async getActiveAllocationForEvaluator(bookletId, evaluatorId) {
+    const [rows] = await this.db.execute(
+      `SELECT AllocationID, BookletID, AllocatedToUserID, EvaluationStatus, AllocationType
+       FROM AllocationQueue
+       WHERE BookletID = ? AND AllocatedToUserID = ? AND IsDeleted = 0
+         AND EvaluationStatus IN ('Allocated', 'InProgress')`,
+      [bookletId, evaluatorId]
+    );
+    return rows[0] || null;
+  }
+
+  async setAllocationStatus(allocationId, status) {
+    await this.db.execute(
+      `UPDATE AllocationQueue SET EvaluationStatus = ? WHERE AllocationID = ? AND IsDeleted = 0`,
+      [status, allocationId]
+    );
+  }
+
+  async findInProgressEvaluation(bookletId, evaluatorId, evaluationType = 'Primary') {
+    const [rows] = await this.db.execute(
+      `SELECT EvaluationID FROM Evaluations
+       WHERE BookletID = ? AND EvaluatorUserID = ? AND EvaluationType = ?
+         AND COALESCE(IsSubmitted, 0) = 0
+       ORDER BY EvaluationID DESC LIMIT 1`,
+      [bookletId, evaluatorId, evaluationType]
+    );
+    return rows[0]?.EvaluationID ?? null;
+  }
+
+  async hasSubmittedEvaluation(bookletId, evaluatorId, evaluationType = 'Primary') {
+    const [rows] = await this.db.execute(
+      `SELECT 1 FROM Evaluations
+       WHERE BookletID = ? AND EvaluatorUserID = ? AND EvaluationType = ? AND IsSubmitted = 1
+       LIMIT 1`,
+      [bookletId, evaluatorId, evaluationType]
+    );
+    return rows.length > 0;
+  }
+
+  async completeAllocationForEvaluation(evaluationId) {
+    const [ev] = await this.db.execute(
+      `SELECT BookletID, EvaluatorUserID, EvaluationType FROM Evaluations WHERE EvaluationID = ?`,
+      [evaluationId]
+    );
+    if (!ev[0]) return;
+    const bookletId = ev[0].BookletID;
+    const evaluatorId = ev[0].EvaluatorUserID;
+    const evalType = ev[0].EvaluationType || 'Primary';
+    await this.db.execute(
+      `UPDATE AllocationQueue
+       SET EvaluationStatus = 'Evaluated'
+       WHERE BookletID = ? AND AllocatedToUserID = ? AND AllocationType = ? AND IsDeleted = 0`,
+      [bookletId, evaluatorId, evalType]
+    );
+    await this.db.execute(
+      `UPDATE Eval_Booklets SET EvaluationStatus = 'Evaluated', ModifiedAt = NOW()
+       WHERE BookletID = ?`,
+      [bookletId]
+    );
+  }
 }
