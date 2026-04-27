@@ -414,6 +414,12 @@ export const api = {
       const q = new URLSearchParams(params).toString();
       return request(`/headeval/evaluators?${q}`);
     },
+    getEvaluatorPapers: (userId) => request(`/headeval/evaluators/${userId}/papers`),
+    setEvaluatorPapers: (userId, paperIds) =>
+      request(`/headeval/evaluators/${userId}/papers`, {
+        method: 'PUT',
+        body: JSON.stringify({ paperIds }),
+      }),
     assign: (bookletIds, toUserId, allocationType = 'Primary') =>
       request('/headeval/assign', {
         method: 'POST',

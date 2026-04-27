@@ -162,6 +162,19 @@ router.get('/evaluators', controller.getEvaluators);
 
 /**
  * @openapi
+ * /api/headeval/evaluators/{userId}/papers:
+ *   get:
+ *     tags: [HeadEval]
+ *     summary: List papers mapped to an evaluator (paper scope)
+ *   put:
+ *     tags: [HeadEval]
+ *     summary: Replace evaluator paper scope (empty list = no papers mapped; no assignments until mapped)
+ */
+router.get('/evaluators/:userId/papers', controller.getEvaluatorPapers);
+router.put('/evaluators/:userId/papers', controller.setEvaluatorPapers);
+
+/**
+ * @openapi
  * /api/headeval/assign:
  *   post:
  *     tags: [HeadEval]

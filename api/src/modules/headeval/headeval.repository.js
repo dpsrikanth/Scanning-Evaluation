@@ -59,13 +59,44 @@ export default class HeadEvalRepository {
     return { booklets, total };
   }
 
+  /** True only if the user has an explicit mapping for this paper (no mapping ⇒ not eligible). */
+  async evaluatorEligibleForPaperOnConn(conn, userId, paperId) {
+    const pid = parseInt(String(paperId), 10);
+    if (!Number.isFinite(pid) || pid < 1) return false;
+    const uid = parseInt(String(userId), 10);
+    if (!Number.isFinite(uid) || uid < 1) return false;
+    const [rows] = await conn.execute(
+      `SELECT 1 FROM Eval_EvaluatorPapers
+       WHERE UserID = ? AND PaperID = ?
+       LIMIT 1`,
+      [uid, pid]
+    );
+    return rows.length > 0;
+  }
+
   // ── Active evaluators with current assignment load ────────────────────────────
   async getEvaluators({ paperId } = {}) {
+    const pid = paperId != null && paperId !== '' ? parseInt(String(paperId), 10) : NaN;
+    const filterByPaper = Number.isFinite(pid) && pid >= 1;
+    const params = [];
+    let paperClause = '';
+    if (filterByPaper) {
+      paperClause = ` AND EXISTS (
+        SELECT 1 FROM Eval_EvaluatorPapers eep2
+        WHERE eep2.UserID = u.UserID AND eep2.PaperID = ?
+      )`;
+      params.push(pid);
+    }
     const [rows] = await this.db.execute(
       `SELECT u.UserID, u.FullName, u.Email,
               r.RoleName,
               COUNT(aq.AllocationID) AS currentLoad,
-              SUM(CASE WHEN aq.EvaluationStatus = 'Evaluated' THEN 1 ELSE 0 END) AS completedToday
+              SUM(CASE WHEN aq.EvaluationStatus = 'Evaluated' THEN 1 ELSE 0 END) AS completedToday,
+              (SELECT COUNT(*) FROM Eval_EvaluatorPapers eep WHERE eep.UserID = u.UserID) AS paperMappingCount,
+              (SELECT GROUP_CONCAT(DISTINCT ep.PaperCode ORDER BY ep.PaperCode SEPARATOR ', ')
+               FROM Eval_EvaluatorPapers eep
+               JOIN Eval_Papers ep ON ep.PaperID = eep.PaperID AND ep.IsDeleted = 0
+               WHERE eep.UserID = u.UserID) AS evaluatorPaperCodes
        FROM Users u
        JOIN Roles r ON u.RoleID = r.RoleID
        LEFT JOIN AllocationQueue aq ON aq.AllocatedToUserID = u.UserID
@@ -74,13 +105,25 @@ export default class HeadEvalRepository {
        WHERE u.IsActive = 1 AND u.IsDeleted = 0
          AND r.RoleName IN ('Evaluator', 'Moderator')
          AND u.UserStatus = 'Active'
-       GROUP BY u.UserID
-       ORDER BY currentLoad ASC, u.FullName ASC`
+         ${paperClause}
+       GROUP BY u.UserID, u.FullName, u.Email, r.RoleName
+       ORDER BY currentLoad ASC, u.FullName ASC`,
+      params
     );
     return rows;
   }
 
   async assignOneBookletInTransaction(conn, { bookletId, toUserId, allocationType, assignedBy }) {
+    const [bp] = await conn.execute(
+      `SELECT PaperID FROM Eval_Booklets WHERE BookletID = ? AND IsDeleted = 0`,
+      [bookletId]
+    );
+    const bookletPaperId = bp[0]?.PaperID;
+    const eligible = await this.evaluatorEligibleForPaperOnConn(conn, toUserId, bookletPaperId);
+    if (!eligible) {
+      return { status: 'paper_mismatch' };
+    }
+
     const [active] = await conn.execute(
       `SELECT AllocationID FROM AllocationQueue
        WHERE BookletID = ? AND IsDeleted = 0
@@ -141,6 +184,11 @@ export default class HeadEvalRepository {
           allocationType,
           assignedBy,
         });
+        if (r.status !== 'assigned') {
+          await conn.rollback();
+          results.push({ bookletId, ...r });
+          continue;
+        }
         await conn.commit();
         results.push({ bookletId, ...r });
       } catch (e) {
@@ -220,7 +268,8 @@ export default class HeadEvalRepository {
           results.push({ bookletId, status: 'already_allocated' });
           continue;
         }
-        const evalId = await this._pickEvaluatorUserIdOnConn(conn);
+        const bookletPaperId = ob[0].PaperID;
+        const evalId = await this._pickEvaluatorUserIdOnConn(conn, bookletPaperId);
         if (evalId == null) {
           await conn.rollback();
           results.push({ bookletId, status: 'no_evaluator' });
@@ -232,6 +281,11 @@ export default class HeadEvalRepository {
           allocationType: 'Primary',
           assignedBy,
         });
+        if (r.status !== 'assigned') {
+          await conn.rollback();
+          results.push({ bookletId, ...r });
+          continue;
+        }
         await conn.commit();
         results.push({ bookletId, ...r });
       } catch (e) {
@@ -246,7 +300,9 @@ export default class HeadEvalRepository {
     return { results, paperId: paper };
   }
 
-  async _pickEvaluatorUserIdOnConn(conn) {
+  async _pickEvaluatorUserIdOnConn(conn, paperId) {
+    const pid = parseInt(String(paperId), 10);
+    if (!Number.isFinite(pid) || pid < 1) return null;
     const [rows] = await conn.execute(
       `SELECT u.UserID,
               COUNT(aq.AllocationID) AS currentLoad
@@ -255,12 +311,14 @@ export default class HeadEvalRepository {
        LEFT JOIN AllocationQueue aq ON aq.AllocatedToUserID = u.UserID
                                     AND aq.SessionDate = CURDATE()
                                     AND aq.IsDeleted = 0
+       INNER JOIN Eval_EvaluatorPapers eepPick ON eepPick.UserID = u.UserID AND eepPick.PaperID = ?
        WHERE u.IsActive = 1 AND u.IsDeleted = 0
          AND r.RoleName IN ('Evaluator', 'Moderator')
          AND u.UserStatus = 'Active'
        GROUP BY u.UserID, u.FullName
        ORDER BY currentLoad ASC, u.FullName ASC
-       LIMIT 1`
+       LIMIT 1`,
+      [pid]
     );
     return rows[0]?.UserID ?? null;
   }
@@ -301,17 +359,22 @@ export default class HeadEvalRepository {
         await conn.rollback();
         return { status: 'already_allocated', bookletId };
       }
-      const evalId = await this._pickEvaluatorUserIdOnConn(conn);
+      const bookletPaperId = ob[0].PaperID;
+      const evalId = await this._pickEvaluatorUserIdOnConn(conn, bookletPaperId);
       if (evalId == null) {
         await conn.rollback();
         return { status: 'no_evaluator', bookletId };
       }
-      await this.assignOneBookletInTransaction(conn, {
+      const assignRes = await this.assignOneBookletInTransaction(conn, {
         bookletId,
         toUserId: evalId,
         allocationType: 'Primary',
         assignedBy,
       });
+      if (assignRes.status !== 'assigned') {
+        await conn.rollback();
+        return { status: assignRes.status, bookletId };
+      }
       await conn.commit();
       return { status: 'assigned', bookletId, evaluatorId: evalId, assigned: true };
     } catch (e) {
@@ -381,5 +444,79 @@ export default class HeadEvalRepository {
       [examId]
     );
     return rows;
+  }
+
+  async getEvaluatorPaperMappings(userId) {
+    const uid = parseInt(String(userId), 10);
+    if (!Number.isFinite(uid) || uid < 1) {
+      throw Object.assign(new Error('Invalid userId'), { statusCode: 400 });
+    }
+    const [roleRows] = await this.db.execute(
+      `SELECT r.RoleName FROM Users u JOIN Roles r ON u.RoleID = r.RoleID
+       WHERE u.UserID = ? AND u.IsDeleted = 0`,
+      [uid]
+    );
+    const role = roleRows[0]?.RoleName;
+    if (!['Evaluator', 'Moderator'].includes(role)) {
+      throw Object.assign(new Error('User is not an evaluator or moderator'), { statusCode: 404 });
+    }
+    const [rows] = await this.db.execute(
+      `SELECT eep.PaperID, ep.PaperCode, ep.PaperName, ep.ExamID
+       FROM Eval_EvaluatorPapers eep
+       JOIN Eval_Papers ep ON ep.PaperID = eep.PaperID AND ep.IsDeleted = 0
+       WHERE eep.UserID = ?
+       ORDER BY ep.PaperCode`,
+      [uid]
+    );
+    return rows;
+  }
+
+  async setEvaluatorPaperMappings(userId, paperIds, createdBy) {
+    const uid = parseInt(String(userId), 10);
+    if (!Number.isFinite(uid) || uid < 1) {
+      throw Object.assign(new Error('Invalid userId'), { statusCode: 400 });
+    }
+    const ids = Array.isArray(paperIds)
+      ? [...new Set(paperIds.map((p) => parseInt(String(p), 10)).filter((n) => Number.isFinite(n) && n >= 1))]
+      : [];
+
+    const [roleRows] = await this.db.execute(
+      `SELECT r.RoleName FROM Users u JOIN Roles r ON u.RoleID = r.RoleID
+       WHERE u.UserID = ? AND u.IsDeleted = 0`,
+      [uid]
+    );
+    const role = roleRows[0]?.RoleName;
+    if (!['Evaluator', 'Moderator'].includes(role)) {
+      throw Object.assign(new Error('User is not an evaluator or moderator'), { statusCode: 404 });
+    }
+
+    const conn = await this.db.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.execute(`DELETE FROM Eval_EvaluatorPapers WHERE UserID = ?`, [uid]);
+      for (const paperId of ids) {
+        const [p] = await conn.execute(
+          `SELECT PaperID FROM Eval_Papers WHERE PaperID = ? AND IsDeleted = 0`,
+          [paperId]
+        );
+        if (!p[0]) {
+          await conn.rollback();
+          throw Object.assign(new Error(`Paper not found: ${paperId}`), { statusCode: 400 });
+        }
+        await conn.execute(
+          `INSERT INTO Eval_EvaluatorPapers (UserID, PaperID, CreatedBy) VALUES (?, ?, ?)`,
+          [uid, paperId, createdBy ?? null]
+        );
+      }
+      await conn.commit();
+      return { userId: uid, paperIds: ids };
+    } catch (e) {
+      try {
+        await conn.rollback();
+      } catch { /* */ }
+      throw e;
+    } finally {
+      conn.release();
+    }
   }
 }

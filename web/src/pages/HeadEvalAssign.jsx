@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ClipboardList, BookOpen, Users, CheckSquare, Square, RefreshCw,
   CheckCircle2, UserCheck, BookMarked, BarChart3, Loader2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
+  Settings2, X,
 } from 'lucide-react';
 import { api } from '../services/api';
 import './HeadEvalAssign.css';
@@ -70,6 +71,10 @@ export default function HeadEvalAssign() {
   const [message, setMessage]               = useState('');
   const [summary, setSummary]               = useState([]);
   const [lotSort, setLotSort]               = useState({ key: 'createdAt', dir: 'desc' });
+  const [paperScopeModal, setPaperScopeModal] = useState(null);
+  const [paperScopeIds, setPaperScopeIds]   = useState(new Set());
+  const [paperScopeLoading, setPaperScopeLoading] = useState(false);
+  const [paperScopeSaving, setPaperScopeSaving] = useState(false);
 
   const sortedLot = useMemo(
     () => [...lot].sort((a, b) => compareLotRows(a, b, lotSort.key, lotSort.dir)),
@@ -148,6 +153,54 @@ export default function HeadEvalAssign() {
   const selectAll = () => setSelectedBooklets(new Set(lot.map(b => b.BookletID)));
   const clearAll  = () => setSelectedBooklets(new Set());
 
+  const openPaperScopeModal = async (ev, evt) => {
+    evt?.stopPropagation();
+    if (!selectedExam) {
+      alert('Select an exam first so papers can be listed.');
+      return;
+    }
+    if (!papers.length) {
+      alert('No papers for this exam — add papers or pick another exam.');
+      return;
+    }
+    setPaperScopeModal({ userId: ev.UserID, fullName: ev.FullName });
+    setPaperScopeLoading(true);
+    setPaperScopeIds(new Set());
+    try {
+      const rows = await api.headeval.getEvaluatorPapers(ev.UserID);
+      setPaperScopeIds(new Set((rows || []).map((r) => r.PaperID)));
+    } catch (err) {
+      alert(err.message || 'Failed to load paper scope');
+      setPaperScopeModal(null);
+    } finally {
+      setPaperScopeLoading(false);
+    }
+  };
+
+  const togglePaperScope = (paperId) => {
+    setPaperScopeIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(paperId)) n.delete(paperId);
+      else n.add(paperId);
+      return n;
+    });
+  };
+
+  const savePaperScope = async () => {
+    if (!paperScopeModal) return;
+    setPaperScopeSaving(true);
+    try {
+      await api.headeval.setEvaluatorPapers(paperScopeModal.userId, Array.from(paperScopeIds));
+      setPaperScopeModal(null);
+      setMessage('Evaluator paper scope saved.');
+      if (selectedPaper) await loadLot();
+    } catch (err) {
+      alert(err.message || 'Save failed');
+    } finally {
+      setPaperScopeSaving(false);
+    }
+  };
+
   const handleAssign = async () => {
     if (!selectedEvaluator) { alert('Select an evaluator first'); return; }
     if (selectedBooklets.size === 0) { alert('Select at least one booklet'); return; }
@@ -158,10 +211,11 @@ export default function HeadEvalAssign() {
       const assigned = results.filter(r => r.status === 'assigned').length;
       const already  = results.filter(r => r.status === 'already_allocated').length;
       const notOpen  = results.filter(r => r.status === 'not_open').length;
+      const mismatch = results.filter(r => r.status === 'paper_mismatch').length;
       setMessage(
         `Assigned: ${assigned}${already ? `, Already allocated: ${already}` : ''}${
           notOpen ? `, Not open: ${notOpen}` : ''
-        }`
+        }${mismatch ? `, Wrong paper scope: ${mismatch}` : ''}`
       );
       setSelectedBooklets(new Set());
       await loadLot();
@@ -181,7 +235,13 @@ export default function HeadEvalAssign() {
       const r = d?.results || [];
       const ok = r.filter((x) => x.status === 'assigned').length;
       const skip = r.filter((x) => x.status === 'skipped' || x.status === 'already_allocated').length;
-      setMessage(`Auto-assign: ${ok} booklets assigned${skip ? ` (${skip} skipped)` : ''}.`);
+      const noEv = r.filter((x) => x.status === 'no_evaluator').length;
+      const mismatch = r.filter((x) => x.status === 'paper_mismatch').length;
+      setMessage(
+        `Auto-assign: ${ok} booklets assigned${skip ? ` (${skip} skipped)` : ''}${
+          noEv ? `, ${noEv} with no eligible evaluator` : ''
+        }${mismatch ? `, ${mismatch} paper scope` : ''}.`
+      );
       await loadLot();
     } catch (e) {
       alert(e.message || 'Auto-assign failed');
@@ -200,6 +260,8 @@ export default function HeadEvalAssign() {
             <h2 className="toolbar-title">Assign Answer Booklets</h2>
             <p className="toolbar-subtitle">
               Default is automatic assignment; use manual to assign by hand. Primary evaluation only.
+              Booklets are only assigned when the evaluator has this paper in their scope; evaluators with no paper
+              mapping cannot receive assignments.
             </p>
           </div>
         </div>
@@ -385,6 +447,10 @@ export default function HeadEvalAssign() {
               <span className="selected-count">{evaluators.length}</span>
             </div>
           </div>
+          <p className="eval-panel-hint">
+            Use <strong>Papers</strong> to map which papers an evaluator may receive. No mapping means they cannot be
+            assigned booklets.
+          </p>
           <div className="eval-list">
             {evaluators.length === 0 ? (
               <div className="empty-state">
@@ -399,8 +465,21 @@ export default function HeadEvalAssign() {
                   <div className="eval-item-header">
                     <div className="eval-avatar">{ev.FullName?.[0] || 'E'}</div>
                     <span className="eval-name">{ev.FullName}</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs eval-papers-btn"
+                      title="Assign papers to this evaluator"
+                      onClick={(e) => openPaperScopeModal(ev, e)}
+                    >
+                      <Settings2 size={12} /> Papers
+                    </button>
                     <input type="radio" className="eval-radio"
                       checked={selectedEvaluator == ev.UserID} onChange={() => setSelectedEvaluator(ev.UserID)} />
+                  </div>
+                  <div className="eval-paper-scope">
+                    {Number(ev.paperMappingCount) > 0
+                      ? (ev.evaluatorPaperCodes || '—')
+                      : 'No papers mapped — cannot assign'}
                   </div>
                   <div className="eval-stats">
                     <span className="badge badge-blue">{ev.currentLoad} assigned</span>
@@ -445,6 +524,55 @@ export default function HeadEvalAssign() {
           )}
         </div>
       </div>
+
+      {paperScopeModal && (
+        <div
+          className="eep-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="eep-modal-title"
+          onClick={() => { if (!paperScopeSaving) setPaperScopeModal(null); }}
+        >
+          <div className="eep-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="eep-modal-head">
+              <h3 id="eep-modal-title">Paper scope — {paperScopeModal.fullName}</h3>
+              <button type="button" className="btn btn-ghost btn-xs" onClick={() => setPaperScopeModal(null)} aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="eep-modal-desc">
+              Tick every paper this evaluator may mark. Saving with none selected removes all mappings — they will not
+              receive booklet assignments until at least one paper is mapped again.
+            </p>
+            {paperScopeLoading ? (
+              <div className="eep-modal-loading"><Loader2 size={18} className="spin" /> Loading…</div>
+            ) : (
+              <ul className="eep-paper-list">
+                {papers.map((p) => (
+                  <li key={p.PaperID}>
+                    <label className="eep-paper-row">
+                      <input
+                        type="checkbox"
+                        checked={paperScopeIds.has(p.PaperID)}
+                        onChange={() => togglePaperScope(p.PaperID)}
+                      />
+                      <span>{p.PaperCode} — {p.PaperName}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="eep-modal-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setPaperScopeModal(null)} disabled={paperScopeSaving}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={savePaperScope} disabled={paperScopeSaving || paperScopeLoading}>
+                {paperScopeSaving ? <><Loader2 size={14} className="spin" /> Saving…</> : 'Save scope'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -61,4 +61,12 @@ export default class HeadEvalService {
   async getPapers(examId) {
     return this.repo.listPapers(examId);
   }
+
+  async getEvaluatorPapers(userId) {
+    return this.repo.getEvaluatorPaperMappings(userId);
+  }
+
+  async setEvaluatorPapers(userId, paperIds, updatedBy) {
+    return this.repo.setEvaluatorPaperMappings(userId, paperIds, updatedBy);
+  }
 }

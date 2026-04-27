@@ -83,4 +83,21 @@ export default class HeadEvalController {
       return ok(res, result, 'Auto-assign completed');
     } catch (err) { next(err); }
   };
+
+  getEvaluatorPapers = async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      const rows = await this.service.getEvaluatorPapers(userId);
+      return ok(res, rows);
+    } catch (err) { next(err); }
+  };
+
+  setEvaluatorPapers = async (req, res, next) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      const paperIds = req.body?.paperIds;
+      const result = await this.service.setEvaluatorPapers(userId, paperIds, req.user.username);
+      return ok(res, result, 'Evaluator paper scope updated');
+    } catch (err) { next(err); }
+  };
 }

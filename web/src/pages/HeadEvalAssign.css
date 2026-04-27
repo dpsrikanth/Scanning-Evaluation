@@ -263,3 +263,107 @@
 }
 .assign-summary-section td { padding: 7px 10px; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); }
 .assign-summary-section tr:hover td { background: var(--color-primary-light); }
+
+.eval-panel-hint {
+  margin: 0 16px 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.eval-papers-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.eval-paper-scope {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin: 0 0 6px 42px;
+  line-height: 1.35;
+}
+
+/* Evaluator paper scope modal */
+.eep-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.eep-modal {
+  width: min(420px, 100%);
+  max-height: min(80vh, 520px);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: var(--shadow-lg, 0 16px 48px rgba(0,0,0,0.18));
+  border: 1px solid var(--color-border);
+}
+.eep-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.eep-modal-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.eep-modal-desc {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+.eep-modal-loading {
+  padding: 24px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.eep-paper-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+.eep-paper-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 4px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--color-text);
+}
+.eep-paper-row input {
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.eep-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+  background: #f8fafc;
+}
