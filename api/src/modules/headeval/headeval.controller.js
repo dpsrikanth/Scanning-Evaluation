@@ -100,4 +100,22 @@ export default class HeadEvalController {
       return ok(res, result, 'Evaluator paper scope updated');
     } catch (err) { next(err); }
   };
+
+  getPaperEvaluatorMapping = async (req, res, next) => {
+    try {
+      const { examId, paperId, userId } = req.query;
+      const rows = await this.service.getPaperEvaluatorMappings({ examId, paperId, userId });
+      return ok(res, rows);
+    } catch (err) { next(err); }
+  };
+
+  getEvaluatorAssignments = async (req, res, next) => {
+    try {
+      const { evaluatorId, paperId, examId, status, limit, offset } = req.query;
+      const rows = await this.service.getEvaluatorAssignments({
+        evaluatorId, paperId, examId, status, limit, offset,
+      });
+      return ok(res, rows);
+    } catch (err) { next(err); }
+  };
 }

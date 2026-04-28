@@ -4,7 +4,7 @@ import {
   CheckCircle2, AlertCircle, Plug, Loader2, Pencil, Eye,
   ArrowLeft,
   Camera, Activity, Clock, Search, ChevronDown, ChevronUp, Shield,
-  X, CloudUpload,
+  X, CloudUpload, ListTree,
 } from 'lucide-react';
 import AdminOffsiteStorage from '../components/AdminOffsiteStorage';
 import * as faceapi from 'face-api.js';
@@ -58,6 +58,7 @@ const TEMPLATE_TYPES = [
 
 const TABS = [
   { id: 'users',      label: 'Users',            icon: Users },
+  { id: 'paperMap',   label: 'Evaluator Papers', icon: ListTree },
   { id: 'smtp',       label: 'SMTP & Email',     icon: Mail },
   { id: 'templates',  label: 'Email Templates',  icon: FileText },
   { id: 'offsite',    label: 'Offsite storage',  icon: CloudUpload },
@@ -82,7 +83,9 @@ function visibleSettingsTabs() {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const role = user.roleName ?? user.roloName;
-    return role === 'Admin' ? TABS : TABS.filter((t) => t.id !== 'audit');
+    if (role === 'HeadEvaluator') return TABS.filter((t) => t.id === 'paperMap');
+    if (role === 'Admin') return TABS;
+    return TABS.filter((t) => t.id !== 'audit' && t.id !== 'paperMap');
   } catch {
     return TABS;
   }
@@ -118,17 +121,46 @@ export default function AdminSettings() {
   const [showPhotoUpdateCamera, setShowPhotoUpdateCamera] = useState(false);
   const photoUpdateVideoRef = useRef(null);
   const photoUpdateStreamRef = useRef(null);
+  const [mappingForm, setMappingForm] = useState({
+    evaluatorSearch: '',
+    evaluatorId: '',
+    examId: '',
+    selectedPaperIds: [],
+  });
+  const [paperMapRows, setPaperMapRows] = useState([]);
+  const [mapEvaluators, setMapEvaluators] = useState([]);
+  const [mapExams, setMapExams] = useState([]);
+  const [mapPapers, setMapPapers] = useState([]);
+  const [mappingExistingPaperIds, setMappingExistingPaperIds] = useState([]);
 
   const flash = (text, type = 'success') => { setMsg({ text, type }); setTimeout(() => setMsg({ text: '', type: '' }), 4000); };
 
+  const currentRole = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return u.roleName ?? u.roloName ?? '';
+    } catch {
+      return '';
+    }
+  })();
+  const isHeadEvaluatorOnly = currentRole === 'HeadEvaluator';
+
   useEffect(() => {
+    if (isHeadEvaluatorOnly) return;
     Promise.all([api.admin.getRoles(), api.admin.getLocations()])
       .then(([r, l]) => {
         setRoles(Array.isArray(r) ? r : []);
         setLocations(Array.isArray(l) ? l : []);
       })
       .catch(() => {});
-  }, []);
+  }, [isHeadEvaluatorOnly]);
+
+  useEffect(() => {
+    const visible = visibleSettingsTabs().map((t) => t.id);
+    if (!visible.includes(activeTab)) {
+      setActiveTab(visible[0] || 'users');
+    }
+  }, [activeTab]);
 
   // Start/stop camera when showCamera toggles
   useEffect(() => {
@@ -224,6 +256,7 @@ export default function AdminSettings() {
 
   useEffect(() => {
     if (activeTab === 'users')      loadUsers();
+    if (activeTab === 'paperMap')   loadEvaluatorPaperMappings();
     if (activeTab === 'smtp')       loadSettings();
     if (activeTab === 'templates')  loadTemplates();
     if (activeTab === 'monitoring') loadSettings();
@@ -239,6 +272,23 @@ export default function AdminSettings() {
     }
     catch (err) { flash('Error: ' + err.message, 'error'); }
     finally { setLoading(false); }
+  };
+  const loadEvaluatorPaperMappings = async () => {
+    setLoading(true);
+    try {
+      const [evals, exams, rows] = await Promise.all([
+        api.headeval.getEvaluators({}),
+        api.headeval.getExams(),
+        api.headeval.getPaperEvaluatorMapping({}),
+      ]);
+      setPaperMapRows(Array.isArray(rows) ? rows : []);
+      setMapEvaluators(Array.isArray(evals) ? evals : []);
+      setMapExams(Array.isArray(exams) ? exams : []);
+    } catch (err) {
+      flash('Error: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   const loadSettings = async () => {
     setLoading(true);
@@ -427,10 +477,76 @@ export default function AdminSettings() {
     } catch (err) { flash('Error: ' + err.message, 'error'); }
   };
 
+  useEffect(() => {
+    if (activeTab !== 'paperMap') return;
+    if (!mappingForm.examId) {
+      setMapPapers([]);
+      setMappingForm((prev) => ({ ...prev, selectedPaperIds: [] }));
+      return;
+    }
+    api.headeval.getPapers(mappingForm.examId)
+      .then((rows) => setMapPapers(Array.isArray(rows) ? rows : []))
+      .catch(() => setMapPapers([]));
+  }, [activeTab, mappingForm.examId]);
+
+  useEffect(() => {
+    if (activeTab !== 'paperMap') return;
+    if (!mappingForm.evaluatorId) return;
+    api.headeval.getEvaluatorPapers(mappingForm.evaluatorId)
+      .then((rows) => {
+        const arr = Array.isArray(rows) ? rows : [];
+        setMappingExistingPaperIds(arr.map((r) => r.PaperID));
+      })
+      .catch(() => {});
+  }, [activeTab, mappingForm.evaluatorId]);
+
+  useEffect(() => {
+    if (activeTab !== 'paperMap') return;
+    if (!mappingForm.examId) return;
+    if (!mapPapers.length) return;
+    const examPaperIds = new Set(mapPapers.map((p) => p.PaperID));
+    const selected = mappingExistingPaperIds.filter((id) => examPaperIds.has(id));
+    setMappingForm((prev) => ({ ...prev, selectedPaperIds: selected }));
+  }, [activeTab, mappingForm.examId, mapPapers, mappingExistingPaperIds]);
+
+  const saveEvaluatorPaperMapping = async () => {
+    if (!mappingForm.evaluatorId) {
+      flash('Select evaluator first', 'error');
+      return;
+    }
+    if (!mappingForm.examId) {
+      flash('Select exam first', 'error');
+      return;
+    }
+    try {
+      const examPaperIds = new Set(mapPapers.map((p) => p.PaperID));
+      const keepOtherExam = mappingExistingPaperIds.filter((id) => !examPaperIds.has(id));
+      const merged = [...new Set([...keepOtherExam, ...mappingForm.selectedPaperIds])];
+      await api.headeval.setEvaluatorPapers(mappingForm.evaluatorId, merged);
+      setMappingExistingPaperIds(merged);
+      flash('Evaluator paper mapping saved');
+      await loadEvaluatorPaperMappings();
+    } catch (err) {
+      flash('Error: ' + err.message, 'error');
+    }
+  };
+
+  const resetMappingForm = () => {
+    setMappingForm({ evaluatorSearch: '', evaluatorId: '', examId: '', selectedPaperIds: [] });
+    setMapPapers([]);
+    setMappingExistingPaperIds([]);
+  };
+
   const statusBadge = status => {
     const map = { Active: 'badge-green', Pending: 'badge-amber', Suspended: 'badge-red' };
     return <span className={`badge ${map[status] || 'badge-gray'}`}>{status}</span>;
   };
+
+  const filteredMapEvaluators = mapEvaluators.filter((ev) =>
+    `${ev.FullName || ''} ${ev.Email || ''}`
+      .toLowerCase()
+      .includes((mappingForm.evaluatorSearch || '').toLowerCase())
+  );
 
   return (
     <div className="admin-page page-enter">
@@ -872,6 +988,110 @@ export default function AdminSettings() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'paperMap' && (
+        <div className="settings-section">
+          <div className="settings-section-header">
+            <ListTree size={15} className="settings-section-icon" />
+            <h3>Paper to Evaluator Mapping</h3>
+          </div>
+          <div className="settings-form-body">
+            <div className="settings-grid">
+              <div className="field-group">
+                <label className="field-label">Search Evaluator</label>
+                <input
+                  className="field-input"
+                  placeholder="Type evaluator name/email..."
+                  value={mappingForm.evaluatorSearch}
+                  onChange={(e) => setMappingForm((p) => ({ ...p, evaluatorSearch: e.target.value }))}
+                />
+              </div>
+              <div className="field-group">
+                <label className="field-label">Evaluator</label>
+                <select
+                  className="field-input"
+                  value={mappingForm.evaluatorId}
+                  onChange={(e) => setMappingForm((p) => ({ ...p, evaluatorId: e.target.value }))}
+                >
+                  <option value="">— Select Evaluator —</option>
+                  {filteredMapEvaluators.map((ev) => (
+                    <option key={ev.UserID} value={ev.UserID}>
+                      {ev.FullName}{ev.Email ? ` (${ev.Email})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field-group">
+                <label className="field-label">Exam</label>
+                <select
+                  className="field-input"
+                  value={mappingForm.examId}
+                  onChange={(e) => setMappingForm((p) => ({ ...p, examId: e.target.value, selectedPaperIds: [] }))}
+                >
+                  <option value="">— Select Exam —</option>
+                  {mapExams.map((ex) => (
+                    <option key={ex.ExamID} value={ex.ExamID}>
+                      {ex.ExamName} ({ex.ExamYear})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field-group">
+                <label className="field-label">Papers (multi-select)</label>
+                <select
+                  multiple
+                  className="field-input mapping-multiselect"
+                  value={mappingForm.selectedPaperIds.map(String)}
+                  onChange={(e) => {
+                    const vals = Array.from(e.target.selectedOptions).map((opt) => Number(opt.value));
+                    setMappingForm((p) => ({ ...p, selectedPaperIds: vals }));
+                  }}
+                >
+                  {mapPapers.map((p) => (
+                    <option key={p.PaperID} value={p.PaperID}>
+                      {p.PaperCode} — {p.PaperName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="settings-actions">
+              <button className="btn btn-primary" onClick={saveEvaluatorPaperMapping}>Save</button>
+              <button className="btn btn-secondary" onClick={resetMappingForm}>Cancel</button>
+            </div>
+
+            <div className="user-table-wrap" style={{ marginTop: 16 }}>
+              <div className="user-table-header">
+                <h3><ListTree size={15} /> Existing Mappings <span className="selected-count">{paperMapRows.length}</span></h3>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>Evaluator</th><th>Email</th><th>Exam</th><th>Paper</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paperMapRows.map((r, i) => (
+                      <tr key={`${r.UserID}-${r.PaperID}-${i}`}>
+                        <td>{r.FullName}</td>
+                        <td>{r.Email || '—'}</td>
+                        <td>{r.ExamCode ? `${r.ExamCode} — ${r.ExamName}` : (r.ExamName || '—')}</td>
+                        <td>{r.PaperCode} — {r.PaperName}</td>
+                      </tr>
+                    ))}
+                    {!paperMapRows.length && (
+                      <tr>
+                        <td colSpan={4} className="empty-row">No mappings found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}

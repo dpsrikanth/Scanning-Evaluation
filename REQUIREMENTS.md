@@ -1,7 +1,7 @@
 # Scanning & Evaluation System — Formal Requirements Specification
 
-**Document Version:** 1.1  
-**Date:** 2026-04-21  
+**Document Version:** 1.2  
+**Date:** 2026-04-27  
 **Status:** Draft for Development
 
 ---
@@ -76,6 +76,8 @@ The **web application** (React) uses a **Material indigo** visual system aligned
 | EVL-011 | Evaluation Centres | Must | Multi-location; evaluators assigned to centres. |
 | EVL-012 | Evaluator Roles | Must | Hierarchical roles by subject/category. |
 | EVL-013 | Allocation Queue | Must | Assign booklets to evaluators; track allocation type (Primary/Secondary). |
+| EVL-018 | Evaluator-Paper Scope Enforcement | Must | Manual and automatic booklet assignment must enforce paper scope: booklet paper must match evaluator-mapped paper(s). |
+| EVL-019 | No Mapping Assignment Block | Must | If an evaluator has no paper mapping, the system must not assign any booklet to that evaluator. |
 | EVL-014 | Secondary Evaluation | Must | Random % + time-based flagging; compare marks; variance threshold. |
 | EVL-015 | De-roster | Must | Admin can deactivate evaluators. |
 | EVL-016 | Booklets per Session/Day | Should | Configurable daily limit per evaluator. |
@@ -85,6 +87,7 @@ The **web application** (React) uses a **Material indigo** visual system aligned
 
 - **Session setup (evaluators):** After login, evaluators may be required to share **geolocation**, capture a **live photo**, and **match face** to the administrator-registered profile image before accessing the dashboard (supports EVL-010 / audit goals).
 - **Head Evaluator portal:** Web routes for head-eval login and **bulk assignment** of booklets to evaluators (`/head-eval/*`).
+- **Evaluator-paper mapping:** Head evaluator can define evaluator paper scope; assignment APIs expose mapping read/write endpoints and enforce mapping during manual + auto assign.
 - **Shared booklet stamps:** Booklet-level annotation stamps (e.g. blank or crossed page markers) may be stored in **`Eval_BookletSharedAnnotations`** and shared across primary/secondary/moderation viewers (see `16_eval_booklet_shared_annotations.sql`).
 
 ### 2.3 Check-for Rules (Quality Control)
@@ -187,6 +190,7 @@ The **web application** (React) uses a **Material indigo** visual system aligned
 | EVL-007 | `Eval_PageVisitLog`, `Evaluations.AllPagesVisited` |
 | EVL-010 (identity) | `Users.ProfilePhotoPath`, session/login photo API; client-side face match |
 | EVL-013 | `AllocationQueue`, `Eval_Booklets.EvaluationStatus` |
+| EVL-018, EVL-019 | `Eval_EvaluatorPapers`, head-eval assignment service/repository checks |
 | EVL-014 | `VarianceRecords`, `Eval_Papers.VarianceThresholdPercent` |
 | MIS-007 | `Eval_AttendanceLog` |
 | Zone / barcode scheduling | Migrations in `15_zone_barcode_upload_schedule.sql` (ScanningDB) |
@@ -200,3 +204,4 @@ The **web application** (React) uses a **Material indigo** visual system aligned
 |---------|------|--------|
 | 1.0 | 2026-02-19 | Initial formal specification. |
 | 1.1 | 2026-04-21 | Web/desktop UI alignment; evaluator session and Head Evaluator notes; `Eval_BookletSharedAnnotations` and migration references; Playwright (NFR-007); evaluation allocation clarified in data flow. |
+| 1.2 | 2026-04-27 | Added evaluator-paper mapping requirements and enforced rule: no mapping means no assignments; updated traceability notes. |

@@ -190,7 +190,7 @@ export default class HeadEvalRepository {
           continue;
         }
         await conn.commit();
-        results.push({ bookletId, ...r });
+        results.push({ bookletId, evaluatorId: toUserId, ...r });
       } catch (e) {
         try {
           await conn.rollback();
@@ -287,7 +287,7 @@ export default class HeadEvalRepository {
           continue;
         }
         await conn.commit();
-        results.push({ bookletId, ...r });
+        results.push({ bookletId, evaluatorId: evalId, ...r });
       } catch (e) {
         try {
           await conn.rollback();
@@ -469,6 +469,97 @@ export default class HeadEvalRepository {
       [uid]
     );
     return rows;
+  }
+
+  async listPaperEvaluatorMappings({ examId, paperId, userId } = {}) {
+    const params = [];
+    let where = `1=1`;
+    if (examId != null && examId !== '') {
+      where += ` AND ep.ExamID = ?`;
+      params.push(parseInt(String(examId), 10));
+    }
+    if (paperId != null && paperId !== '') {
+      where += ` AND ep.PaperID = ?`;
+      params.push(parseInt(String(paperId), 10));
+    }
+    if (userId != null && userId !== '') {
+      where += ` AND u.UserID = ?`;
+      params.push(parseInt(String(userId), 10));
+    }
+    const [rows] = await this.db.execute(
+      `SELECT ep.ExamID, ee.ExamCode, ee.ExamName,
+              ep.PaperID, ep.PaperCode, ep.PaperName,
+              u.UserID, u.FullName, u.Email, r.RoleName
+       FROM Eval_EvaluatorPapers eep
+       JOIN Users u ON u.UserID = eep.UserID AND u.IsDeleted = 0
+       JOIN Roles r ON r.RoleID = u.RoleID
+       JOIN Eval_Papers ep ON ep.PaperID = eep.PaperID AND ep.IsDeleted = 0
+       LEFT JOIN Eval_Exams ee ON ee.ExamID = ep.ExamID
+       WHERE ${where}
+       ORDER BY ep.PaperCode, u.FullName`,
+      params
+    );
+    return rows;
+  }
+
+  async getEvaluatorAssignmentReport({ evaluatorId, paperId, examId, status, limit = 200, offset = 0 } = {}) {
+    const params = [];
+    let where = `aq.IsDeleted = 0`;
+    if (evaluatorId != null && evaluatorId !== '') {
+      where += ` AND aq.AllocatedToUserID = ?`;
+      params.push(parseInt(String(evaluatorId), 10));
+    }
+    if (paperId != null && paperId !== '') {
+      where += ` AND b.PaperID = ?`;
+      params.push(parseInt(String(paperId), 10));
+    }
+    if (examId != null && examId !== '') {
+      where += ` AND b.ExamID = ?`;
+      params.push(parseInt(String(examId), 10));
+    }
+    if (status != null && status !== '') {
+      where += ` AND aq.EvaluationStatus = ?`;
+      params.push(String(status));
+    }
+    const lim = Math.min(1000, Math.max(1, parseInt(String(limit), 10) || 200));
+    const off = Math.max(0, parseInt(String(offset), 10) || 0);
+    const [rows] = await this.db.execute(
+      `SELECT aq.AllocationID, aq.BookletID, aq.AllocationType, aq.EvaluationStatus,
+              aq.AllocatedAt, aq.SessionDate,
+              u.UserID AS EvaluatorUserID, u.FullName AS EvaluatorName, u.Email AS EvaluatorEmail,
+              b.ExamID, b.PaperID, b.TotalPages, b.CentreCode,
+              ep.PaperCode, ep.PaperName, ee.ExamCode, ee.ExamName,
+              bm.StudentName, bm.ProgramLevel, bm.Branch, bm.Year, bm.Semester, bm.Subject,
+              ev.EvaluationID, ev.StartTime, ev.EndTime, ev.TotalMarks, ev.IsSubmitted, ev.SubmittedAt
+       FROM AllocationQueue aq
+       JOIN Users u ON u.UserID = aq.AllocatedToUserID
+       JOIN Eval_Booklets b ON b.BookletID = aq.BookletID AND b.IsDeleted = 0
+       LEFT JOIN Eval_BookletMetadata bm ON bm.BookletID = b.BookletID
+       LEFT JOIN Eval_Papers ep ON ep.PaperID = b.PaperID
+       LEFT JOIN Eval_Exams ee ON ee.ExamID = b.ExamID
+       LEFT JOIN Evaluations ev ON ev.BookletID = aq.BookletID
+                               AND ev.EvaluatorUserID = aq.AllocatedToUserID
+                               AND ev.EvaluationType = aq.AllocationType
+       WHERE ${where}
+       ORDER BY aq.AllocatedAt DESC
+       LIMIT ${lim} OFFSET ${off}`,
+      params
+    );
+    return rows;
+  }
+
+  async getUserById(userId) {
+    const uid = parseInt(String(userId), 10);
+    if (!Number.isFinite(uid) || uid < 1) return null;
+    const [rows] = await this.db.execute(
+      `SELECT u.UserID, u.FullName, u.Email, r.RoleName
+       FROM Users u
+       JOIN Roles r ON r.RoleID = u.RoleID
+       WHERE u.UserID = ? AND u.IsDeleted = 0
+       LIMIT 1`,
+      [uid]
+    );
+    return rows[0] || null;
   }
 
   async setEvaluatorPaperMappings(userId, paperIds, createdBy) {

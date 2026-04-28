@@ -420,6 +420,14 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ paperIds }),
       }),
+    getPaperEvaluatorMapping: (params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/headeval/paper-evaluator-mapping?${q}`);
+    },
+    getEvaluatorAssignments: (params = {}) => {
+      const q = new URLSearchParams(params).toString();
+      return request(`/headeval/evaluator-assignments?${q}`);
+    },
     assign: (bookletIds, toUserId, allocationType = 'Primary') =>
       request('/headeval/assign', {
         method: 'POST',

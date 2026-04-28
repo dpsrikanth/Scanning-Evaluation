@@ -61,6 +61,7 @@ const adminItems = [
   { to: '/admin/settings', label: 'Admin Settings', icon: Settings },
   { to: '/admin/question-papers', label: 'Question Papers', icon: BookOpen },
   { to: '/admin/answer-sheets', label: 'Answer Sheet Designer', icon: PenTool },
+  { to: '/admin/evaluator-assignments', label: 'Evaluator Assignments', icon: FileText, requiresHeadEval: true },
 ];
 
 const headItems = [
@@ -128,18 +129,20 @@ function LayoutInner() {
           {canSeeScanAdmin(user) && (
             <div className="sidebar-section">
               <p className="sidebar-label">Management</p>
-              {adminItems.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={onNav}
-                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                >
-                  <Icon size={16} />
-                  <span>{label}</span>
-                  <ChevronRight size={12} className="sidebar-chevron" />
-                </NavLink>
-              ))}
+              {adminItems
+                .filter((item) => !item.requiresHeadEval || canSeeHeadEval(user))
+                .map(({ to, label, icon: Icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={onNav}
+                    className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                  >
+                    <Icon size={16} />
+                    <span>{label}</span>
+                    <ChevronRight size={12} className="sidebar-chevron" />
+                  </NavLink>
+                ))}
 
               <div className="sidebar-scan-group">
                 <p className="sidebar-label">Scanner admin</p>

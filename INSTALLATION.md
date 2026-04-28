@@ -42,7 +42,7 @@ Run scripts under **`sql/mysql-init/`** in **lexicographic filename order** agai
 
 - **`01_schema.sql`** — Creates `ScanningDB` and `EvaluationDB` and core tables.
 - **`02_seed.sql`** — Development seed data (eval users, scan users, sample exams/papers, etc.).
-- **`03_…` through `17_…`** — Additional migrations (templates, monitoring, QC workflow, mirror config, etc.).
+- **`03_…` through `19_…`** — Additional migrations (templates, monitoring, QC workflow, mirror config, allocation mode, evaluator-paper mapping, etc.).
 
 **Alternatives:** for some deployments you may use the full DDL in **`docs/Scanning_Evaluation_Full_Production_MySQL_DDL.sql`**, then apply any incremental scripts from `sql/mysql-init` or `migrations/` that are not in your baseline. See [migrations/README.md](migrations/README.md) for the migration folder’s focus.
 
@@ -60,7 +60,8 @@ If the database already exists from an older snapshot:
    ```
 
 4. Apply **`14_scan_qc_workflow.sql`** for QC columns, `Scan_DailyLots`, location QC toggles, and QC roles/users (if not already applied).
-5. Apply later files (e.g. **`16_eval_booklet_shared_annotations.sql`**, **`17_scan_mirror_config.sql`**) when you need those features.
+5. Apply later files (e.g. **`16_eval_booklet_shared_annotations.sql`**, **`17_scan_mirror_config.sql`**, **`18_allocation_mode.sql`**, **`19_evaluator_papers.sql`**) when you need those features.
+6. If using Head Evaluator assignment, treat **`19_evaluator_papers.sql`** as required because assignment now enforces evaluator-paper scope.
 
 ---
 
@@ -203,6 +204,7 @@ The app prompts for or stores a local folder for queued JPEGs and PDFs (default 
 3. **API** starts without DB connection errors (check console or **`api/logs/`**). Health: `GET /api/health`.
 4. **Web** at **http://localhost:5173** loads; **admin** or **evaluator** login works. **Evaluators** must pass **Session Setup** (camera, location, face match) before the dashboard if that flow is enabled.
 5. **Booklets in EvaluationDB** appear on the evaluator dashboard only when **allocated** (e.g. via **Head Evaluator** at `/head-eval/assign` or admin tooling).
+   - Current rule: evaluators must be mapped to paper(s) in head-eval paper scope; **no mapping means no assignment**.
 6. **Scanner Admin** (eval **Admin** role): configure exams, papers, workstations, **scan templates**, **scan output path**, **scan users**, **Scan QC flags** as needed.
 7. **Scanner desktop** logs in, loads templates, completes a test scan and upload (check API logs if uploads fail).
 
@@ -226,6 +228,7 @@ The app prompts for or stores a local folder for queued JPEGs and PDFs (default 
 | Web “Network error” / CORS | **`CLIENT_URL`** includes the exact browser origin (scheme, host, port). |
 | Scanner upload fails | API logs, **`SCAN_OUTPUT_PATH`** writable, active **Scan output path** in DB, JWT not expired. |
 | QC / missing columns | Run **`14_scan_qc_workflow.sql`** (and earlier migrations) on **ScanningDB** as needed. |
+| Head-eval assign shows paper mismatch / no evaluator | Ensure **`19_evaluator_papers.sql`** is applied and evaluator has mapped papers in Head Evaluator assignment UI. |
 | Emgu / deskew errors on scanner | Logs under **`%AppData%\ScannerApp\logs\`**; app falls back to AForge; try turning off **Deskew & trim** temporarily. |
 
 ---

@@ -1,6 +1,22 @@
 export default class AuthRepository {
   constructor(db) {
     this.db = db;
+    this._usersIdNeedsExplicitValue = undefined;
+  }
+
+  async _usersIdRequiresExplicitValue() {
+    if (this._usersIdNeedsExplicitValue !== undefined) return this._usersIdNeedsExplicitValue;
+    const [rows] = await this.db.execute(
+      `SELECT EXTRA
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'Users'
+         AND COLUMN_NAME = 'UserID'
+       LIMIT 1`
+    );
+    const extra = String(rows[0]?.EXTRA ?? '').toLowerCase();
+    this._usersIdNeedsExplicitValue = !extra.includes('auto_increment');
+    return this._usersIdNeedsExplicitValue;
   }
 
   async findUserByUsername(username) {
@@ -93,13 +109,38 @@ export default class AuthRepository {
 
   // ── Admin helpers ────────────────────────────────────────────────────────────
   async createUser({ username, passwordHash, fullName, email, roleId, locationId, createdBy }) {
-    const [result] = await this.db.execute(
-      `INSERT INTO Users (Username, PasswordHash, FullName, Email, RoleID, LocationID,
-                          UserStatus, IsFirstLogin, IsActive, CreatedBy)
-       VALUES (?, ?, ?, ?, ?, ?, 'Pending', 1, 1, ?)`,
-      [username, passwordHash, fullName, email, roleId, locationId, createdBy]
-    );
-    return result.insertId;
+    const needsExplicitUserId = await this._usersIdRequiresExplicitValue();
+    if (!needsExplicitUserId) {
+      const [result] = await this.db.execute(
+        `INSERT INTO Users (Username, PasswordHash, FullName, Email, RoleID, LocationID,
+                            UserStatus, IsFirstLogin, IsActive, CreatedBy)
+         VALUES (?, ?, ?, ?, ?, ?, 'Pending', 1, 1, ?)`,
+        [username, passwordHash, fullName, email, roleId, locationId, createdBy]
+      );
+      return result.insertId;
+    }
+
+    const conn = await this.db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [[row]] = await conn.execute(
+        `SELECT COALESCE(MAX(UserID), 0) + 1 AS nextUserId FROM Users FOR UPDATE`
+      );
+      const nextUserId = Number(row?.nextUserId || 1);
+      await conn.execute(
+        `INSERT INTO Users (UserID, Username, PasswordHash, FullName, Email, RoleID, LocationID,
+                            UserStatus, IsFirstLogin, IsActive, CreatedBy)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', 1, 1, ?)`,
+        [nextUserId, username, passwordHash, fullName, email, roleId, locationId, createdBy]
+      );
+      await conn.commit();
+      return nextUserId;
+    } catch (err) {
+      try { await conn.rollback(); } catch { /* */ }
+      throw err;
+    } finally {
+      conn.release();
+    }
   }
 
   async listUsers({ limit = 50, offset = 0 }) {

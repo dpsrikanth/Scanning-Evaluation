@@ -25,6 +25,27 @@ async function getTemplate(templateType) {
   return rows[0] || null;
 }
 
+async function createTransportFromSettings() {
+  const settings = await getSettings();
+  if (settings.email_enabled !== '1') {
+    return { skipped: true, reason: 'disabled', settings };
+  }
+  if (!settings.smtp_host) {
+    return { skipped: true, reason: 'smtp_not_configured', settings };
+  }
+  const transporter = nodemailer.createTransport({
+    host: settings.smtp_host,
+    port: parseInt(settings.smtp_port || '587', 10),
+    secure: settings.smtp_secure === '1',
+    auth: {
+      user: settings.smtp_user,
+      pass: settings.smtp_password,
+    },
+    tls: { rejectUnauthorized: false },
+  });
+  return { transporter, settings };
+}
+
 // ─── Simple {{variable}} substitution ────────────────────────────────────────
 function renderTemplate(text, vars) {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
@@ -39,17 +60,12 @@ function renderTemplate(text, vars) {
  */
 export async function sendMail(templateType, toEmail, variables = {}) {
   try {
-    const settings = await getSettings();
-
-    if (settings.email_enabled !== '1') {
+    const tx = await createTransportFromSettings();
+    if (tx.skipped) {
       logger.info(`Email disabled — skipping ${templateType} to ${toEmail}`);
       return { skipped: true };
     }
-
-    if (!settings.smtp_host) {
-      logger.warn(`SMTP not configured — skipping ${templateType} to ${toEmail}`);
-      return { skipped: true };
-    }
+    const { settings, transporter } = tx;
 
     const template = await getTemplate(templateType);
     if (!template) {
@@ -63,17 +79,6 @@ export async function sendMail(templateType, toEmail, variables = {}) {
     const subject = renderTemplate(template.Subject, allVars);
     const html = renderTemplate(template.BodyHtml, allVars);
 
-    const transporter = nodemailer.createTransport({
-      host: settings.smtp_host,
-      port: parseInt(settings.smtp_port || '587', 10),
-      secure: settings.smtp_secure === '1',
-      auth: {
-        user: settings.smtp_user,
-        pass: settings.smtp_password,
-      },
-      tls: { rejectUnauthorized: false },
-    });
-
     const info = await transporter.sendMail({
       from: `"${settings.smtp_from_name}" <${settings.smtp_from_email}>`,
       to: toEmail,
@@ -85,6 +90,28 @@ export async function sendMail(templateType, toEmail, variables = {}) {
     return { success: true, messageId: info.messageId };
   } catch (err) {
     logger.error(`Email send failed: ${templateType} → ${toEmail}`, { error: err.message });
+    return { error: err.message };
+  }
+}
+
+export async function sendDirectMail(toEmail, subject, html) {
+  try {
+    const tx = await createTransportFromSettings();
+    if (tx.skipped) {
+      logger.info(`Email disabled — skipping direct mail to ${toEmail}`);
+      return { skipped: true };
+    }
+    const { settings, transporter } = tx;
+    const info = await transporter.sendMail({
+      from: `"${settings.smtp_from_name}" <${settings.smtp_from_email}>`,
+      to: toEmail,
+      subject,
+      html,
+    });
+    logger.info(`Direct email sent to ${toEmail}`, { messageId: info.messageId });
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    logger.error(`Direct email send failed to ${toEmail}`, { error: err.message });
     return { error: err.message };
   }
 }

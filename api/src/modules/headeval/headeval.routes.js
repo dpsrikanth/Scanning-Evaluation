@@ -172,6 +172,8 @@ router.get('/evaluators', controller.getEvaluators);
  */
 router.get('/evaluators/:userId/papers', controller.getEvaluatorPapers);
 router.put('/evaluators/:userId/papers', controller.setEvaluatorPapers);
+router.get('/paper-evaluator-mapping', controller.getPaperEvaluatorMapping);
+router.get('/evaluator-assignments', controller.getEvaluatorAssignments);
 
 /**
  * @openapi

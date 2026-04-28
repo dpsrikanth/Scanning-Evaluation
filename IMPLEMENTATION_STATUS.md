@@ -1,3 +1,49 @@
+# Implementation Status
+
+## 2026-04-27 Update - Evaluator-Paper Assignment Enforcement
+
+**Status**: ✅ Implemented in API + Web UI + SQL migration  
+**Rule**: **No mapping = no assignments**
+
+### Delivered changes
+
+1. **Schema**
+   - Added `Eval_EvaluatorPapers` table via:
+     - `migrations/019_evaluator_papers.sql`
+     - `sql/mysql-init/19_evaluator_papers.sql`
+   - Table structure: `(UserID, PaperID, CreatedAt, CreatedBy)` with PK `(UserID, PaperID)`.
+
+2. **Backend enforcement (`api/src/modules/headeval/`)**
+   - Manual assignment now checks evaluator-paper eligibility for each booklet.
+   - Auto-assignment picks only evaluators mapped to booklet paper.
+   - If no eligible evaluator exists for a booklet paper, auto-assign returns `no_evaluator`.
+   - If manual target evaluator is not mapped, result includes `paper_mismatch`.
+   - `GET /headeval/evaluators?paperId=...` now truly filters to mapped evaluators.
+
+3. **Evaluator-paper mapping APIs**
+   - `GET /api/headeval/evaluators/:userId/papers`
+   - `PUT /api/headeval/evaluators/:userId/papers` with body:
+     - `{ "paperIds": [1,2,3] }` -> replace mapping
+     - `{ "paperIds": [] }` -> clear mapping, evaluator receives no assignments
+
+4. **Web head-eval page (`web/src/pages/HeadEvalAssign.jsx`)**
+   - Added per-evaluator **Papers** mapping control (modal).
+   - Shows current paper scope summary per evaluator.
+   - Updated hints and result messages to reflect strict mapping rule.
+   - Assignment summary now surfaces mapping mismatch/no eligible evaluator states.
+
+5. **API client updates**
+   - Added methods in `web/src/services/api.js`:
+     - `getEvaluatorPapers(userId)`
+     - `setEvaluatorPapers(userId, paperIds)`
+
+### Operational note
+
+- This change is active only after applying migration `019_evaluator_papers.sql` (or mysql-init `19_evaluator_papers.sql`) to **EvaluationDB**.
+- Without the table, head-eval assignment endpoints that reference mapping will fail.
+
+---
+
 # Multi-Page PDF Zone Mapping Implementation Status
 
 **Date**: 2025-01-15  

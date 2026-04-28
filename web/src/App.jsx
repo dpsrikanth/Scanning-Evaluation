@@ -18,6 +18,7 @@ import QuestionPaperConfig from './pages/QuestionPaperConfig';
 import AnswerSheetDesigner from './pages/AnswerSheetDesigner';
 import TimeReport from './pages/TimeReport';
 import ScanQcPortal from './pages/ScanQcPortal';
+import EvaluatorAssignments from './pages/EvaluatorAssignments';
 
 function ProtectedRoute({ children, requiredRole, allowedRoles }) {
   const token = localStorage.getItem('token');
@@ -110,7 +111,7 @@ function App() {
           <Route
             path="admin/settings"
             element={
-              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin']}>
+              <ProtectedRoute allowedRoles={['Admin', 'ScanAdmin', 'HeadEvaluator']}>
                 <AdminSettings />
               </ProtectedRoute>
             }
@@ -176,6 +177,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="Admin">
                 <AnswerSheetDesigner />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/evaluator-assignments"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'HeadEvaluator']}>
+                <EvaluatorAssignments />
               </ProtectedRoute>
             }
           />

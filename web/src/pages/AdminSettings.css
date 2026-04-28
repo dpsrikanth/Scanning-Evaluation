@@ -141,6 +141,7 @@
 .settings-section-icon { color: var(--color-primary); }
 .settings-form-body { padding: 18px 20px; }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.mapping-multiselect { min-height: 150px; }
 .settings-actions { display: flex; gap: 10px; padding-top: 8px; border-top: 1px solid var(--color-border); margin-top: 8px; }
 
 /* Toggle row */
