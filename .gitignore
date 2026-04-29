@@ -36,4 +36,8 @@ web/blob-report/
 phy question paper.pdf
 scan files/
 
+# Python virtual environments (site-packages can exceed GitHub's 100MB file limit)
+**/.venv/
 .venv/
+**/venv/
+venv/
