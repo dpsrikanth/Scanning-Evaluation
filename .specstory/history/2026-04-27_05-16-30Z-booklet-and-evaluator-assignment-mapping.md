@@ -12295,13 +12295,2832 @@ Parameters:
 
 ```json
 {
-  "explanation": "Reading...",
+  "explanation": "",
   "includePattern": "d:\\Scanning\u0026Evaluation\\api",
   "query": "Where does sync scan to evaluation happen?",
   "topK": 10
 }
 ```
-Status: **loading**
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class EvalService {"
+          },
+          {
+            "lineNumber": 62,
+            "text": "async startEvaluation(bookletId, evaluatorId, type = 'Primary', createdBy, user) {"
+          },
+          {
+            "lineNumber": 69,
+            "text": "const alloc = await (bookletId, evaluatorId);"
+          },
+          {
+            "lineNumber": 70,
+            "text": "      if (!alloc) {"
+          },
+          {
+            "lineNumber": 71,
+            "text": "        throw Object.assign("
+          },
+          {
+            "lineNumber": 72,
+            "text": "          new Error('No active allocation for this booklet. Open it from your assigned list.'),"
+          },
+          {
+            "lineNumber": 73,
+            "text": "          { statusCode: 403 }"
+          },
+          {
+            "lineNumber": 74,
+            "text": "        );"
+          },
+          {
+            "lineNumber": 75,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 76,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 77
+          },
+          {
+            "lineNumber": 78,
+            "text": "    if (needAllocation) {"
+          },
+          {
+            "lineNumber": 79,
+            "text": "      const done = await this.repo.hasSubmittedEvaluation(bookletId, evaluatorId, evalType);"
+          },
+          {
+            "lineNumber": 80,
+            "text": "      if (done) {"
+          },
+          {
+            "lineNumber": 81,
+            "text": "        throw Object.assign("
+          },
+          {
+            "lineNumber": 82,
+            "text": "          new Error('This evaluation was already submitted.'),"
+          },
+          {
+            "lineNumber": 83,
+            "text": "          { statusCode: 409 }"
+          },
+          {
+            "lineNumber": 84,
+            "text": "        );"
+          },
+          {
+            "lineNumber": 85,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 86,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 87
+          },
+          {
+            "lineNumber": 88,
+            "text": "    const existingId = await this.repo.findInProgressEvaluation(bookletId, evaluatorId, evalType);"
+          },
+          {
+            "lineNumber": 89,
+            "text": "    if (existingId != null) {"
+          },
+          {
+            "lineNumber": 90,
+            "text": "      if (needAllocation) {"
+          },
+          {
+            "lineNumber": 91,
+            "text": "        const alloc = await this.repo.getActiveAllocationForEvaluator;"
+          },
+          {
+            "lineNumber": 114,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 262,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 261
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.service.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.295499712228775
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class ScanService {"
+          },
+          {
+            "lineNumber": 49
+          },
+          {
+            "lineNumber": 50
+          },
+          {
+            "lineNumber": 51,
+            "text": "  async saveScannedBooklet(bookletData, pages) {"
+          },
+          {
+            "lineNumber": 52,
+            "text": "    if (!bookletData.bookletId) {"
+          },
+          {
+            "lineNumber": 53,
+            "text": "      throw Object.assign(new Error('bookletId is required'), { statusCode: 400 });"
+          },
+          {
+            "lineNumber": 54,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 55
+          },
+          {
+            "lineNumber": 56,
+            "text": "    // Normalise numeric IDs (multipart / JSON may send strings)"
+          },
+          {
+            "lineNumber": 57,
+            "text": "    const num = (v) =\u003e {"
+          },
+          {
+            "lineNumber": 58,
+            "text": "      const n = Number(v);"
+          },
+          {
+            "lineNumber": 59,
+            "text": "      return Number.isFinite(n) \u0026\u0026 n \u003e 0 ? n : 0;"
+          },
+          {
+            "lineNumber": 60,
+            "text": "    };"
+          },
+          {
+            "lineNumber": 61,
+            "text": "    bookletData.examId = num(bookletData.examId);"
+          },
+          {
+            "lineNumber": 62,
+            "text": "    bookletData.paperId = num(bookletData.paperId);"
+          },
+          {
+            "lineNumber": 63,
+            "text": "    bookletData.locationId = num(bookletData.locationId);"
+          },
+          {
+            "lineNumber": 64
+          },
+          {
+            "lineNumber": 65,
+            "text": "    // Fallback 1: explicit examCode + paperCode from desktop queue (barcode metadata)"
+          },
+          {
+            "lineNumber": 66,
+            "text": "    if (!bookletData.examId || !bookletData.paperId) {"
+          },
+          {
+            "lineNumber": 67,
+            "text": "      const ec = bookletData.examCode != null ? String(bookletData.examCode).trim() : '';"
+          },
+          {
+            "lineNumber": 68,
+            "text": "      const pc = bookletData.paperCode != null ? String(bookletData.paperCode).trim() : '';"
+          },
+          {
+            "lineNumber": 69,
+            "text": "      if (ec \u0026\u0026 pc) {"
+          },
+          {
+            "lineNumber": 70,
+            "text": "        const byCodes = await this.repo.resolveExamAndPaperFromCodes(ec, pc);"
+          },
+          {
+            "lineNumber": 71,
+            "text": "        if (byCodes) {"
+          },
+          {
+            "lineNumber": 72,
+            "text": "          bookletData.examId = bookletData.examId || byCodes.examId;"
+          },
+          {
+            "lineNumber": 73,
+            "text": "          bookletData.paperId = bookletData.paperId || byCodes.paperId;"
+          },
+          {
+            "lineNumber": 74,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 75,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 76,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 77
+          },
+          {
+            "lineNumber": 78,
+            "text": "    // Fallback 2: bookletId prefix EXAMCODE_PAPERCODE_..."
+          },
+          {
+            "lineNumber": 79,
+            "text": "    if"
+          },
+          {
+            "lineNumber": 164,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 185,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 184
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.service.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2630806863307953
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 3,
+            "text": "export default class EvalController {"
+          },
+          {
+            "lineNumber": 6
+          },
+          {
+            "lineNumber": 7
+          },
+          {
+            "lineNumber": 8,
+            "text": "  dashboardSummary = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 9,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 10,
+            "text": "      const result = await this.service.getDashboardSummary(req.user.userId);"
+          },
+          {
+            "lineNumber": 11,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 12,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 13,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 14,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 16
+          },
+          {
+            "lineNumber": 17,
+            "text": "  pendingBooklets = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 18,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 19,
+            "text": "      const limit = parseInt(req.query.limit) || 50;"
+          },
+          {
+            "lineNumber": 20,
+            "text": "      const offset = parseInt(req.query.offset) || 0;"
+          },
+          {
+            "lineNumber": 21,
+            "text": "      const result = await this.service.getPendingBooklets(req.user.userId, limit, offset);"
+          },
+          {
+            "lineNumber": 22,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 23,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 24,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 25,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 26,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 27
+          },
+          {
+            "lineNumber": 28,
+            "text": "  openBooklet = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 29,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 30,
+            "text": "      const result = await this.service.openBooklet(req.params.bookletId, req.user);"
+          },
+          {
+            "lineNumber": 31,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 32,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 33,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 34,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 35,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 36
+          },
+          {
+            "lineNumber": 37,
+            "text": "  startEvaluation = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 38,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 39,
+            "text": "      const { bookletId, type } = req.body;"
+          },
+          {
+            "lineNumber": 40,
+            "text": "      const result = await this.service.startEvaluation("
+          },
+          {
+            "lineNumber": 41,
+            "text": "        bookletId, req.user.userId, type, req.user.username, req.user"
+          },
+          {
+            "lineNumber": 42,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 43,
+            "text": "      return created(res, result);"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 45,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 46,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 47,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 48
+          },
+          {
+            "lineNumber": 49,
+            "text": "  getMarks = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 51,
+            "text": "      const result = await this.service.getMarks(parseInt(req.params.evaluationId));"
+          },
+          {
+            "lineNumber": 52,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 53,
+            "text": "    } catch (err) { next(err); }"
+          },
+          {
+            "lineNumber": 54,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 55
+          },
+          {
+            "lineNumber": 56,
+            "text": "  saveMarks = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 57,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 58,
+            "text": "      const { evaluationId } = req.params;"
+          },
+          {
+            "lineNumber": 59,
+            "text": "      const { details } = req.body;"
+          },
+          {
+            "lineNumber": 60,
+            "text": "      const result = await this.service.saveMarks(parseInt(evaluationId), details);"
+          },
+          {
+            "lineNumber": 61,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 62,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 63,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 64,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 65,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 66
+          },
+          {
+            "lineNumber": 67,
+            "text": "  submitEvaluation = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 68,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 69,
+            "text": "      const { evaluationId } = req.params;"
+          },
+          {
+            "lineNumber": 70,
+            "text": "      const { totalMarks, totalPages, paperId } = req.body;"
+          },
+          {
+            "lineNumber": 71,
+            "text": "      const result = await this.service.submitEvaluation("
+          },
+          {
+            "lineNumber": 72,
+            "text": "        parseInt(evaluationId), totalMarks, totalPages, paperId || null"
+          },
+          {
+            "lineNumber": 73,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 74,
+            "text": "      return ok(res, result, 'Evaluation submitted');"
+          },
+          {
+            "lineNumber": 75,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 78,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 169,
+            "text": ";"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 170,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 169
+          },
+          "startPosition": {
+            "line": 2
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.controller.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 3
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 3
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 4
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 3
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.25472500920295715
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class ScanRepository {"
+          },
+          {
+            "lineNumber": 199,
+            "text": "async resolveExamAndPaperFromCodes(examCode, paperCode) {"
+          },
+          {
+            "lineNumber": 210,
+            "text": "const [paperRows] = await "
+          },
+          {
+            "lineNumber": 211,
+            "text": "',"
+          },
+          {
+            "lineNumber": 212,
+            "text": "      [examId, pc]"
+          },
+          {
+            "lineNumber": 213,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 214,
+            "text": "    if (!paperRows || paperRows.length === 0) return null;"
+          },
+          {
+            "lineNumber": 215,
+            "text": "    return { examId, paperId: paperRows[0].PaperID };"
+          },
+          {
+            "lineNumber": 216,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 217
+          },
+          {
+            "lineNumber": 218,
+            "text": "  async getLocationQcSettings(locationId) {"
+          },
+          {
+            "lineNumber": 219,
+            "text": "    const [rows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 220,
+            "text": "      &#96;SELECT LocationID,"
+          },
+          {
+            "lineNumber": 221,
+            "text": "              COALESCE(VendorQcEnabled, 1) AS VendorQcEnabled,"
+          },
+          {
+            "lineNumber": 222,
+            "text": "              COALESCE(CustomerQcEnabled, 1) AS CustomerQcEnabled"
+          },
+          {
+            "lineNumber": 223,
+            "text": "       FROM Scan_Locations WHERE LocationID = ? AND IsDeleted = 0"
+          },
+          {
+            "lineNumber": 225,
+            "text": ";"
+          },
+          {
+            "lineNumber": 227,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 367,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 366
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\scan\\scan.repository.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.23892630636692047
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class EvalService {"
+          },
+          {
+            "lineNumber": 18,
+            "text": "async openBooklet(bookletId, user) {"
+          },
+          {
+            "lineNumber": 19
+          },
+          {
+            "lineNumber": 20,
+            "text": "    if (!data.booklet) {"
+          },
+          {
+            "lineNumber": 21,
+            "text": "      throw Object.assign("
+          },
+          {
+            "lineNumber": 22,
+            "text": "        new Error("
+          },
+          {
+            "lineNumber": 23,
+            "text": "          'This booklet is not in the evaluation database yet. It may exist only in scanning. ' +"
+          },
+          {
+            "lineNumber": 24,
+            "text": "            'Ask an administrator to sync scanned booklets to evaluation (Scanner Admin → Scanned booklets → ' +"
+          },
+          {
+            "lineNumber": 25,
+            "text": "            '“Sync to evaluation”, or use Head Evaluator → sync). Then open the booklet again.'"
+          },
+          {
+            "lineNumber": 26,
+            "text": "        ),"
+          },
+          {
+            "lineNumber": 27,
+            "text": "        { statusCode: 404 }"
+          },
+          {
+            "lineNumber": 28,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 29,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 30
+          },
+          {
+            "lineNumber": 31,
+            "text": "    const role = user?.roleName;"
+          },
+          {
+            "lineNumber": 32,
+            "text": "    if"
+          },
+          {
+            "lineNumber": 60,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 262,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 261
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.service.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.23319970071315765
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "import { config } from 'dotenv';"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import path from 'path';"
+          },
+          {
+            "lineNumber": 3,
+            "text": "config();"
+          },
+          {
+            "lineNumber": 4
+          },
+          {
+            "lineNumber": 5,
+            "text": "const env = {"
+          },
+          {
+            "lineNumber": 6,
+            "text": "  nodeEnv: process.env.NODE_ENV || 'development',"
+          },
+          {
+            "lineNumber": 7,
+            "text": "  /** Swagger UI at /api/docs — off if DISABLE_SWAGGER=true; in production also set ENABLE_SWAGGER=true (Docker compose includes this). */"
+          },
+          {
+            "lineNumber": 8,
+            "text": "  enableSwagger:"
+          },
+          {
+            "lineNumber": 9,
+            "text": "    process.env.DISABLE_SWAGGER !== 'true' \u0026\u0026"
+          },
+          {
+            "lineNumber": 10,
+            "text": "    ((process.env.NODE_ENV || 'development') !== 'production' ||"
+          },
+          {
+            "lineNumber": 11,
+            "text": "      process.env.ENABLE_SWAGGER === 'true' ||"
+          },
+          {
+            "lineNumber": 12,
+            "text": "      process.env.ENABLE_SWAGGER === '1'),"
+          },
+          {
+            "lineNumber": 13,
+            "text": "  port: parseInt(process.env.PORT || '4000', 10),"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  // Supports comma-separated list of allowed origins e.g. http://localhost:5173,http://localhost:8080"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  clientUrls: (process.env.CLIENT_URL || 'http://localhost:5173')"
+          },
+          {
+            "lineNumber": 16,
+            "text": "    .split(',').map(u =\u003e u.trim()).filter(Boolean),"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  // Keep single clientUrl for backward compat"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  clientUrl: process.env.CLIENT_URL?.split(',')[0].trim() || 'http://localhost:5173',"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  swaggerUiOrigin: process.env.SWAGGER_UI_ORIGIN || 'http://localhost:5173',"
+          },
+          {
+            "lineNumber": 20
+          },
+          {
+            "lineNumber": 21,
+            "text": "  scanDb: {"
+          },
+          {
+            "lineNumber": 22,
+            "text": "    host: process.env.SCAN_DB_HOST || 'localhost',"
+          },
+          {
+            "lineNumber": 23,
+            "text": "    port: parseInt(process.env.SCAN_DB_PORT || '3307', 10),"
+          },
+          {
+            "lineNumber": 24,
+            "text": "    user: process.env.SCAN_DB_USER || 'root',"
+          },
+          {
+            "lineNumber": 25,
+            "text": "    password: process.env.SCAN_DB_PASSWORD || '',"
+          },
+          {
+            "lineNumber": 26,
+            "text": "    database: process.env.SCAN_DB_NAME || 'ScanningDB',"
+          },
+          {
+            "lineNumber": 27,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 28
+          },
+          {
+            "lineNumber": 29,
+            "text": "  evalDb: {"
+          },
+          {
+            "lineNumber": 30,
+            "text": "    host: process.env.EVAL_DB_HOST || 'localhost',"
+          },
+          {
+            "lineNumber": 31,
+            "text": "    port: parseInt(process.env.EVAL_DB_PORT || '3307', 10),"
+          },
+          {
+            "lineNumber": 32,
+            "text": "    user: process.env.EVAL_DB_USER || 'root',"
+          },
+          {
+            "lineNumber": 33,
+            "text": "    password: process.env.EVAL_DB_PASSWORD || '',"
+          },
+          {
+            "lineNumber": 34,
+            "text": "    database: process.env.EVAL_DB_NAME || 'EvaluationDB',"
+          },
+          {
+            "lineNumber": 35,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 36
+          },
+          {
+            "lineNumber": 37,
+            "text": "  jwt: {"
+          },
+          {
+            "lineNumber": 38,
+            "text": "    secret: process.env.JWT_SECRET || 'dev-secret-change-me',"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    expiresIn: process.env.JWT_EXPIRES_IN || '8h',"
+          },
+          {
+            "lineNumber": 40,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 41
+          },
+          {
+            "lineNumber": 42,
+            "text": "  storage: {"
+          },
+          {
+            "lineNumber": 43,
+            "text": "    mode: process.env.STORAGE_MODE || 'local',"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    // Common path in API folder for profile photos, captured photos, question papers (not scanned booklets)"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    commonPath: process.env.COMMON_STORAGE_PATH || 'storage',"
+          },
+          {
+            "lineNumber": 64,
+            "text": ","
+          },
+          {
+            "lineNumber": 65,
+            "text": "};"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 64
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\config\\env.js",
+        "signatures": {}
+      },
+      "score": 0.22965943813323975
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 36,
+            "text": "export async function testConnections() {"
+          },
+          {
+            "lineNumber": 37,
+            "text": "  try {"
+          },
+          {
+            "lineNumber": 38,
+            "text": "    const scanConn = await getScanDb().getConnection();"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    scanConn.release();"
+          },
+          {
+            "lineNumber": 40,
+            "text": "    logger.info('ScanningDB connection verified');"
+          },
+          {
+            "lineNumber": 41,
+            "text": "  } catch (err) {"
+          },
+          {
+            "lineNumber": 42,
+            "text": "    logger.warn(&#96;ScanningDB connection failed: ${err.message}&#96;);"
+          },
+          {
+            "lineNumber": 43,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 44
+          },
+          {
+            "lineNumber": 45,
+            "text": "  try {"
+          },
+          {
+            "lineNumber": 46,
+            "text": "    const evalConn = await getEvalDb().getConnection();"
+          },
+          {
+            "lineNumber": 47,
+            "text": "    evalConn.release();"
+          },
+          {
+            "lineNumber": 48,
+            "text": "    logger.info('EvaluationDB connection verified');"
+          },
+          {
+            "lineNumber": 49,
+            "text": "  } catch (err) {"
+          },
+          {
+            "lineNumber": 50,
+            "text": "    logger.warn(&#96;EvaluationDB connection failed: ${err.message}&#96;);"
+          },
+          {
+            "lineNumber": 51,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 52,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 51
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 33
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\config\\database.js",
+        "signatures": {}
+      },
+      "score": 0.21676325798034668
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 111,
+            "text": "router.get("
+          },
+          {
+            "lineNumber": 112,
+            "text": "  '/booklet/:bookletId/shared-annotations',"
+          },
+          {
+            "lineNumber": 113,
+            "text": "  controller.getBookletSharedAnnotations"
+          },
+          {
+            "lineNumber": 114,
+            "text": ");"
+          },
+          {
+            "lineNumber": 115,
+            "text": "router.put("
+          },
+          {
+            "lineNumber": 116,
+            "text": "  '/booklet/:bookletId/shared-annotations',"
+          },
+          {
+            "lineNumber": 117,
+            "text": "  controller.saveBookletSharedAnnotations"
+          },
+          {
+            "lineNumber": 118,
+            "text": ");"
+          },
+          {
+            "lineNumber": 119
+          },
+          {
+            "lineNumber": 120,
+            "text": "router.get('/booklet/:bookletId', controller.openBooklet);"
+          },
+          {
+            "lineNumber": 121
+          },
+          {
+            "lineNumber": 122,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 123,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 124,
+            "text": " * /api/eval/evaluation:"
+          },
+          {
+            "lineNumber": 125,
+            "text": " *   post:"
+          },
+          {
+            "lineNumber": 126,
+            "text": " *     tags: [Eval]"
+          },
+          {
+            "lineNumber": 127,
+            "text": " *     summary: Start a new evaluation session"
+          },
+          {
+            "lineNumber": 128,
+            "text": " *     description: Creates an Evaluations record and returns the evaluationId."
+          },
+          {
+            "lineNumber": 129,
+            "text": " *     requestBody:"
+          },
+          {
+            "lineNumber": 130,
+            "text": " *       required: true"
+          },
+          {
+            "lineNumber": 131,
+            "text": " *       content:"
+          },
+          {
+            "lineNumber": 132,
+            "text": " *         application/json:"
+          },
+          {
+            "lineNumber": 133,
+            "text": " *           schema:"
+          },
+          {
+            "lineNumber": 134,
+            "text": " *             type: object"
+          },
+          {
+            "lineNumber": 135,
+            "text": " *             required: [allocationId, bookletId]"
+          },
+          {
+            "lineNumber": 136,
+            "text": " *             properties:"
+          },
+          {
+            "lineNumber": 137,
+            "text": " *               allocationId: { type: integer, example: 10 }"
+          },
+          {
+            "lineNumber": 138,
+            "text": " *               bookletId: { type: string, example: '110293000124' }"
+          },
+          {
+            "lineNumber": 139,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 140,
+            "text": " *       201:"
+          },
+          {
+            "lineNumber": 141,
+            "text": " *         description: Evaluation started"
+          },
+          {
+            "lineNumber": 142,
+            "text": " *       409:"
+          },
+          {
+            "lineNumber": 143,
+            "text": " *         description: Evaluation already in progress for this booklet"
+          },
+          {
+            "lineNumber": 144,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 143
+          },
+          "startPosition": {
+            "column": 3,
+            "line": 109
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.routes.js",
+        "signatures": {}
+      },
+      "score": 0.2123197317123413
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class EvalRepository {"
+          },
+          {
+            "lineNumber": 21
+          },
+          {
+            "lineNumber": 22
+          },
+          {
+            "lineNumber": 23,
+            "text": "  async getDashboardSummary(evaluatorId) {"
+          },
+          {
+            "lineNumber": 24,
+            "text": "    const baseWhere = evaluatorId"
+          },
+          {
+            "lineNumber": 25,
+            "text": "      ? &#96;WHERE aq.AllocatedToUserID = ? AND aq.IsDeleted = 0&#96;"
+          },
+          {
+            "lineNumber": 26,
+            "text": "      : &#96;WHERE aq.IsDeleted = 0&#96;;"
+          },
+          {
+            "lineNumber": 27,
+            "text": "    const params = evaluatorId ? [evaluatorId] : [];"
+          },
+          {
+            "lineNumber": 28
+          },
+          {
+            "lineNumber": 29,
+            "text": "    const [rows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 30,
+            "text": "      &#96;SELECT"
+          },
+          {
+            "lineNumber": 31,
+            "text": "        COUNT(*) AS totalAnswerSheets,"
+          },
+          {
+            "lineNumber": 32,
+            "text": "        SUM(CASE WHEN aq.EvaluationStatus = 'Evaluated' THEN 1 ELSE 0 END) AS evaluated,"
+          },
+          {
+            "lineNumber": 33,
+            "text": "        SUM(CASE WHEN aq.EvaluationStatus IN ('Allocated','InProgress') THEN 1 ELSE 0 END) AS pending,"
+          },
+          {
+            "lineNumber": 34,
+            "text": "        SUM(CASE WHEN aq.EvaluationStatus = 'Rejected' THEN 1 ELSE 0 END) AS rejected"
+          },
+          {
+            "lineNumber": 35,
+            "text": "       FROM AllocationQueue aq"
+          },
+          {
+            "lineNumber": 36,
+            "text": "       ${baseWhere}&#96;,"
+          },
+          {
+            "lineNumber": 37,
+            "text": "      params"
+          },
+          {
+            "lineNumber": 38,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 39,
+            "text": "    return rows[0];"
+          },
+          {
+            "lineNumber": 40,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 41
+          },
+          {
+            "lineNumber": 42,
+            "text": "  async getPendingBooklets(evaluatorId, limit = 50, offset = 0) {"
+          },
+          {
+            "lineNumber": 43,
+            "text": "    const safeLimit = parseInt(limit, 10) || 50;"
+          },
+          {
+            "lineNumber": 44,
+            "text": "    const safeOffset = parseInt(offset, 10) || 0;"
+          },
+          {
+            "lineNumber": 45,
+            "text": "    const [rows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 46,
+            "text": "      &#96;SELECT aq.AllocationID, aq.BookletID, aq.AllocationType, aq.EvaluationStatus,"
+          },
+          {
+            "lineNumber": 47,
+            "text": "              aq.SessionDate,"
+          },
+          {
+            "lineNumber": 48,
+            "text": "              bm.StudentName, bm.ProgramLevel, bm.Branch, bm.Year, bm.Semester,"
+          },
+          {
+            "lineNumber": 49,
+            "text": "              bm.Subject, bm.DocumentNumber,"
+          },
+          {
+            "lineNumber": 50,
+            "text": "              ev.TotalMarks, ep.MaxMarks"
+          },
+          {
+            "lineNumber": 51,
+            "text": "       FROM AllocationQueue aq"
+          },
+          {
+            "lineNumber": 52,
+            "text": "       LEFT JOIN Eval_BookletMetadata bm ON aq.BookletID = bm.BookletID"
+          },
+          {
+            "lineNumber": 53,
+            "text": "       LEFT JOIN Evaluations ev ON aq.BookletID = ev.BookletID AND ev.IsSubmitted = 1"
+          },
+          {
+            "lineNumber": 54,
+            "text": "       LEFT JOIN Eval_Booklets eb ON aq.BookletID = eb.BookletID"
+          },
+          {
+            "lineNumber": 55,
+            "text": "       LEFT JOIN Eval_Papers ep ON eb.PaperID = ep.PaperID"
+          },
+          {
+            "lineNumber": 56,
+            "text": "       WHERE aq.AllocatedToUserID = ? AND aq.IsDeleted = 0"
+          },
+          {
+            "lineNumber": 57,
+            "text": "       ORDER BY CASE aq.EvaluationStatus"
+          },
+          {
+            "lineNumber": 58,
+            "text": "                  WHEN 'Allocated' THEN 1"
+          },
+          {
+            "lineNumber": 59,
+            "text": "                  WHEN 'InProgress' THEN 2"
+          },
+          {
+            "lineNumber": 60,
+            "text": "                  WHEN 'Evaluated' THEN 3"
+          },
+          {
+            "lineNumber": 61,
+            "text": "                  ELSE 4 END,"
+          },
+          {
+            "lineNumber": 62,
+            "text": "                aq.AllocatedAt DESC"
+          },
+          {
+            "lineNumber": 63,
+            "text": "       LIMIT "
+          },
+          {
+            "lineNumber": 65,
+            "text": ";"
+          },
+          {
+            "lineNumber": 67,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 515,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 514
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.repository.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.21028709411621094
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 3,
+            "text": "export default class EvalController {"
+          },
+          {
+            "lineNumber": 67,
+            "text": "async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 71,
+            "text": "const result = await ("
+          },
+          {
+            "lineNumber": 72,
+            "text": "        parseInt(evaluationId), totalMarks, totalPages, paperId || null"
+          },
+          {
+            "lineNumber": 73,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 74,
+            "text": "      return ok(res, result, 'Evaluation submitted');"
+          },
+          {
+            "lineNumber": 75,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 76,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 77,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 78,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 79
+          },
+          {
+            "lineNumber": 80,
+            "text": "  logPageVisit = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 81,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 82,
+            "text": "      const { evaluationId } = req.params;"
+          },
+          {
+            "lineNumber": 83,
+            "text": "      const { pageNumber, durationSeconds, zoomLevel, annotationsMade } = req.body;"
+          },
+          {
+            "lineNumber": 84,
+            "text": "      await this.service.logPageVisit("
+          },
+          {
+            "lineNumber": 85,
+            "text": "        parseInt(evaluationId), pageNumber, durationSeconds, zoomLevel, annotationsMade"
+          },
+          {
+            "lineNumber": 86,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 87,
+            "text": "      return ok(res, null, 'Page visit logged');"
+          },
+          {
+            "lineNumber": 88,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 89,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 90,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 91,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 92
+          },
+          {
+            "lineNumber": 93,
+            "text": "  saveAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 94,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 95,
+            "text": "      const { evaluationId } = req.params;"
+          },
+          {
+            "lineNumber": 96,
+            "text": "      const { pageNumber, annotations } = req.body;"
+          },
+          {
+            "lineNumber": 97,
+            "text": "      const result = await this.service.saveAnnotations("
+          },
+          {
+            "lineNumber": 98,
+            "text": "        parseInt(evaluationId), pageNumber, annotations || []"
+          },
+          {
+            "lineNumber": 99,
+            "text": "      );"
+          },
+          {
+            "lineNumber": 100,
+            "text": "      return ok(res, result, 'Annotations saved');"
+          },
+          {
+            "lineNumber": 101,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 102,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 103,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 104,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 105
+          },
+          {
+            "lineNumber": 106,
+            "text": "  getAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 107,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 108,
+            "text": "      const result = await this.service.getAnnotations(parseInt(req.params.evaluationId));"
+          },
+          {
+            "lineNumber": 109,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 110,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 111,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 112,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 113,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 114
+          },
+          {
+            "lineNumber": 115,
+            "text": "  getBookletSharedAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 116,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 117,
+            "text": "      const result = await this.service.getBookletSharedAnnotations(req.params.bookletId);"
+          },
+          {
+            "lineNumber": 118,
+            "text": "      return ok(res, result);"
+          },
+          {
+            "lineNumber": 119,
+            "text": "    } catch (err) {"
+          },
+          {
+            "lineNumber": 120,
+            "text": "      next(err);"
+          },
+          {
+            "lineNumber": 121,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 122,
+            "text": "  };"
+          },
+          {
+            "lineNumber": 123
+          },
+          {
+            "lineNumber": 124,
+            "text": "  saveBookletSharedAnnotations = async (req, res, next) =\u003e {"
+          },
+          {
+            "lineNumber": 125,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 126,
+            "text": "      const { pageNumber, items } = req.body || {};"
+          },
+          {
+            "lineNumber": 137,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 169,
+            "text": ";"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 170,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 169
+          },
+          "startPosition": {
+            "line": 2
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.controller.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 3
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 3
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 4
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 3
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.20690065622329712
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class EvalService {"
+          },
+          {
+            "lineNumber": 18,
+            "text": "async openBooklet(bookletId, user) {"
+          },
+          {
+            "lineNumber": 35
+          },
+          {
+            "lineNumber": 36,
+            "text": ","
+          },
+          {
+            "lineNumber": 37,
+            "text": "          { statusCode: 403 }"
+          },
+          {
+            "lineNumber": 38,
+            "text": "        );"
+          },
+          {
+            "lineNumber": 39,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 40,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 41
+          },
+          {
+            "lineNumber": 42,
+            "text": "    let totalPages = parseInt(data.booklet.TotalPages, 10);"
+          },
+          {
+            "lineNumber": 43,
+            "text": "    if (!Number.isFinite(totalPages) || totalPages \u003c 1) totalPages = 0;"
+          },
+          {
+            "lineNumber": 44
+          },
+          {
+            "lineNumber": 45,
+            "text": "    const scheme = data.questionScheme || [];"
+          },
+          {
+            "lineNumber": 46,
+            "text": "    const pageNums = scheme"
+          },
+          {
+            "lineNumber": 47,
+            "text": "      .map((q) =\u003e parseInt(q.PageNumber, 10))"
+          },
+          {
+            "lineNumber": 48,
+            "text": "      .filter((n) =\u003e Number.isFinite(n) \u0026\u0026 n \u003e 0);"
+          },
+          {
+            "lineNumber": 49,
+            "text": "    const maxFromScheme = pageNums.length \u003e 0 ? Math.max(...pageNums) : 0;"
+          },
+          {
+            "lineNumber": 50
+          },
+          {
+            "lineNumber": 51,
+            "text": "    if (totalPages \u003c maxFromScheme) {"
+          },
+          {
+            "lineNumber": 52,
+            "text": "      totalPages = maxFromScheme;"
+          },
+          {
+            "lineNumber": 53,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 54,
+            "text": "    if (totalPages \u003c 1) {"
+          },
+          {
+            "lineNumber": 55,
+            "text": "      totalPages = 1;"
+          },
+          {
+            "lineNumber": 56,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 57
+          },
+          {
+            "lineNumber": 58,
+            "text": "    data.booklet = { ...data.booklet, TotalPages: totalPages };"
+          },
+          {
+            "lineNumber": 59,
+            "text": "    return data;"
+          },
+          {
+            "lineNumber": 60,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 61
+          },
+          {
+            "lineNumber": 62,
+            "text": "  async startEvaluation(bookletId, evaluatorId, type = 'Primary', createdBy, user) {"
+          },
+          {
+            "lineNumber": 63,
+            "text": "    const evalType = type != null \u0026\u0026 type !== '' ? String(type) : 'Primary';"
+          },
+          {
+            "lineNumber": 64,
+            "text": "    const needAllocation = Boolean("
+          },
+          {
+            "lineNumber": 65,
+            "text": "      user \u0026\u0026 EvalService.mustHaveAllocationRole(user.roleName)"
+          },
+          {
+            "lineNumber": 66,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 67
+          },
+          {
+            "lineNumber": 68,
+            "text": "    if (needAllocation) {"
+          },
+          {
+            "lineNumber": 69,
+            "text": "      const alloc = await this.repo.getActiveAllocationForEvaluator(bookletId, evaluatorId);"
+          },
+          {
+            "lineNumber": 70,
+            "text": "      if (!alloc) {"
+          },
+          {
+            "lineNumber": 71,
+            "text": "        throw Object.assign("
+          },
+          {
+            "lineNumber": 72,
+            "text": "          new Error"
+          },
+          {
+            "lineNumber": 74
+          },
+          {
+            "lineNumber": 114,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 262,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 261
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.service.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2055189609527588
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 147,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 148,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 149,
+            "text": " * /api/eval/evaluation/{evaluationId}/marks:"
+          },
+          {
+            "lineNumber": 150,
+            "text": " *   put:"
+          },
+          {
+            "lineNumber": 151,
+            "text": " *     tags: [Eval]"
+          },
+          {
+            "lineNumber": 152,
+            "text": " *     summary: Auto-save evaluation marks"
+          },
+          {
+            "lineNumber": 153,
+            "text": " *     description: |"
+          },
+          {
+            "lineNumber": 154,
+            "text": " *       Upserts per-question mark entries in EvaluationDetails."
+          },
+          {
+            "lineNumber": 155,
+            "text": " *       Called frequently during evaluation for auto-save."
+          },
+          {
+            "lineNumber": 156,
+            "text": " *     parameters:"
+          },
+          {
+            "lineNumber": 157,
+            "text": " *       - in: path"
+          },
+          {
+            "lineNumber": 158,
+            "text": " *         name: evaluationId"
+          },
+          {
+            "lineNumber": 159,
+            "text": " *         required: true"
+          },
+          {
+            "lineNumber": 160,
+            "text": " *         schema: { type: integer }"
+          },
+          {
+            "lineNumber": 161,
+            "text": " *         example: 5"
+          },
+          {
+            "lineNumber": 162,
+            "text": " *     requestBody:"
+          },
+          {
+            "lineNumber": 163,
+            "text": " *       required: true"
+          },
+          {
+            "lineNumber": 164,
+            "text": " *       content:"
+          },
+          {
+            "lineNumber": 165,
+            "text": " *         application/json:"
+          },
+          {
+            "lineNumber": 166,
+            "text": " *           schema:"
+          },
+          {
+            "lineNumber": 167,
+            "text": " *             type: object"
+          },
+          {
+            "lineNumber": 168,
+            "text": " *             required: [marks]"
+          },
+          {
+            "lineNumber": 169,
+            "text": " *             properties:"
+          },
+          {
+            "lineNumber": 170,
+            "text": " *               marks:"
+          },
+          {
+            "lineNumber": 171,
+            "text": " *                 type: array"
+          },
+          {
+            "lineNumber": 172,
+            "text": " *                 items:"
+          },
+          {
+            "lineNumber": 173,
+            "text": " *                   $ref: '#/components/schemas/EvaluationDetail'"
+          },
+          {
+            "lineNumber": 174,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 175,
+            "text": " *       200:"
+          },
+          {
+            "lineNumber": 176,
+            "text": " *         description: Marks saved"
+          },
+          {
+            "lineNumber": 177,
+            "text": " *       404:"
+          },
+          {
+            "lineNumber": 178,
+            "text": " *         description: Evaluation not found"
+          },
+          {
+            "lineNumber": 179,
+            "text": " */"
+          },
+          {
+            "lineNumber": 180,
+            "text": "router.get('/evaluation/:evaluationId/marks', controller.getMarks);"
+          },
+          {
+            "lineNumber": 181,
+            "text": "router.put('/evaluation/:evaluationId/marks', controller.saveMarks);"
+          },
+          {
+            "lineNumber": 182
+          },
+          {
+            "lineNumber": 183,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 184,
+            "text": " * @openapi"
+          },
+          {
+            "lineNumber": 185,
+            "text": " * /api/eval/evaluation/{evaluationId}/submit:"
+          },
+          {
+            "lineNumber": 186,
+            "text": " *   post:"
+          },
+          {
+            "lineNumber": 187,
+            "text": " *     tags: [Eval]"
+          },
+          {
+            "lineNumber": 188,
+            "text": " *     summary: Submit completed evaluation"
+          },
+          {
+            "lineNumber": 189,
+            "text": " *     description: |"
+          },
+          {
+            "lineNumber": 190,
+            "text": " *       Marks the evaluation as Completed, updates TotalMarks, and checks"
+          },
+          {
+            "lineNumber": 191,
+            "text": " *       for variance if a primary evaluation already exists."
+          },
+          {
+            "lineNumber": 192,
+            "text": " *     parameters:"
+          },
+          {
+            "lineNumber": 193,
+            "text": " *       - in: path"
+          },
+          {
+            "lineNumber": 194,
+            "text": " *         name: evaluationId"
+          },
+          {
+            "lineNumber": 195,
+            "text": " *         required: true"
+          },
+          {
+            "lineNumber": 196,
+            "text": " *         schema: { type: integer }"
+          },
+          {
+            "lineNumber": 197,
+            "text": " *     responses:"
+          },
+          {
+            "lineNumber": 198,
+            "text": " *       200:"
+          },
+          {
+            "lineNumber": 199,
+            "text": " *         description: Evaluation submitted successfully"
+          },
+          {
+            "lineNumber": 200,
+            "text": " *       400:"
+          },
+          {
+            "lineNumber": 201,
+            "text": " *         description: All pages must be visited before submission"
+          },
+          {
+            "lineNumber": 202,
+            "text": " *       404:"
+          },
+          {
+            "lineNumber": 203,
+            "text": " *         description: Evaluation not found"
+          },
+          {
+            "lineNumber": 204,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 203
+          },
+          "startPosition": {
+            "column": 55,
+            "line": 144
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.routes.js",
+        "signatures": {}
+      },
+      "score": 0.2048065960407257
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": "import express from 'express';"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import swaggerUi from 'swagger-ui-express';"
+          },
+          {
+            "lineNumber": 3,
+            "text": "import env from './config/env.js';"
+          },
+          {
+            "lineNumber": 4,
+            "text": "import swaggerSpec from './config/swagger.js';"
+          },
+          {
+            "lineNumber": 5,
+            "text": "import { testConnections, getScanDb } from './config/database.js';"
+          },
+          {
+            "lineNumber": 6,
+            "text": "import logger from './utils/logger.js';"
+          },
+          {
+            "lineNumber": 7,
+            "text": "import errorHandler from './middleware/errorHandler.js';"
+          },
+          {
+            "lineNumber": 8,
+            "text": "import requestLogger from './middleware/requestLogger.js';"
+          },
+          {
+            "lineNumber": 9,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 10,
+            "text": "  corsMiddleware,"
+          },
+          {
+            "lineNumber": 11,
+            "text": "  helmetMiddleware,"
+          },
+          {
+            "lineNumber": 12,
+            "text": "  globalLimiter,"
+          },
+          {
+            "lineNumber": 13,
+            "text": "  hppMiddleware,"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  requestId,"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  sanitizeInput,"
+          },
+          {
+            "lineNumber": 16,
+            "text": "} from './middleware/security.js';"
+          },
+          {
+            "lineNumber": 17
+          },
+          {
+            "lineNumber": 18,
+            "text": "import authRoutes        from './modules/auth/auth.routes.js';"
+          },
+          {
+            "lineNumber": 19,
+            "text": "import scanRoutes        from './modules/scan/scan.routes.js';"
+          },
+          {
+            "lineNumber": 20,
+            "text": "import evalRoutes        from './modules/eval/eval.routes.js';"
+          },
+          {
+            "lineNumber": 21,
+            "text": "import fileRoutes        from './modules/scan/files.routes.js';"
+          },
+          {
+            "lineNumber": 22,
+            "text": "import adminRoutes       from './modules/admin/admin.routes.js';"
+          },
+          {
+            "lineNumber": 23,
+            "text": "import headEvalRoutes    from './modules/headeval/headeval.routes.js';"
+          },
+          {
+            "lineNumber": 24,
+            "text": "import scanAdminRoutes   from './modules/scanadmin/scanadmin.routes.js';"
+          },
+          {
+            "lineNumber": 25,
+            "text": "import answerSheetRoutes from './modules/answersheet/answersheet.routes.js';"
+          },
+          {
+            "lineNumber": 26
+          },
+          {
+            "lineNumber": 27,
+            "text": "const app = express();"
+          },
+          {
+            "lineNumber": 28
+          },
+          {
+            "lineNumber": 29,
+            "text": "// ── Trust proxy (needed if behind nginx / Docker) ──────────────────────────"
+          },
+          {
+            "lineNumber": 30,
+            "text": "app.set('trust proxy', 1);"
+          },
+          {
+            "lineNumber": 31
+          },
+          {
+            "lineNumber": 32,
+            "text": "// ── Security headers ───────────────────────────────────────────────────────"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 192,
+            "line": 31
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\index.js",
+        "signatures": {}
+      },
+      "score": 0.20347049832344055
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 4,
+            "text": "export default class HeadEvalRepository {"
+          },
+          {
+            "lineNumber": 33,
+            "text": "async getLot({ paperId, examId, limit = 100, offset = 0 }) {"
+          },
+          {
+            "lineNumber": 54,
+            "text": "const [[{ total }]] = await ("
+          },
+          {
+            "lineNumber": 55,
+            "text": "      &#96;SELECT COUNT(*) AS total FROM Eval_Booklets b WHERE ${where}&#96;,"
+          },
+          {
+            "lineNumber": 56,
+            "text": "      params"
+          },
+          {
+            "lineNumber": 57,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 58
+          },
+          {
+            "lineNumber": 59,
+            "text": "    return { booklets, total };"
+          },
+          {
+            "lineNumber": 60,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 61
+          },
+          {
+            "lineNumber": 62,
+            "text": "  /** True only if the user has an explicit mapping for this paper (no mapping ⇒ not eligible). */"
+          },
+          {
+            "lineNumber": 63,
+            "text": "  async evaluatorEligibleForPaperOnConn(conn, userId, paperId) {"
+          },
+          {
+            "lineNumber": 64,
+            "text": "    const pid = parseInt(String(paperId), 10);"
+          },
+          {
+            "lineNumber": 65,
+            "text": "    if (!Number.isFinite(pid) || pid \u003c 1) return false;"
+          },
+          {
+            "lineNumber": 66,
+            "text": "    const uid = parseInt(String(userId), 10);"
+          },
+          {
+            "lineNumber": 67,
+            "text": "    if (!Number.isFinite(uid) || uid \u003c 1) return false;"
+          },
+          {
+            "lineNumber": 68,
+            "text": "    const [rows] = await conn.execute("
+          },
+          {
+            "lineNumber": 69,
+            "text": "      &#96;SELECT 1 FROM Eval_EvaluatorPapers"
+          },
+          {
+            "lineNumber": 70,
+            "text": "       WHERE UserID = ? AND PaperID = ?"
+          },
+          {
+            "lineNumber": 71,
+            "text": "       LIMIT 1&#96;,"
+          },
+          {
+            "lineNumber": 72,
+            "text": "      [uid, pid]"
+          },
+          {
+            "lineNumber": 73,
+            "text": "    );"
+          },
+          {
+            "lineNumber": 74,
+            "text": "    return rows.length \u003e 0;"
+          },
+          {
+            "lineNumber": 75,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 76
+          },
+          {
+            "lineNumber": 77,
+            "text": "  // ── Active evaluators with current assignment load ────────────────────────────"
+          },
+          {
+            "lineNumber": 78,
+            "text": "  async getEvaluators({ paperId } = {}) {"
+          },
+          {
+            "lineNumber": 79,
+            "text": "    const pid = paperId != null \u0026\u0026 paperId !== '' ? parseInt(String(paperId), 10) : NaN;"
+          },
+          {
+            "lineNumber": 80,
+            "text": "    const filterByPaper = Number.isFinite(pid) \u0026\u0026 pid \u003e= 1;"
+          },
+          {
+            "lineNumber": 81,
+            "text": "    const params = [];"
+          },
+          {
+            "lineNumber": 82,
+            "text": "    let paperClause = '';"
+          },
+          {
+            "lineNumber": 83,
+            "text": "    if (filterByPaper) {"
+          },
+          {
+            "lineNumber": 84,
+            "text": "      paperClause = &#96; AND EXISTS ("
+          },
+          {
+            "lineNumber": 85,
+            "text": "        SELECT 1 FROM Eval_EvaluatorPapers eep2"
+          },
+          {
+            "lineNumber": 86,
+            "text": "        WHERE eep2.UserID = u.UserID AND eep2.PaperID = ?"
+          },
+          {
+            "lineNumber": 87,
+            "text": "      )&#96;;"
+          },
+          {
+            "lineNumber": 88,
+            "text": "      params.push(pid);"
+          },
+          {
+            "lineNumber": 89,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 90,
+            "text": "    const [rows] = await this.db.execute("
+          },
+          {
+            "lineNumber": 91,
+            "text": "      &#96;SELECT u.UserID, u.FullName, u.Email,"
+          },
+          {
+            "lineNumber": 92,
+            "text": "              r.RoleName,"
+          },
+          {
+            "lineNumber": 93,
+            "text": "              COUNT(aq.AllocationID) AS currentLoad,"
+          },
+          {
+            "lineNumber": 94,
+            "text": "              SUM(CASE WHEN aq.EvaluationStatus = 'Evaluated' THEN 1 ELSE 0 END) AS completedToday,"
+          },
+          {
+            "lineNumber": 95,
+            "text": "              (SELECT COUNT(*) FROM Eval_EvaluatorPapers eep WHERE eep.UserID = u.UserID) AS paperMappingCount,"
+          },
+          {
+            "lineNumber": 96,
+            "text": "              (SELECT GROUP_CONCAT(DISTINCT ep.PaperCode ORDER BY ep.PaperCode SEPARATOR ', ')"
+          },
+          {
+            "lineNumber": 97,
+            "text": "               FROM Eval_EvaluatorPapers eep"
+          },
+          {
+            "lineNumber": 98,
+            "text": "               JOIN Eval_Papers ep ON ep.PaperID = eep.PaperID AND ep.IsDeleted = 0"
+          },
+          {
+            "lineNumber": 99,
+            "text": "               WHERE eep.UserID = u.UserID) AS evaluatorPaperCodes"
+          },
+          {
+            "lineNumber": 100,
+            "text": "       FROM Users u"
+          },
+          {
+            "lineNumber": 101,
+            "text": "       JOIN Roles r ON u.RoleID = r.RoleID"
+          },
+          {
+            "lineNumber": 102,
+            "text": "       LEFT JOIN AllocationQueue aq ON aq.AllocatedToUserID = u.UserID"
+          },
+          {
+            "lineNumber": 103,
+            "text": "                                    AND aq.SessionDate = CURDATE()"
+          },
+          {
+            "lineNumber": 104,
+            "text": "                                    AND aq.IsDeleted = 0"
+          },
+          {
+            "lineNumber": 105,
+            "text": "       WHERE u.IsActive = 1 AND u.IsDeleted = 0"
+          },
+          {
+            "lineNumber": 106,
+            "text": "         AND r.RoleName IN ('Evaluator', 'Moderator')"
+          },
+          {
+            "lineNumber": 107,
+            "text": "         AND u.UserStatus = 'Active'"
+          },
+          {
+            "lineNumber": 108,
+            "text": "         "
+          },
+          {
+            "lineNumber": 112,
+            "text": ";"
+          },
+          {
+            "lineNumber": 114,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 613,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 612
+          },
+          "startPosition": {
+            "line": 3
+          }
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\headeval\\headeval.repository.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.20312629640102386
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1,
+            "text": "export default class EvalRepository {"
+          },
+          {
+            "lineNumber": 127,
+            "text": "async saveEvaluationDetail(detail) {"
+          },
+          {
+            "lineNumber": 138
+          },
+          {
+            "lineNumber": 139,
+            "text": "    const maxM = detail.maxMarks;"
+          },
+          {
+            "lineNumber": 140,
+            "text": "    const maxNum ="
+          },
+          {
+            "lineNumber": 141,
+            "text": "      maxM === '' || maxM == null || Number.isNaN(Number(maxM)) ? 0 : Number(maxM);"
+          },
+          {
+            "lineNumber": 142
+          },
+          {
+            "lineNumber": 143,
+            "text": "    await this.db.execute("
+          },
+          {
+            "lineNumber": 144,
+            "text": "      &#96;INSERT INTO EvaluationDetails"
+          },
+          {
+            "lineNumber": 145,
+            "text": "        (EvaluationID, PageNumber, QuestionNumber, SubQuestionCode, SetID,"
+          },
+          {
+            "lineNumber": 146,
+            "text": "         MarksAwarded, MaxMarks, Notes, IsFlagged, FlagReason)"
+          },
+          {
+            "lineNumber": 147,
+            "text": "       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&#96;,"
+          },
+          {
+            "lineNumber": 148,
+            "text": "      ["
+          },
+          {
+            "lineNumber": 149,
+            "text": "        detail.evaluationId,"
+          },
+          {
+            "lineNumber": 150,
+            "text": "        Number.isFinite(pageNum) ? pageNum : null"
+          },
+          {
+            "lineNumber": 160
+          },
+          {
+            "lineNumber": 161,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 515,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 514
+          },
+          "startPosition": {}
+        },
+        "relativeWorkspacePath": ".\\api\\src\\modules\\eval\\eval.repository.js",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.19646775722503662
+    }
+  ]
+}
+```
+Status: **completed**
 
 
 </details>
@@ -12311,3 +15130,779 @@ Status: **loading**
 <summary>Tool use: **semantic_search_full**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "syncScanToEval|sync-scan-to-eval"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "syncScanToEval|sync-scan-to-eval",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scan\\scan.controller.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:\Scanning&Evaluation\api\src\modules\scan\syncScanToEval.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Let me review scanadmin.routes.js around the sync-scan-to-eval function. The HeadEvalRepository import might cause a circular dependency, or missing Eval_EvaluatorPapers could cause the sync to fail completely.
+
+- Check HeadEvalRepository import for circular dependency issues
+- Verify Eval_EvaluatorPapers exists to prevent sync failure
+- Focus on sync-scan-to-eval function in scanadmin.routes.js</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:\Scanning&Evaluation\api\src\modules\scanadmin\scanadmin.routes.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The function `syncBookletToEval` handles errors internally without throwing them, causing the loop to incorrectly increment `synced++` even when insert operations fail.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "getAllBookletsForSync"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "getAllBookletsForSync",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scan\\scan.repository.js"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:\Scanning&Evaluation\api\src\modules\scan\scan.repository.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:\Scanning&Evaluation\api\src\modules\scanadmin\scanadmin.routes.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Found an issue: HeadEvaluator cannot call sync because sync is restricted to scanadmin routes with `authorize('Admin', 'ScanAdmin')` only.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:\\Scanning\u0026Evaluation\\web",
+  "pattern": "syncScanToEval"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation\\web",
+  "pattern": "syncScanToEval",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\pages\\HeadEvalAssign.jsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\services\\api.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "web\\src\\pages\\ScanSettings.jsx"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The bug occurs because HeadEvaluator uses HeadEvalAssign and clicks "Sync scan uploads," which calls the scanadmin API. However, HeadEvaluator users are not Admin or ScanAdmin, resulting in a 403 error. The bug occurs because HeadEvaluator users lack Admin or ScanAdmin permissions, causing a 403 error when syncing scan uploads via the scanadmin API.
+
+The cleanest fix is to authorize HeadEvaluator specifically on the `/sync-scan-to-eval` route by updating the authorization check to include HeadEvaluator.
+
+However, since the router already applies authorization for Admin and ScanAdmin at the top level, we must choose one of three approaches:
+
+- Mount the sync route before the global authorize middleware with a separate mini-router
+- Broaden the global authorize rule to include HeadEvaluator for all scanadmin routes
+- Split the sync route registration to the headeval routes while sharing the same implementation
+
+Each approach has trade-offs in terms of complexity and scope of changes. The best approach is to modify the authorization check on line 19 to include 'HeadEvaluator', but this would grant HeadEvaluator access to all scanadmin routes, which is undesirable.
+
+Instead, route-specific authentication is needed. In Express, middleware order matters. A better solution involves creating a separate router for the sync route with its own authentication, placed before the global authorize middleware.
+
+- Move the sync route to a dedicated mini-router
+- Apply specific authorization ('Admin', 'ScanAdmin', 'HeadEvaluator') to that route
+- Avoid duplicating authentication middleware
+- Maintain proper middleware order for security The current router structure applies `authorize('Admin', 'ScanAdmin')` globally after the `/sync-scan-to-eval` route, which means the sync route does not inherit that middleware. To fix this, the sync route should be registered before the global authorization middleware, ensuring it gets the correct permissions without affecting other routes.
+
+- Register the sync route before global authorization middleware
+- Apply specific authorization (`Admin`, `ScanAdmin`, `HeadEvaluator`) to the sync route
+- Ensure middleware order preserves intended access control
+- Avoid duplicating authentication logic across routes
+
+This approach keeps the sync route isolated with appropriate permissions while maintaining existing protections for other scanadmin routes. The sync route must be registered before the global authorization middleware to ensure it receives the correct permissions without affecting other routes. This requires restructuring the middleware order so that the sync route is handled by a separate middleware stack that includes HeadEvaluator authorization, while preserving existing protections for other scanadmin routes. The cleanest solution involves moving the sync route to a dedicated mini-router with its own authentication layer. The sync route must be moved before the global `authorize('Admin', 'ScanAdmin')` middleware to ensure it inherits the correct permissions. This requires reordering the route definitions so that `/sync-scan-to-eval` is registered between `auditLog` and `authorize('Admin', 'ScanAdmin')`. Alternatively, a dedicated mini-router with its own authentication can be used to isolate the sync routes permissions without affecting other routes. 
+
+- Move the sync route definition to appear after `auditLog` and before the global authorization middleware
+- Keep other routes after the global authorization to maintain existing protections
+- Consider using a separate router for the sync route to avoid impacting other scanadmin routes' access control</details></think>
+
+_**Agent (default)**_
+
+Identifying the issue: `sync-scan-to-eval` is under `scanadmin` routes protected by `authorize('Admin', 'ScanAdmin')`, so Head Evaluators get 403 when syncing from Assign Booklets. Fixing by allowing `HeadEvaluator` on that endpoint only and making `syncBookletToEval` return success/failure so counts are accurate.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:\Scanning&Evaluation\api\src\modules\scanadmin\scanadmin.routes.js</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll restructure the middleware order to: authenticate, auditLog, then add an early route for sync with HeadEvaluator, followed by authorizing Admin ScanAdmin for the remaining routes. I need to reorder the middleware so that the sync route is defined before the authorization middleware. This means:
+
+- Move the sync route definition before router.use(authorize('Admin', 'ScanAdmin'))
+- Keep all subsequent routes after the authorization middleware
+- Ensure the sync route has proper authorization for HeadEvaluator
+
+The sync route should be defined before the authorization middleware to avoid conflicts with route handling. - Remove the authorize line from the top
+- Add sync route after auditLog with authorize('Admin', 'ScanAdmin', 'HeadEvaluator')
+- Add router.use(authorize('Admin', 'ScanAdmin')) 
+- Remove duplicate sync block at the end
+
+Update syncBookletToEval to return { ok: boolean } for failure counting:
+```javascript
+export async function syncBookletToEval(evalDb, booklet) {
+  if (!evalDb || !booklet?.bookletId) return { ok: false, reason: 'missing-db-or-booklet' };
+  try {
+    await evalDb.execute(...);
+    ...
+    return { ok: true };
+``` The syncBookletToEval function now properly handles errors by returning { ok: false } with specific error details when failures occur. The try/catch structure ensures that both insert and auto-assign operations are handled correctly, with inner try-catch blocks managing auto-assign failures separately from insert failures. The function maintains consistent return values with { ok: true } for successful operations and { ok: false } for failures, enabling proper failure counting.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "syncBookletToEval"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "syncBookletToEval",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "api\\src\\modules\\scan\\syncScanToEval.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\scan\\scan.controller.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+Moving the sync route before the restrictive `authorize` middleware and returning `{ ok }` from `syncBookletToEval` for accurate counts.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:\Scanning&Evaluation\api\src\modules\scan\syncScanToEval.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:\Scanning&Evaluation\api\src\modules\scan\syncScanToEval.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:\Scanning&Evaluation\api\src\modules\scanadmin\scanadmin.routes.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: d:\Scanning&Evaluation\api\src\modules\scanadmin\scanadmin.routes.js</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 25,
+  "path": "d:\\Scanning\u0026Evaluation\\api\\src\\middleware\\auth.js",
+  "pattern": "authorize"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation\\api\\src\\middleware\\auth.js",
+  "pattern": "authorize",
+  "topFiles": [
+    {
+      "matchCount": 46,
+      "uri": "api\\src\\middleware\\auth.js"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "d:\\Scanning\u0026Evaluation\\api\\src\\modules\\scan\\syncScanToEval.js",
+    "d:\\Scanning\u0026Evaluation\\api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "d:\\Scanning\u0026Evaluation\\api\\src\\modules\\scan\\syncScanToEval.js"
+    },
+    {
+      "relativeWorkspacePath": "d:\\Scanning\u0026Evaluation\\api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.js",
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "HeadEvaluator"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation\\api",
+  "pattern": "HeadEvaluator",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\scanadmin\\scanadmin.routes.js"
+    },
+    {
+      "matchCount": 2,
+      "uri": "api\\src\\modules\\headeval\\headeval.routes.js"
+    },
+    {
+      "matchCount": 1,
+      "uri": "api\\src\\modules\\eval\\eval.service.js"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Good - HeadEvaluator is consistent.</details></think>
+
+_**Agent (default)**_
+
+Here is what was wrong and what we changed.
+
+### Cause
+**“Sync scan uploads”** calls `POST /api/scanadmin/sync-scan-to-eval`. The whole `scanadmin` router was wrapped in `authorize('Admin', 'ScanAdmin')`, so **Head Evaluators** always got **403** and the UI looked like sync “never works.”
+
+### Fix
+1. **`scanadmin.routes.js`** — Register **`/sync-scan-to-eval` before** the global `authorize('Admin', 'ScanAdmin')`, and allow **`HeadEvaluator`** on that route only (`Admin`, `ScanAdmin`, `HeadEvaluator`). All other scanadmin routes stay Admin|ScanAdmin only.
+2. **`syncScanToEval.js`** — **`syncBookletToEval`** now returns `{ ok: true }` or `{ ok: false, ... }` instead of swallowing errors with no return. The bulk handler uses that so **`synced` / `failed` counts match reality** (previously every row was counted as synced because failures were caught inside `syncBookletToEval` and never rethrown).
+
+If “unable to sync” was **Cursor / Git** (push/pull), that is separate: your repo was **ahead of `origin/main`** with local commits—fix that with network/credentials and `git push`, or merge/rebase as needed.
+
+---
+
+**Git log** (from the environment): recent work includes evaluator-paper mapping, auto-assign, mailer, and related API/UI changes; nothing in git itself blocks the app sync fix above.
+
+---
+
+_**User**_
+
+git.exe push --progress  -- "Scanning&Evaluation" main:main
+Enumerating objects: 34936, done.
+Counting objects: 100% (34936/34936), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (29263/29263), done.
+Writing objects: 100% (34866/34866), 574.68 MiB | 13.73 MiB/s, done.
+Total 34866 (delta 5601), reused 30691 (delta 4810), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (5601/5601), completed with 47 local objects.        
+remote: warning: File face-matching-api/.venv/Lib/site-packages/clang/native/libclang.dll is 80.10 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        
+remote: warning: File face-matching-api/.venv/Lib/site-packages/cv2/cv2.pyd is 86.10 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        
+remote: error: Trace: 5fd68b4bdabb4402bf58591296efcffa61ecb26a4cbb828337ee97e345013d9b        
+remote: error: See https://gh.io/lfs for more information.        
+remote: error: File face-matching-api/.venv/Lib/site-packages/tensorflow/python/_pywrap_tensorflow_internal.pyd is 958.53 MB; this exceeds GitHub's file size limit of 100.00 MB        
+remote: error: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        
+To https://github.com/dpsrikanth/Scanning-Evaluation.git
+ ! [remote rejected]   main -> main (pre-receive hook declined)
+error: failed to push some refs to 'https://github.com/dpsrikanth/Scanning-Evaluation.git'
+
+
+git did not exit cleanly (exit code 1) (55547 ms @ 29-04-2026 06:08:59)
+
+
+add  .venv folder in .gitignore
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user's git push failed due to large files in the repository.
+
+The error message indicates that the push was rejected because the repository exceeded the maximum file size limit of 100 MB. This typically happens when trying to commit or push files that are too large for Git to handle efficiently.
+
+To resolve this issue, the user should:
+
+- Remove large files from the repository using `git rm --cached` or `git filter-branch`
+- Consider using Git LFS (Large File Storage) for managing large files
+- Ensure that large files are not included in future commits
+
+If the user needs help with any of these steps, they can ask for further assistance.</details></think>
+
+_**Agent (default)**_
+
+Adding `.venv` to `.gitignore` and checking for tracked `.venv` files we should untrack.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: d:\Scanning&Evaluation\.gitignore</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`.venv/` is already listed on line 38. But the issue is `face-matching-api/.venv` - the gitignore entry `.venv/` at root only matches `.venv` in the root directory, not nested paths like `face-matching-api/.venv`.
+
+In gitignore:
+- `/.venv/` - matches only root `.venv`
+- `.venv/` - matches any directory named `.venv` anywhere in the tree The pattern `.venv/` should match any directory named `.venv` anywhere in the tree, including `face-matching-api/.venv/`. If it's still matching, then either:
+- The .gitignore file was added after the files were committed
+- The .gitignore line was added recently, but the files were already tracked
+
+The user wants to add the current directory to git. The user wants to ensure `.venv` directories are ignored globally, including nested ones like `face-matching-api/.venv`. The existing pattern `.venv/` may not cover subdirectories properly. To fix this, they will use `**/.venv/` which matches any `.venv` directory recursively. This pattern should be added to the `.gitignore` file to prevent tracking of these directories. To properly ignore Python virtual environments including nested directories, replace the existing `.venv/` entry with:
+- **/.venv/ - ignores `.venv` directories recursively
+- venv/ - ignores `venv` directories at root level
+- **/venv/ - ignores `venv` directories at any level
+
+This ensures all variations of virtual environment directories are properly ignored.</details></think>
+
+_**Agent (default)**_
+
+Noting `.venv/` on line 38 — it may have been added after those files were committed, or we should use `**/.venv/` for clarity. Strengthening `.gitignore` and removing tracked `.venv` files from the index.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": ".gitignore",
+  "path": "d:\\Scanning\u0026Evaluation",
+  "pattern": "\\.venv"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "d:\\Scanning\u0026Evaluation",
+  "pattern": "\\.venv",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": ".\\.gitignore"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "d:\Scanning&Evaluation" && git ls-files "face-matching-api/.venv" 2>nul | head -5</summary>
+
+```bash
+cd "d:\Scanning&Evaluation" && git ls-files "face-matching-api/.venv" 2>nul | head -5
+```
+
+```
+At line:1 char:29
++ cd "d:\Scanning&amp;Evaluation" &amp;&amp; git ls-files "face-matching-api/.venv" ...
++                             ~~
+The token '&amp;&amp;' is not a valid statement separator in this version.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidEndOfLine
+ 
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "d:\Scanning&Evaluation"; git ls-files "face-matching-api/.venv" | Select-Object -First 5</summary>
+
+```bash
+cd "d:\Scanning&Evaluation"; git ls-files "face-matching-api/.venv" | Select-Object -First 5
+```
+
+```
+face-matching-api/.venv/Lib/site-packages/81d243bd2c585b0f4821__mypyc.cp312-win_amd64.pyd
+face-matching-api/.venv/Lib/site-packages/PIL/AvifImagePlugin.py
+face-matching-api/.venv/Lib/site-packages/PIL/BdfFontFile.py
+face-matching-api/.venv/Lib/site-packages/PIL/BlpImagePlugin.py
+face-matching-api/.venv/Lib/site-packages/PIL/BmpImagePlugin.py
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Exit code 1 could indicate an issue with the head command or its equivalent functionality, which is unusual. Files are tracked even if they match `.gitignore` patterns, as Git only ignores untracked files. To improve `.gitignore`, I will add explicit patterns:
+- `**/.venv/` - matches .venv anywhere
+- `face-matching-api/.venv/` - for clarity in the specific path
+
+The pattern `.venv/` without a leading slash should already match any directory in modern Git, per documentation.</details></think>
