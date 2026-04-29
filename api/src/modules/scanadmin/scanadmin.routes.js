@@ -16,8 +16,45 @@ const controller = new ScanAdminController(service);
 const scanRepo = new ScanRepository(getScanDb());
 
 router.use(authenticate);
-router.use(authorize('Admin', 'ScanAdmin'));
 router.use(auditLog('scanadmin'));
+
+// Head evaluators need this from Assign Booklets; rest of scanadmin stays Admin|ScanAdmin only.
+router.post(
+  '/sync-scan-to-eval',
+  authorize('Admin', 'ScanAdmin', 'HeadEvaluator'),
+  async (req, res, next) => {
+    try {
+      const booklets = await scanRepo.getAllBookletsForSync();
+      let synced = 0;
+      let failed = 0;
+      for (const b of booklets) {
+        const r = await syncBookletToEval(getEvalDb(), {
+          bookletId: b.BookletID,
+          examId: b.ExamID,
+          paperId: b.PaperID,
+          locationId: b.LocationID,
+          centreCode: b.CentreCode,
+          totalPagesScanned: b.TotalPagesScanned,
+          filePath: b.FilePath,
+          createdBy: b.CreatedBy,
+          createdFromIP: b.CreatedFromIP,
+          createdFromSystem: b.CreatedFromSystem,
+        });
+        if (r?.ok) synced++;
+        else failed++;
+      }
+      return res.status(200).json({
+        success: true,
+        data: { total: booklets.length, synced, failed },
+        message: `Synced ${synced} of ${booklets.length} booklets to evaluation. ${failed} failed (e.g. missing Exam/Paper/Location in EvaluationDB).`,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.use(authorize('Admin', 'ScanAdmin'));
 
 // ── Exams ──────────────────────────────────────────────────────────────────────
 
@@ -851,40 +888,5 @@ router.delete('/output-paths/:pathId', controller.deleteOutputPath);
 router.get('/mirror-config', controller.getMirrorConfig);
 router.put('/mirror-config', controller.updateMirrorConfig);
 router.post('/mirror-config/test', controller.testMirrorConfig);
-
-// ── Sync Scan_Booklets → Eval_Booklets (so uploads appear in Admin → Assign Booklets)
-router.post('/sync-scan-to-eval', async (req, res, next) => {
-  try {
-    const booklets = await scanRepo.getAllBookletsForSync();
-    let synced = 0;
-    let failed = 0;
-    for (const b of booklets) {
-      try {
-        await syncBookletToEval(getEvalDb(), {
-          bookletId: b.BookletID,
-          examId: b.ExamID,
-          paperId: b.PaperID,
-          locationId: b.LocationID,
-          centreCode: b.CentreCode,
-          totalPagesScanned: b.TotalPagesScanned,
-          filePath: b.FilePath,
-          createdBy: b.CreatedBy,
-          createdFromIP: b.CreatedFromIP,
-          createdFromSystem: b.CreatedFromSystem,
-        });
-        synced++;
-      } catch {
-        failed++;
-      }
-    }
-    return res.status(200).json({
-      success: true,
-      data: { total: booklets.length, synced, failed },
-      message: `Synced ${synced} of ${booklets.length} booklets to evaluation. ${failed} failed (e.g. missing Exam/Paper/Location in EvaluationDB).`,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
 
 export default router;

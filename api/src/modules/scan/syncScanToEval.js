@@ -10,8 +10,11 @@ import HeadEvalRepository from '../headeval/headeval.repository.js';
  * @param {import('mysql2/promise').Pool} evalDb - EvaluationDB pool
  * @param {object} booklet - { bookletId, examId, paperId, locationId, centreCode, totalPagesScanned, filePath, createdBy, createdFromIP, createdFromSystem }
  */
+/** @returns {Promise<{ ok: boolean, error?: string, code?: string, reason?: string }>} */
 export async function syncBookletToEval(evalDb, booklet) {
-  if (!evalDb || !booklet?.bookletId) return;
+  if (!evalDb || !booklet?.bookletId) {
+    return { ok: false, reason: 'missing-eval-db-or-booklet-id' };
+  }
   try {
     await evalDb.execute(
       `INSERT INTO Eval_Booklets
@@ -64,6 +67,7 @@ export async function syncBookletToEval(evalDb, booklet) {
         });
       }
     }
+    return { ok: true };
   } catch (err) {
     logger.warn('syncBookletToEval failed (upload still succeeded)', {
       module: 'upload',
@@ -71,5 +75,6 @@ export async function syncBookletToEval(evalDb, booklet) {
       error: err.message,
       code: err.code,
     });
+    return { ok: false, error: err.message, code: err.code };
   }
 }
