@@ -35,3 +35,5 @@ web/test-results/
 web/blob-report/
 phy question paper.pdf
 scan files/
+
+.venv/
