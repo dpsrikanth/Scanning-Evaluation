@@ -146,6 +146,10 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ details }),
       }),
+    getEvaluationProgress: (evaluationId) =>
+      request(`/eval/evaluation/${evaluationId}/progress`),
+    getEvaluationReview: (evaluationId) =>
+      request(`/eval/evaluation/${evaluationId}/review`),
     submitEvaluation: (evaluationId, totalMarks, totalPages, paperId) =>
       request(`/eval/evaluation/${evaluationId}/submit`, {
         method: 'POST',

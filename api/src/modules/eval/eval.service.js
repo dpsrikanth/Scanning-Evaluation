@@ -118,6 +118,51 @@ export default class EvalService {
     return { evaluationId, marks: details };
   }
 
+  async getEvaluationProgress(evaluationId) {
+    const [details, visitedPages] = await Promise.all([
+      this.repo.getEvaluationDetails(evaluationId),
+      this.repo.getVisitedPages(evaluationId),
+    ]);
+    return {
+      evaluationId,
+      marks: details,
+      visitedPages,
+    };
+  }
+
+  async getEvaluationReview(evaluationId, user) {
+    const header = await this.repo.getEvaluationHeader(evaluationId);
+    if (!header) {
+      throw Object.assign(new Error('Evaluation not found'), { statusCode: 404 });
+    }
+    const role = user?.roleName;
+    const isPrivileged = role === 'Admin' || role === 'HeadEvaluator';
+    const isOwner = Number(user?.userId) === Number(header.EvaluatorUserID);
+    if (!isPrivileged && !isOwner) {
+      throw Object.assign(new Error('Not allowed to view this evaluation'), { statusCode: 403 });
+    }
+
+    const [bookletData, details, annotations, shared, visitedPages] = await Promise.all([
+      this.openBooklet(header.BookletID, user),
+      this.repo.getEvaluationDetails(evaluationId),
+      this.repo.getAnnotations(evaluationId),
+      this.repo.getBookletSharedAnnotations(header.BookletID),
+      this.repo.getVisitedPages(evaluationId),
+    ]);
+
+    return {
+      evaluation: header,
+      booklet: bookletData?.booklet || null,
+      metadata: bookletData?.metadata || null,
+      questionScheme: bookletData?.questionScheme || [],
+      questionSets: bookletData?.questionSets || [],
+      marks: details || [],
+      annotations: annotations || [],
+      sharedAnnotations: shared?.pages || {},
+      visitedPages: visitedPages || [],
+    };
+  }
+
   async saveMarks(evaluationId, details) {
     await this.repo.deleteEvaluationDetails(evaluationId);
     for (const detail of details) {

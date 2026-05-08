@@ -178,6 +178,8 @@ router.post('/evaluation', controller.startEvaluation);
  *         description: Evaluation not found
  */
 router.get('/evaluation/:evaluationId/marks', controller.getMarks);
+router.get('/evaluation/:evaluationId/progress', controller.getEvaluationProgress);
+router.get('/evaluation/:evaluationId/review', controller.getEvaluationReview);
 router.put('/evaluation/:evaluationId/marks', controller.saveMarks);
 
 /**

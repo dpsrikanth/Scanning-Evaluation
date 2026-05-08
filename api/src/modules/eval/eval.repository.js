@@ -3,6 +3,8 @@ export default class EvalRepository {
     this.db = db;
     /** @type {boolean|undefined} cache: Eval_Annotations.PayloadJSON exists */
     this._annotationPayloadColumn = undefined;
+    /** @type {boolean|undefined} cache: Eval_PageVisitLog.VisitID requires explicit value */
+    this._pageVisitIdNeedsExplicitValue = undefined;
   }
 
   /** Detect migration 13 (PayloadJSON); avoids crash on DBs not migrated yet */
@@ -18,6 +20,21 @@ export default class EvalRepository {
       this._annotationPayloadColumn = false;
     }
     return this._annotationPayloadColumn;
+  }
+
+  async _pageVisitIdRequiresExplicitValue() {
+    if (this._pageVisitIdNeedsExplicitValue !== undefined) return this._pageVisitIdNeedsExplicitValue;
+    const [rows] = await this.db.execute(
+      `SELECT EXTRA
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'Eval_PageVisitLog'
+         AND COLUMN_NAME = 'VisitID'
+       LIMIT 1`
+    );
+    const extra = String(rows[0]?.EXTRA ?? '').toLowerCase();
+    this._pageVisitIdNeedsExplicitValue = !extra.includes('auto_increment');
+    return this._pageVisitIdNeedsExplicitValue;
   }
 
   async getDashboardSummary(evaluatorId) {
@@ -120,6 +137,20 @@ export default class EvalRepository {
     return result.insertId;
   }
 
+  async getEvaluationHeader(evaluationId) {
+    const [rows] = await this.db.execute(
+      `SELECT ev.EvaluationID, ev.BookletID, ev.EvaluatorUserID, ev.EvaluationType,
+              ev.StartTime, ev.EndTime, ev.TotalMarks, ev.IsSubmitted, ev.SubmittedAt,
+              u.FullName AS EvaluatorName, u.Username AS EvaluatorUsername, u.Email AS EvaluatorEmail
+       FROM Evaluations ev
+       LEFT JOIN Users u ON u.UserID = ev.EvaluatorUserID
+       WHERE ev.EvaluationID = ?
+       LIMIT 1`,
+      [evaluationId]
+    );
+    return rows[0] || null;
+  }
+
   async deleteEvaluationDetails(evaluationId) {
     await this.db.execute(`DELETE FROM EvaluationDetails WHERE EvaluationID = ?`, [evaluationId]);
   }
@@ -162,7 +193,7 @@ export default class EvalRepository {
 
   async getEvaluationDetails(evaluationId) {
     const [rows] = await this.db.execute(
-      `SELECT EvaluationDetailID, QuestionNumber, SubQuestionCode,
+      `SELECT EvaluationDetailID, PageNumber, QuestionNumber, SubQuestionCode, SetID,
               MarksAwarded, MaxMarks
        FROM EvaluationDetails WHERE EvaluationID = ?`,
       [evaluationId]
@@ -202,12 +233,44 @@ export default class EvalRepository {
       annotationsMade == null || annotationsMade === ''
         ? 0
         : parseInt(annotationsMade, 10) || 0;
-    await this.db.execute(
-      `INSERT INTO Eval_PageVisitLog
-         (EvaluationID, PageNumber, DurationSeconds, ZoomLevel, AnnotationsMade)
-       VALUES (?, ?, ?, ?, ?)`,
-      [evaluationId, pn, Number.isFinite(dur) ? dur : null, Number.isFinite(zoom) ? zoom : null, ann]
-    );
+    const values = [
+      evaluationId,
+      pn,
+      Number.isFinite(dur) ? dur : null,
+      Number.isFinite(zoom) ? zoom : null,
+      ann,
+    ];
+    const needsExplicitVisitId = await this._pageVisitIdRequiresExplicitValue();
+    if (!needsExplicitVisitId) {
+      await this.db.execute(
+        `INSERT INTO Eval_PageVisitLog
+           (EvaluationID, PageNumber, DurationSeconds, ZoomLevel, AnnotationsMade)
+         VALUES (?, ?, ?, ?, ?)`,
+        values
+      );
+      return;
+    }
+
+    const conn = await this.db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [[row]] = await conn.execute(
+        `SELECT COALESCE(MAX(VisitID), 0) + 1 AS nextVisitId FROM Eval_PageVisitLog FOR UPDATE`
+      );
+      const nextVisitId = Number(row?.nextVisitId || 1);
+      await conn.execute(
+        `INSERT INTO Eval_PageVisitLog
+           (VisitID, EvaluationID, PageNumber, DurationSeconds, ZoomLevel, AnnotationsMade)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [nextVisitId, ...values]
+      );
+      await conn.commit();
+    } catch (err) {
+      try { await conn.rollback(); } catch { /* ignore rollback errors */ }
+      throw err;
+    } finally {
+      conn.release();
+    }
   }
 
   // ── Annotations ──────────────────────────────────────────────────────────────

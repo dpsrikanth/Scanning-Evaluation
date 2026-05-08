@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { FileText, Loader2, Search } from 'lucide-react';
 import { api } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import './AdminSettings.css';
 
 export default function EvaluatorAssignments() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [exams, setExams] = useState([]);
   const [papers, setPapers] = useState([]);
@@ -110,7 +112,7 @@ export default function EvaluatorAssignments() {
             <table className="admin-data-table">
               <thead>
                 <tr>
-                  <th>Evaluator</th><th>Booklet</th><th>Status</th><th>Marks</th><th>Paper</th><th>Allocated</th>
+                  <th>Evaluator</th><th>Booklet</th><th>Status</th><th>Marks</th><th>Paper</th><th>Allocated</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,10 +124,21 @@ export default function EvaluatorAssignments() {
                     <td>{r.TotalMarks ?? '—'}</td>
                     <td>{r.PaperCode} — {r.PaperName}</td>
                     <td>{r.AllocatedAt ? new Date(r.AllocatedAt).toLocaleString() : '—'}</td>
+                    <td>
+                      {r.EvaluationID ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => navigate(`/admin/evaluation-review/${r.EvaluationID}`)}
+                        >
+                          View Read-only
+                        </button>
+                      ) : '—'}
+                    </td>
                   </tr>
                 ))}
                 {!rows.length && (
-                  <tr><td colSpan={6} className="empty-row">No assignment rows</td></tr>
+                  <tr><td colSpan={7} className="empty-row">No assignment rows</td></tr>
                 )}
               </tbody>
             </table>

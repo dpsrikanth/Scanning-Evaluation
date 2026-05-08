@@ -53,6 +53,24 @@ export default class EvalController {
     } catch (err) { next(err); }
   };
 
+  getEvaluationProgress = async (req, res, next) => {
+    try {
+      const result = await this.service.getEvaluationProgress(parseInt(req.params.evaluationId));
+      return ok(res, result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  getEvaluationReview = async (req, res, next) => {
+    try {
+      const result = await this.service.getEvaluationReview(parseInt(req.params.evaluationId), req.user);
+      return ok(res, result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
   saveMarks = async (req, res, next) => {
     try {
       const { evaluationId } = req.params;
