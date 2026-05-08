@@ -66,6 +66,15 @@ function normalizeSetRow(s) {
   };
 }
 
+function markKeyFromRow(row) {
+  const q = row?.QuestionNumber != null ? String(row.QuestionNumber) : '';
+  const sub = row?.SubQuestionCode != null ? String(row.SubQuestionCode) : '';
+  const setRaw = row?.SetID;
+  const setNum = setRaw != null && setRaw !== '' ? Number(setRaw) : null;
+  const setPart = Number.isFinite(setNum) ? String(setNum) : '';
+  return `${q}||${sub}||${setPart}`;
+}
+
 // Per-page timer hook
 function usePageTimer() {
   const startRef = useRef(Date.now());
@@ -231,6 +240,35 @@ export default function Evaluate() {
 
         const evalData = await api.eval.startEvaluation(bookletId, 'Primary');
         setEvaluationId(evalData.evaluationId);
+
+        try {
+          const progress = await api.eval.getEvaluationProgress(evalData.evaluationId);
+          const persistedMarks = {};
+          const schemeRows = data.questionScheme || [];
+          const markByIdentity = new Map();
+          for (const m of progress?.marks || []) {
+            markByIdentity.set(markKeyFromRow(m), m);
+          }
+          for (const q of schemeRows) {
+            const sid = q.SchemeID;
+            if (sid == null) continue;
+            const key = markKeyFromRow(q);
+            const saved = markByIdentity.get(key);
+            if (saved && saved.MarksAwarded != null) {
+              persistedMarks[sid] = String(saved.MarksAwarded);
+            }
+          }
+          setMarks(persistedMarks);
+
+          const persistedVisited = new Set(
+            (progress?.visitedPages || [])
+              .map((p) => parseInt(String(p), 10))
+              .filter((n) => Number.isFinite(n) && n > 0)
+          );
+          setVisitedPages((prev) => new Set([...prev, ...persistedVisited]));
+        } catch {
+          // Non-fatal: evaluator can still continue with current session state.
+        }
 
         const existingAnns = await api.eval.getAnnotations(evalData.evaluationId);
         const byPage = {};

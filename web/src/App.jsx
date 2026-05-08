@@ -19,6 +19,7 @@ import AnswerSheetDesigner from './pages/AnswerSheetDesigner';
 import TimeReport from './pages/TimeReport';
 import ScanQcPortal from './pages/ScanQcPortal';
 import EvaluatorAssignments from './pages/EvaluatorAssignments';
+import EvaluationReview from './pages/EvaluationReview';
 
 function ProtectedRoute({ children, requiredRole, allowedRoles }) {
   const token = localStorage.getItem('token');
@@ -185,6 +186,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin', 'HeadEvaluator']}>
                 <EvaluatorAssignments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/evaluation-review/:evaluationId"
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'HeadEvaluator']}>
+                <EvaluationReview />
               </ProtectedRoute>
             }
           />
