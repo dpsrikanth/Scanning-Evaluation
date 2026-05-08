@@ -107,7 +107,10 @@ namespace ScannerApp.Services
                     targetH = Math.Max(1, (int)(original.Height * scale));
                 }
 
-                if (targetW == original.Width && targetH == original.Height)
+                bool needsResize = targetW != original.Width || targetH != original.Height;
+                bool needsReEncode = options.JpegQuality < 100;
+
+                if (!needsResize && !needsReEncode)
                 {
                     embedPath = imgPath;
                 }
@@ -116,19 +119,30 @@ namespace ScannerApp.Services
                     embedPath = Path.Combine(Path.GetTempPath(), $"scanpdf_{Guid.NewGuid():N}.jpg");
                     tempFilesToDelete.Add(embedPath);
 
-                    using var scaled = new Bitmap(targetW, targetH, PixelFormat.Format24bppRgb);
-                    using (var g = Graphics.FromImage(scaled))
+                    Bitmap source = original;
+                    Bitmap? resized = null;
+                    try
                     {
-                        g.InterpolationMode  = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                        g.PixelOffsetMode    = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                        g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                        g.DrawImage(original, 0, 0, targetW, targetH);
-                    }
+                        if (needsResize)
+                        {
+                            resized = new Bitmap(targetW, targetH, PixelFormat.Format24bppRgb);
+                            using var g = Graphics.FromImage(resized);
+                            g.InterpolationMode  = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                            g.PixelOffsetMode    = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                            g.DrawImage(original, 0, 0, targetW, targetH);
+                            source = resized;
+                        }
 
-                    if (jpegEncoder != null)
-                        scaled.Save(embedPath, jpegEncoder, encoderParams);
-                    else
-                        scaled.Save(embedPath, ImageFormat.Jpeg);
+                        if (jpegEncoder != null)
+                            source.Save(embedPath, jpegEncoder, encoderParams);
+                        else
+                            source.Save(embedPath, ImageFormat.Jpeg);
+                    }
+                    finally
+                    {
+                        resized?.Dispose();
+                    }
                 }
             }
 

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet build *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
