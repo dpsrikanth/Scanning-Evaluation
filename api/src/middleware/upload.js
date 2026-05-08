@@ -89,6 +89,29 @@ export const uploadQuestionPaper = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
 }).single('questionPaper');
 
+// ── Answer sheet logo image ─────────────────────────────────────────────────
+const answerSheetLogoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(getCommonBase(), 'answer-sheet-logos');
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.png';
+    cb(null, `logo_${Date.now()}${ext}`);
+  },
+});
+
+export const uploadAnswerSheetLogo = multer({
+  storage: answerSheetLogoStorage,
+  fileFilter: imageFilter,
+  limits: { fileSize: 2 * 1024 * 1024 },
+}).single('logo');
+
+export function getAnswerSheetLogoDir() {
+  return path.join(getCommonBase(), 'answer-sheet-logos');
+}
+
 // ── Scan template sample page image ─────────────────────────────────────────
 const templateImageStorage = multer.diskStorage({
   destination: (req, _file, cb) => {

@@ -203,6 +203,7 @@ router.put('/evaluation/:evaluationId/marks', controller.saveMarks);
  *         description: Evaluation not found
  */
 router.post('/evaluation/:evaluationId/submit', controller.submitEvaluation);
+router.post('/evaluation/:evaluationId/reject', controller.rejectEvaluation);
 
 /**
  * @openapi

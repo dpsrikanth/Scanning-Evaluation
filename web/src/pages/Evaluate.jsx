@@ -100,10 +100,28 @@ export default function Evaluate() {
   const [draftStroke, setDraftStroke] = useState(null);
   const dragRef = useRef(null);
 
+  // Undo history for annotations
+  const [annotationHistory, setAnnotationHistory] = useState([]);
+
   // Timers
   const pageTimer = usePageTimer();
   const [pageSeconds, setPageSeconds] = useState(0);
   const timerRef = useRef(null);
+
+  // Total evaluation timer (cumulative)
+  const [evalStartTime] = useState(Date.now());
+  const [evalElapsed, setEvalElapsed] = useState(0);
+
+  // Internet speed indicator
+  const [netSpeed, setNetSpeed] = useState(null);
+
+  // Reject dialog
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
+  // Selected question in marks panel (for mark quick-assign)
+  const [selectedSchemeId, setSelectedSchemeId] = useState(null);
 
   // Image zoom
   const [zoom, setZoom] = useState(1.0);
@@ -137,6 +155,34 @@ export default function Evaluate() {
     };
     document.addEventListener('visibilitychange', handleVisChange);
     return () => document.removeEventListener('visibilitychange', handleVisChange);
+  }, []);
+
+  // ── Total evaluation elapsed timer ──
+  useEffect(() => {
+    const id = setInterval(() => setEvalElapsed(Math.floor((Date.now() - evalStartTime) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [evalStartTime]);
+
+  // ── Internet speed measurement ──
+  useEffect(() => {
+    const measure = async () => {
+      try {
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (conn?.downlink) {
+          setNetSpeed(conn.downlink);
+          return;
+        }
+        const start = performance.now();
+        const res = await fetch(`${window.location.origin}/favicon.ico?_=${Date.now()}`, { cache: 'no-store' });
+        const blob = await res.blob();
+        const elapsed = (performance.now() - start) / 1000;
+        const bytes = blob.size;
+        if (elapsed > 0 && bytes > 0) setNetSpeed(Math.round(((bytes * 8) / elapsed / 1e6) * 100) / 100);
+      } catch { /* ignore */ }
+    };
+    measure();
+    const id = setInterval(measure, 30000);
+    return () => clearInterval(id);
   }, []);
 
   // ── Load monitoring settings (face verify opens only after evaluationId exists) ──
@@ -477,19 +523,52 @@ export default function Evaluate() {
   };
 
   const addAnnotation = useCallback((page, ann) => {
-    setAnnotations((prev) => ({
-      ...prev,
-      [page]: [...(prev[page] || []), ann],
-    }));
+    setAnnotations((prev) => {
+      const updated = { ...prev, [page]: [...(prev[page] || []), ann] };
+      setAnnotationHistory((h) => [...h, { action: 'add', page, index: (prev[page] || []).length, ann }]);
+      return updated;
+    });
   }, []);
 
   const removeAnnotation = useCallback((page, idx) => {
     setAnnotations((prev) => {
+      const removed = (prev[page] || [])[idx];
+      if (removed) {
+        setAnnotationHistory((h) => [...h, { action: 'remove', page, index: idx, ann: removed }]);
+      }
       const updated = [...(prev[page] || [])];
       updated.splice(idx, 1);
       return { ...prev, [page]: updated };
     });
   }, []);
+
+  const undoLastAnnotation = useCallback(() => {
+    setAnnotationHistory((hist) => {
+      if (hist.length === 0) return hist;
+      const last = hist[hist.length - 1];
+      if (last.action === 'add') {
+        setAnnotations((prev) => {
+          const list = [...(prev[last.page] || [])];
+          list.splice(last.index, 1);
+          return { ...prev, [last.page]: list };
+        });
+      } else if (last.action === 'remove') {
+        setAnnotations((prev) => {
+          const list = [...(prev[last.page] || [])];
+          list.splice(last.index, 0, last.ann);
+          return { ...prev, [last.page]: list };
+        });
+      }
+      return hist.slice(0, -1);
+    });
+  }, []);
+
+  const deleteAllAnnotationsForPage = useCallback(() => {
+    const pageAnns = annotations[currentPage] || [];
+    if (pageAnns.length === 0) return;
+    if (!window.confirm(`Delete all ${pageAnns.length} annotations on page ${currentPage}?`)) return;
+    setAnnotations((prev) => ({ ...prev, [currentPage]: [] }));
+  }, [currentPage, annotations]);
 
   const saveSharedPage = useCallback(async (pageNum) => {
     if (!bookletId) return;
@@ -675,16 +754,11 @@ export default function Evaluate() {
     setSubmitting(true);
     try {
       await doSaveMarks(false);
-      const annCount = (annotations[currentPage] || []).length;
-      await api.eval.logPageVisit(
-        evaluationId,
-        currentPage,
-        pageTimer.elapsed(),
-        zoomRef.current,
-        annCount,
-        tabSwitchRef.current
-      ).catch(() => {});
-      tabSwitchRef.current = 0;
+      // Batch-log all visited pages to ensure backend has complete record
+      const visitLogPromises = Array.from(visitedPages).map((p) =>
+        api.eval.logPageVisit(evaluationId, p, 0, 1.0, 0, 0).catch(() => {})
+      );
+      await Promise.all(visitLogPromises);
       await api.eval.submitEvaluation(
         evaluationId, totalAwarded, pagesRequiredForSubmit,
         bookletData?.booklet?.PaperID || null
@@ -697,6 +771,46 @@ export default function Evaluate() {
       setSubmitting(false);
     }
   };
+
+  // ── Reject evaluation ──
+  const handleReject = async () => {
+    if (!rejectReason.trim()) { alert('Please enter a reason for rejection.'); return; }
+    setRejecting(true);
+    try {
+      await doSaveMarks(false);
+      await api.eval.rejectEvaluation(evaluationId, rejectReason.trim());
+      alert('Paper rejected successfully.');
+      navigate('/');
+    } catch (err) {
+      alert('Reject failed: ' + err.message);
+    } finally {
+      setRejecting(false);
+      setShowRejectDialog(false);
+    }
+  };
+
+  // ── Mark quick-assign handler (click number button → set marks for selected question) ──
+  const handleMarkQuickAssign = useCallback((value) => {
+    if (!selectedSchemeId && bookletData?.questionScheme?.length > 0) {
+      alert('Select a question from the marks sheet first.');
+      return;
+    }
+    if (selectedSchemeId) {
+      const q = (bookletData?.questionScheme || []).find((s) => s.SchemeID === selectedSchemeId);
+      if (q && value !== 'NA') {
+        const numVal = parseFloat(value);
+        if (numVal > parseFloat(q.MaxMarks)) {
+          alert(`Cannot assign ${value} marks. Maximum is ${q.MaxMarks}.`);
+          return;
+        }
+      }
+      if (value === 'NA') {
+        setMarks((prev) => ({ ...prev, [selectedSchemeId]: 0 }));
+      } else {
+        setMarks((prev) => ({ ...prev, [selectedSchemeId]: String(value) }));
+      }
+    }
+  }, [selectedSchemeId, bookletData]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) return <div className="eval-loading">Loading booklet…</div>;
@@ -721,6 +835,20 @@ export default function Evaluate() {
   const sharedBlanks = sharedForPage.filter((a) => a.type === 'stamp_blank');
   const mm = String(Math.floor(pageSeconds / 60)).padStart(2, '0');
   const ss = String(pageSeconds % 60).padStart(2, '0');
+  const totalHH = String(Math.floor(evalElapsed / 3600)).padStart(2, '0');
+  const totalMM = String(Math.floor((evalElapsed % 3600) / 60)).padStart(2, '0');
+  const totalSS = String(evalElapsed % 60).padStart(2, '0');
+
+  const MARK_BUTTONS = [
+    { label: '0', value: 0 },
+    { label: '¼', value: 0.25 },
+    { label: '½', value: 0.5 },
+    { label: '1', value: 1 }, { label: '2', value: 2 }, { label: '3', value: 3 },
+    { label: '4', value: 4 }, { label: '5', value: 5 }, { label: '6', value: 6 },
+    { label: '7', value: 7 }, { label: '8', value: 8 }, { label: '9', value: 9 },
+    { label: '10', value: 10 },
+    { label: 'NA', value: 'NA' },
+  ];
 
   const annSvg = (
     <svg
@@ -923,18 +1051,25 @@ export default function Evaluate() {
     <div className="eval-page">
       {/* ── Top info bar ── */}
       <div className="eval-topbar">
-        <div className="eval-topbar-info">
-          <span><strong>Booklet:</strong> {booklet.BookletID}</span>
-          <span><strong>Student:</strong> {metadata?.StudentName || '—'}</span>
-          <span><strong>Course:</strong> {metadata?.ProgramLevel} {metadata?.Branch} {metadata?.Year} Yr</span>
-          <span><strong>Subject:</strong> {metadata?.Subject || booklet.PaperName}</span>
-          <span><strong>Exam:</strong> {booklet.ExamName}</span>
+        <div className="eval-topbar-left">
+          <button className="btn-back" onClick={() => navigate('/')} title="Back to Dashboard">← Back</button>
+          <div className="eval-topbar-info">
+            <span><strong>ID:</strong> {booklet.BookletID}</span>
+            <span><strong>Subject:</strong> {metadata?.Subject || booklet.PaperName}</span>
+          </div>
         </div>
         <div className="eval-topbar-actions">
-          <span className="page-timer">Page time: {mm}:{ss}</span>
+          <span className="eval-timer" title="Total evaluation time">⏱ {totalHH}:{totalMM}:{totalSS}</span>
+          {netSpeed != null && (
+            <span className="net-speed" title="Internet speed">📶 {netSpeed} Mbps</span>
+          )}
+          <span className="page-timer">Page: {mm}:{ss}</span>
           <span className="marks-total">{totalAwarded.toFixed(1)} / {totalMax.toFixed(1)}</span>
           <button className="btn-save" onClick={() => doSaveMarks(true)} disabled={saving}>
             {saving ? 'Saving…' : '💾 Save'}
+          </button>
+          <button className="btn-reject" onClick={() => setShowRejectDialog(true)} title="Reject this paper">
+            ❌ Reject
           </button>
           <button className="btn-submit" onClick={handleSubmit} disabled={submitting}>
             {submitting ? 'Submitting…' : '✅ Submit'}
@@ -1009,6 +1144,22 @@ export default function Evaluate() {
 
         {/* ── Centre: document viewer with SVG overlay ── */}
         <div className="eval-viewer">
+          {/* Mark quick-assign buttons */}
+          <div className="mark-buttons-bar">
+            <span className="mark-buttons-label">Marks:</span>
+            {MARK_BUTTONS.map((mb) => (
+              <button
+                key={mb.label}
+                type="button"
+                className="mark-btn"
+                onClick={() => handleMarkQuickAssign(mb.value)}
+                title={mb.value === 'NA' ? 'Not Attempted' : `Assign ${mb.value} marks`}
+              >
+                {mb.label}
+              </button>
+            ))}
+          </div>
+
           {/* Annotation toolbar */}
           <div className="annotation-toolbar">
             {ANNOTATION_TOOLS.map((tool) => (
@@ -1038,6 +1189,18 @@ export default function Evaluate() {
                 {tool.label}
               </button>
             ))}
+            <div className="toolbar-sep" />
+            <button
+              className="ann-tool"
+              onClick={undoLastAnnotation}
+              disabled={annotationHistory.length === 0}
+              title="Undo last annotation"
+            >↩ Undo</button>
+            <button
+              className="ann-tool ann-tool-delete"
+              onClick={deleteAllAnnotationsForPage}
+              title="Delete all annotations on this page"
+            >🗑 Clear</button>
             <div className="toolbar-sep" />
             <button
               className="ann-tool"
@@ -1255,8 +1418,11 @@ export default function Evaluate() {
                       return (
                         <div
                           key={q.SchemeID}
-                          className={`mark-row ${q.PageNumber === currentPage ? 'current-page' : ''}`}
-                          onClick={() => q.PageNumber != null && q.PageNumber !== '' && setCurrentPage(Number(q.PageNumber))}
+                          className={`mark-row ${q.PageNumber === currentPage ? 'current-page' : ''} ${selectedSchemeId === q.SchemeID ? 'selected-q' : ''}`}
+                          onClick={() => {
+                            setSelectedSchemeId(q.SchemeID);
+                            if (q.PageNumber != null && q.PageNumber !== '') setCurrentPage(Number(q.PageNumber));
+                          }}
                         >
                           <span className="mark-qnum">{label}</span>
                           {q.PageNumber != null && q.PageNumber !== '' && (
@@ -1294,8 +1460,11 @@ export default function Evaluate() {
                 return (
                   <div
                     key={q.SchemeID}
-                    className={`mark-row ${q.PageNumber === currentPage ? 'current-page' : ''}`}
-                    onClick={() => q.PageNumber != null && q.PageNumber !== '' && setCurrentPage(Number(q.PageNumber))}
+                    className={`mark-row ${q.PageNumber === currentPage ? 'current-page' : ''} ${selectedSchemeId === q.SchemeID ? 'selected-q' : ''}`}
+                    onClick={() => {
+                      setSelectedSchemeId(q.SchemeID);
+                      if (q.PageNumber != null && q.PageNumber !== '') setCurrentPage(Number(q.PageNumber));
+                    }}
                   >
                     <span className="mark-qnum">{label}</span>
                     {q.PageNumber != null && q.PageNumber !== '' ? (
@@ -1327,24 +1496,72 @@ export default function Evaluate() {
           </div>
 
           <div className="marks-footer">
-            <div className="marks-total-row">
-              <span>Total Marks</span>
-              <span className="total-val">{totalAwarded.toFixed(2)}</span>
-            </div>
-            <div className="marks-total-row">
-              <span>Out of</span>
-              <span>{totalMax.toFixed(2)}</span>
-            </div>
+            <button
+              type="button"
+              className="btn-calc-total"
+              onClick={() => doSaveMarks(true)}
+            >
+              Calculate Total Score : {totalAwarded.toFixed(2)} / {totalMax.toFixed(2)}
+            </button>
             <div className="marks-total-row">
               <span>Percentage</span>
               <span>{totalMax > 0 ? ((totalAwarded / totalMax) * 100).toFixed(1) + '%' : '—'}</span>
             </div>
-            <div className="pages-visited">
-              Pages visited: {visitedPages.size} / {pagesRequiredForSubmit}
+            <div className="marks-actions-row">
+              <button className="btn-reject-sm" onClick={() => setShowRejectDialog(true)}>Reject Paper</button>
+              <button className="btn-finish" onClick={handleSubmit} disabled={submitting}>
+                {submitting ? 'Submitting…' : 'Finish Paper'}
+              </button>
+            </div>
+
+            {/* Page navigation footer with color-coded circles */}
+            <div className="page-nav-footer">
+              <div className="page-nav-stats">
+                <span>Total Pages: <strong>{pagesRequiredForSubmit}</strong></span>
+                <span className="visited-count">Visited: <strong>{visitedPages.size}</strong></span>
+                <span className="not-visited-count">Not Visited: <strong>{pagesRequiredForSubmit - visitedPages.size}</strong></span>
+              </div>
+              <div className="page-nav-circles">
+                {thumbPageNumbers.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`page-circle ${visitedPages.has(p) ? 'visited' : 'not-visited'} ${p === currentPage ? 'current' : ''}`}
+                    onClick={() => setCurrentPage(p)}
+                    title={`Page ${p}${visitedPages.has(p) ? ' (visited)' : ' (not visited)'}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Reject Dialog */}
+      {showRejectDialog && (
+        <div className="modal-overlay" onClick={() => setShowRejectDialog(false)}>
+          <div className="reject-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Reject Paper</h3>
+            <p>Please provide a reason for rejecting this answer sheet.</p>
+            <textarea
+              className="reject-reason-input"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter rejection reason…"
+              rows={3}
+              autoFocus
+            />
+            <div className="reject-modal-actions">
+              <button className="btn-cancel" onClick={() => setShowRejectDialog(false)}>Cancel</button>
+              <button className="btn-reject-confirm" onClick={handleReject} disabled={rejecting}>
+                {rejecting ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Question Paper Modal */}
       {showQPaper && (booklet.QuestionPaperPath || booklet.questionPaperPath) && (

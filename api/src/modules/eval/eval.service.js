@@ -187,6 +187,11 @@ export default class EvalService {
     return { evaluationId, totalMarks, submitted: true };
   }
 
+  async rejectEvaluation(evaluationId, rejectionReason) {
+    await this.repo.rejectAllocationForEvaluation(evaluationId, rejectionReason);
+    return { evaluationId, rejected: true };
+  }
+
   async logPageVisit(evaluationId, pageNumber, durationSeconds, zoomLevel, annotationsMade) {
     await this.repo.logPageVisit(evaluationId, pageNumber, durationSeconds, zoomLevel, annotationsMade);
   }

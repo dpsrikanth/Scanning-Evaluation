@@ -439,7 +439,13 @@ export default class EvalRepository {
 
   async getVisitedPages(evaluationId) {
     const [rows] = await this.db.execute(
-      `SELECT DISTINCT PageNumber FROM Eval_PageVisitLog WHERE EvaluationID = ?`,
+      `SELECT DISTINCT pv.PageNumber
+       FROM Eval_PageVisitLog pv
+       JOIN Evaluations e2 ON e2.EvaluationID = pv.EvaluationID
+       JOIN Evaluations e1 ON e1.EvaluationID = ?
+         AND e2.BookletID = e1.BookletID
+         AND e2.EvaluatorUserID = e1.EvaluatorUserID
+         AND e2.EvaluationType = e1.EvaluationType`,
       [evaluationId]
     );
     return rows.map((r) => r.PageNumber);
@@ -489,6 +495,32 @@ export default class EvalRepository {
       [bookletId, evaluatorId, evaluationType]
     );
     return rows.length > 0;
+  }
+
+  async rejectAllocationForEvaluation(evaluationId, rejectionReason) {
+    const [ev] = await this.db.execute(
+      `SELECT BookletID, EvaluatorUserID FROM Evaluations WHERE EvaluationID = ?`,
+      [evaluationId]
+    );
+    if (!ev[0]) return;
+    const { BookletID: bookletId, EvaluatorUserID: evaluatorId } = ev[0];
+    await this.db.execute(
+      `UPDATE AllocationQueue
+       SET EvaluationStatus = 'Rejected'
+       WHERE BookletID = ? AND AllocatedToUserID = ? AND IsDeleted = 0
+         AND EvaluationStatus IN ('Allocated', 'InProgress')`,
+      [bookletId, evaluatorId]
+    );
+    await this.db.execute(
+      `UPDATE Eval_Booklets
+       SET EvaluationStatus = 'Rejected', RejectionReason = ?
+       WHERE BookletID = ? AND IsDeleted = 0`,
+      [rejectionReason || null, bookletId]
+    );
+    await this.db.execute(
+      `UPDATE Evaluations SET EndTime = NOW() WHERE EvaluationID = ?`,
+      [evaluationId]
+    );
   }
 
   async completeAllocationForEvaluation(evaluationId) {

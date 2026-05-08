@@ -180,6 +180,11 @@ export const api = {
       const q = new URLSearchParams(params).toString();
       return request(`/eval/time-report?${q}`);
     },
+    rejectEvaluation: (evaluationId, rejectionReason) =>
+      request(`/eval/evaluation/${evaluationId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ rejectionReason }),
+      }),
     monitoringSettings: () => request('/eval/monitoring-settings'),
   },
 
@@ -402,6 +407,19 @@ export const api = {
     downloadUrl: (id) => {
       const token = getToken();
       return `${API_BASE}/admin/answer-sheets/${id}/generate?token=${token}`;
+    },
+    uploadLogo: async (file) => {
+      const form = new FormData();
+      form.append('logo', file);
+      const token = getToken();
+      const resp = await fetch(`${API_BASE}/admin/answer-sheets/upload-logo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: form,
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.message || 'Upload failed');
+      return json.data;
     },
   },
 

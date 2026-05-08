@@ -47,8 +47,16 @@ export default class AnswerSheetController {
     try {
       await this.service.generatePdf(parseInt(req.params.id), res);
     } catch (err) {
-      // Only send JSON error if headers not yet sent
       if (!res.headersSent) next(err);
     }
+  };
+
+  uploadLogo = async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+      }
+      return ok(res, { filename: req.file.filename, path: req.file.path });
+    } catch (err) { next(err); }
   };
 }

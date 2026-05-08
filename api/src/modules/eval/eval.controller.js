@@ -77,6 +77,19 @@ export default class EvalController {
     }
   };
 
+  rejectEvaluation = async (req, res, next) => {
+    try {
+      const { evaluationId } = req.params;
+      const { rejectionReason } = req.body;
+      const result = await this.service.rejectEvaluation(
+        parseInt(evaluationId), rejectionReason || ''
+      );
+      return ok(res, result, 'Evaluation rejected');
+    } catch (err) {
+      next(err);
+    }
+  };
+
   logPageVisit = async (req, res, next) => {
     try {
       const { evaluationId } = req.params;

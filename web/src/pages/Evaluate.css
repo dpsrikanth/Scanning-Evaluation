@@ -345,3 +345,152 @@
 }
 .qpaper-footer a { font-weight: 600; color: var(--color-primary); }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 500; }
+
+/* ── Back button ── */
+.btn-back {
+  padding: 6px 14px; background: #ef4444; color: #fff; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700;
+  white-space: nowrap;
+}
+.btn-back:hover { background: #dc2626; }
+.eval-topbar-left {
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* ── Total eval timer ── */
+.eval-timer {
+  font-size: 13px; background: #1e293b; color: #e2e8f0; padding: 4px 10px;
+  border-radius: 20px; font-family: monospace; white-space: nowrap;
+}
+
+/* ── Internet speed indicator ── */
+.net-speed {
+  font-size: 12px; color: #16a34a; font-weight: 600; white-space: nowrap;
+}
+
+/* ── Reject button in top bar ── */
+.btn-reject {
+  padding: 6px 14px; background: #fff7ed; color: #c2410c; border: 1px solid #fdba74;
+  border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.btn-reject:hover { background: #ffedd5; }
+
+/* ── Mark quick-assign buttons bar ── */
+.mark-buttons-bar {
+  display: flex; align-items: center; gap: 3px;
+  padding: 4px 12px; background: #0f172a;
+  flex-shrink: 0; flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.mark-buttons-label {
+  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5);
+  margin-right: 4px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.mark-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #166534; color: #fff; border: 2px solid #22c55e;
+  cursor: pointer; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.mark-btn:hover { background: #15803d; transform: scale(1.1); }
+.mark-btn:active { transform: scale(0.95); }
+
+/* ── Undo & Delete buttons ── */
+.ann-tool-delete { color: #fca5a5 !important; }
+.ann-tool-delete:hover { color: #ef4444 !important; background: rgba(239,68,68,0.15) !important; }
+.ann-tool:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Selected question highlight ── */
+.mark-row.selected-q {
+  background: #fef3c7; border-left: 3px solid #f59e0b;
+}
+
+/* ── Calculate Total Score button ── */
+.btn-calc-total {
+  width: 100%; padding: 8px 10px; margin-bottom: 6px;
+  background: #0ea5e9; color: #fff; border: none;
+  border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700;
+  text-align: center;
+}
+.btn-calc-total:hover { background: #0284c7; }
+
+/* ── Reject / Finish buttons in marks panel ── */
+.marks-actions-row {
+  display: flex; gap: 6px; margin-top: 8px;
+}
+.btn-reject-sm {
+  flex: 1; padding: 7px 10px; background: #fff7ed; color: #c2410c;
+  border: 1px solid #fdba74; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+}
+.btn-reject-sm:hover { background: #ffedd5; }
+.btn-finish {
+  flex: 1; padding: 7px 10px; background: #22c55e; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 700;
+}
+.btn-finish:hover { background: #16a34a; }
+.btn-finish:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Page navigation footer ── */
+.page-nav-footer {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid #e9e9e9;
+}
+.page-nav-stats {
+  display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #64748b;
+  margin-bottom: 6px;
+}
+.page-nav-stats strong { font-weight: 700; }
+.visited-count strong { color: #16a34a; }
+.not-visited-count strong { color: #ef4444; }
+.page-nav-circles {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.page-circle {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.12s;
+}
+.page-circle.visited {
+  background: #22c55e; color: #fff; border-color: #16a34a;
+}
+.page-circle.not-visited {
+  background: #ef4444; color: #fff; border-color: #dc2626;
+}
+.page-circle.current {
+  border-color: #1e293b; box-shadow: 0 0 0 2px #3b82f6;
+  transform: scale(1.15);
+}
+.page-circle:hover { transform: scale(1.15); opacity: 0.9; }
+
+/* ── Reject modal ── */
+.reject-modal {
+  background: #fff; border-radius: 12px; width: 420px; padding: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.reject-modal h3 { margin: 0 0 8px; font-size: 18px; color: #b91c1c; }
+.reject-modal p { margin: 0 0 14px; font-size: 14px; color: #64748b; }
+.reject-reason-input {
+  width: 100%; padding: 10px; border: 1px solid #e2e8f0;
+  border-radius: 8px; font-size: 14px; resize: vertical;
+  font-family: inherit;
+}
+.reject-reason-input:focus { outline: none; border-color: #f59e0b; }
+.reject-modal-actions {
+  display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;
+}
+.btn-cancel {
+  padding: 8px 18px; background: #f1f5f9; color: #475569;
+  border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+}
+.btn-cancel:hover { background: #e2e8f0; }
+.btn-reject-confirm {
+  padding: 8px 18px; background: #ef4444; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 700;
+}
+.btn-reject-confirm:hover { background: #dc2626; }
+.btn-reject-confirm:disabled { background: #aaa; cursor: not-allowed; }

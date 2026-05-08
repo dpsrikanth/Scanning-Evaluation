@@ -165,7 +165,7 @@ export default class AdminService {
     let filePath = storedPath;
 
     // If the stored path is not absolute, treat it as relative to SCAN_OUTPUT_PATH
-    if (!storedPath.startsWith('/') && !storedPath.match(/^[A-Za-z]:\\/)) {
+    if (!storedPath.startsWith('/') && !storedPath.match(/^[A-Za-z]:[/\\]/)) {
       filePath = join(process.env.SCAN_OUTPUT_PATH || 'D:/ScanOutput', storedPath);
     }
     filePath = resolve(filePath);
@@ -320,20 +320,29 @@ function parseQPaperText(text, fallbackPaperName = '') {
   const SKIP_WORDS = /^(Time|Max|Mox|Total|Instructions?|Note|Regd|Very Short|Short Answer|Long Answer|Answer|Attempt)/i;
 
   let subject = fallbackPaperName;
-  const scoreLine = l => {
-    const noise = (l.match(NOISE_RE) || []).length;
-    const alpha = (l.match(/[A-Za-z]/g) || []).length / Math.max(l.length, 1);
-    return l.length * alpha - noise * 3 + (SUBJECT_KW.test(l) ? 60 : 0);
-  };
-  const candidates = lines.slice(0, 30).filter(l =>
-    l.length > 6 && /[A-Za-z]/.test(l) &&
-    !/^\d+[\.\)]\s/.test(l) && !SKIP_RE.test(l) && !SKIP_WORDS.test(l)
-  );
-  if (candidates.length > 0) {
-    const best = candidates.sort((a, b) => scoreLine(b) - scoreLine(a))[0];
-    // Strip leading/trailing OCR junk
-    const cleaned = best.replace(/^[^A-Za-z]+/, '').replace(/\s{2,}/g, ' ').trim();
-    if (cleaned.length > 4) subject = cleaned;
+  // Direct match for "SUBJECT: Physics" or "Subject : Mathematics" lines
+  const subjectLineRe = /^SUBJECT\s*:\s*(.+)/im;
+  const directMatch = text.match(subjectLineRe);
+  if (directMatch) {
+    subject = directMatch[1].trim();
+  } else {
+    const scoreLine = l => {
+      const noise = (l.match(NOISE_RE) || []).length;
+      const alpha = (l.match(/[A-Za-z]/g) || []).length / Math.max(l.length, 1);
+      // Cap length contribution to avoid long question lines winning over short subject lines
+      const lenScore = Math.min(l.length, 40) * alpha;
+      return lenScore - noise * 3 + (SUBJECT_KW.test(l) ? 60 : 0);
+    };
+    const candidates = lines.slice(0, 30).filter(l =>
+      l.length > 6 && /[A-Za-z]/.test(l) &&
+      !/^\d+[\.\)]\s/.test(l) && !SKIP_RE.test(l) && !SKIP_WORDS.test(l) &&
+      !/^[a-l]\)\s/.test(l)
+    );
+    if (candidates.length > 0) {
+      const best = candidates.sort((a, b) => scoreLine(b) - scoreLine(a))[0];
+      const cleaned = best.replace(/^[^A-Za-z]+/, '').replace(/\s{2,}/g, ' ').trim();
+      if (cleaned.length > 4) subject = cleaned;
+    }
   }
 
   // ── 2. Global max marks ─────────────────────────────────────────────────────
@@ -376,18 +385,39 @@ function parseQPaperText(text, fallbackPaperName = '') {
     rawSections.push({ heading: 'Section A', body: text });
   }
 
+  // Text before the first section (contains global attempt instructions like
+  // "Answer Q1 which is compulsory, any eight from Part-II and any two from Part-III")
+  const headerText = rawSections.length > 0 && rawSections[0].heading !== 'Section A'
+    ? text.slice(0, text.indexOf(rawSections[0].heading))
+    : '';
+
   // ── 4. Parse each section ───────────────────────────────────────────────────
   const sections = rawSections.map(sec => {
     const heading = sec.heading;
     const body    = sec.body;
 
-    // A) Inline formula in header or first 120 chars of body: "(10x2=20)" "(5x4=20)"
-    //    → attemptN × marksEach = sectionMax
+    // A) Inline formula in header or first 200 chars of body: "(10x2=20)" "(5x4=20)" "(2 x 10)"
+    //    → attemptN × marksEach = sectionMax   OR   marksEach × attemptN
     let formulaAttempt = null, formulaMarks = null;
-    const formulaRe = /\(\s*(\d+)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*=\s*\d+\s*\)/i;
-    const fmSrc = heading + '\n' + body.slice(0, 120);
-    const fm = fmSrc.match(formulaRe);
-    if (fm) { formulaAttempt = parseInt(fm[1]); formulaMarks = parseFloat(fm[2]); }
+    let formulaAmbiguous = false, formulaA = null, formulaB = null;
+    const fmSrc = heading + '\n' + body.slice(0, 200);
+    // With "=" sign: (10x2=20)
+    const formulaEqRe = /\(\s*(\d+)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*=\s*\d+\s*\)/i;
+    const fmEq = fmSrc.match(formulaEqRe);
+    if (fmEq) {
+      formulaAttempt = parseInt(fmEq[1]); formulaMarks = parseFloat(fmEq[2]);
+    } else {
+      // Without "=" sign: (2 x 10) or (16 x 2)
+      const formulaNoEqRe = /\(\s*(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+)\s*\)/i;
+      const fmNoEq = fmSrc.match(formulaNoEqRe);
+      if (fmNoEq) {
+        formulaA = parseFloat(fmNoEq[1]); formulaB = parseInt(fmNoEq[2]);
+        formulaAmbiguous = true;
+        // Tentative heuristic: larger number is question count
+        if (formulaB > formulaA) { formulaMarks = formulaA; formulaAttempt = formulaB; }
+        else { formulaAttempt = formulaA; formulaMarks = formulaB; }
+      }
+    }
 
     // B) Marks per question — in order of specificity
     let marksPerQuestion = formulaMarks || 0;
@@ -415,7 +445,11 @@ function parseQPaperText(text, fallbackPaperName = '') {
     }
 
     // C) Count numbered question lines (tolerate OCR bullets •, *, ., ')
-    const qLineCount = (body.match(/^\s*[•*.'`\-]?\s*(?:Q\.?\s*)?\d+\s*[.)]/gm) || []).length;
+    //    Also match "Q1 ", "Q2 " (no period/paren), and sub-questions "a)", "b)"
+    const qMainLines = (body.match(/^\s*[•*.'`\-]?\s*(?:Q\.?\s*)?\d+\s*[.)]\s/gm) || []).length;
+    const qAltLines = (body.match(/^\s*Q\.?\s*\d+\s+\S/gm) || []).length;
+    const subQLines = (body.match(/^\s*[a-l]\s*\)\s/gm) || []).length;
+    const qLineCount = Math.max(qMainLines, qAltLines, subQLines);
 
     // D) Attempt instructions — digit or word numbers
     let attemptQuestions = formulaAttempt || 0;
@@ -423,22 +457,25 @@ function parseQPaperText(text, fallbackPaperName = '') {
     let setType          = 'AnswerAll';
 
     const answerAllRe  = /answer\s+all\s+(?:the\s+)?(?:following\s+)?(?:questions?)?/i;
+    const compulsoryRe = /compulsory|mandatory/i;
     const anyNRe       = /(?:answer|attempt)\s+any\s+([A-Za-z]+|\d+)\s*(?:questions?)?/i;
-    const nofMRe       = /(?:answer|attempt)\s+(?:any\s+)?(\d+)\s+out\s+of\s+(\d+)/i;
+    const nofMRe       = /(?:answer|attempt)\s+(?:any\s+)?([A-Za-z]+|\d+)\s+out\s+of\s+([A-Za-z]+|\d+)/i;
 
-    const nofM = body.match(nofMRe);
-    const anyN = body.match(anyNRe);
-    const allQ = body.match(answerAllRe);
+    const combinedText = headerText + '\n' + body;
+    const nofM = combinedText.match(nofMRe);
+    const anyN = combinedText.match(anyNRe);
+    const allQ = combinedText.match(answerAllRe) || combinedText.match(compulsoryRe);
 
     if (nofM) {
-      attemptQuestions = parseInt(nofM[1]);
-      totalQuestions   = parseInt(nofM[2]);
+      attemptQuestions = toNum(nofM[1]) || parseInt(nofM[1]) || 0;
+      totalQuestions   = toNum(nofM[2]) || parseInt(nofM[2]) || 0;
       setType = 'Common';
     } else if (anyN && !allQ) {
       const n = toNum(anyN[1]);
       if (n) { attemptQuestions = n; setType = 'Common'; }
       totalQuestions = qLineCount > attemptQuestions ? qLineCount : attemptQuestions + 1;
     } else if (allQ) {
+      // For AnswerAll with formula but no explicit attempt text, keep formula as-is
       setType = 'AnswerAll';
       // Prefer formula count (exact) over OCR line count (may miss OCR noise)
       totalQuestions   = formulaAttempt || qLineCount || 0;
@@ -451,6 +488,17 @@ function parseQPaperText(text, fallbackPaperName = '') {
       totalQuestions   = qLineCount || 0;
       attemptQuestions = totalQuestions;
       setType = 'AnswerAll';
+    }
+
+    // E) Disambiguate ambiguous formula using text-detected attempt count
+    if (formulaAmbiguous && attemptQuestions > 0) {
+      if (attemptQuestions === formulaA) {
+        formulaMarks = formulaB; formulaAttempt = formulaA;
+        marksPerQuestion = formulaB;
+      } else if (attemptQuestions === formulaB) {
+        formulaMarks = formulaA; formulaAttempt = formulaB;
+        marksPerQuestion = formulaA;
+      }
     }
 
     if (totalQuestions === 0) totalQuestions = attemptQuestions;
