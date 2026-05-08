@@ -8,7 +8,7 @@ namespace ScannerApp.Services
 {
     /// <summary>
     /// Converts scanned JPEG images into a single PDF booklet (A4, aspect preserved).
-    /// Uses PDFsharp-GDI (GDI+), avoiding PdfSharpCore + SixLabors.ImageSharp version clashes with IronBarCode.
+    /// Uses PDFsharp-GDI (GDI+).
     /// </summary>
     public static class PdfService
     {

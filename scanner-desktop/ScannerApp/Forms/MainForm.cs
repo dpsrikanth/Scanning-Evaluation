@@ -1876,7 +1876,7 @@ namespace ScannerApp.Forms
 
         /// <summary>
         /// Deletes a folder with up to 3 retries (500ms apart) to handle lingering file locks
-        /// from IronBarcode, GDI+ Bitmap, or anti-virus scanners.
+        /// from GDI+ Bitmap or anti-virus scanners.
         /// </summary>
         private static void TryDeleteFolderWithRetry(string folder)
         {
@@ -2275,7 +2275,7 @@ namespace ScannerApp.Forms
                 string? zonesJson = effectiveTemplate.BarcodeZonesJson;
                 int totalPages = bitmaps.Count;
                 bool useServerBarcode = _serverBarcode.Enabled;
-                // Local IronBarcode is CPU-bound — keep a small pool. Server API is I/O-bound; a low cap
+                // Local ZXing is CPU-bound — keep a small pool. Server API is I/O-bound; a low cap
                 // serializes dozens of HTTP posts and inflates per-page wall time (scanner log: tail pages 10–40s).
                 int maxWorkers = useServerBarcode
                     ? Math.Clamp(totalPages, 12, 32)
@@ -2285,7 +2285,7 @@ namespace ScannerApp.Forms
 
                 await Task.Run(() =>
                 {
-                    // IronBarcode is fully thread-safe — share the single _barcode instance
+                    // ZXing readers are created per-call — share the single _barcode instance
                     try
                     {
                         var opts = new ParallelOptions

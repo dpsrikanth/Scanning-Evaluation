@@ -1,7 +1,9 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using IronBarCode;
+using ZXing;
+using ZXing.Common;
+using ZXing.Windows.Compatibility;
 using Rectangle = System.Drawing.Rectangle;
 using Newtonsoft.Json;
 using ScannerApp.Models;
@@ -9,70 +11,126 @@ using ScannerApp.Utils;
 
 namespace ScannerApp.Services
 {
-    /// <summary>
-    /// Barcode reading service backed by IronBarcode (IronSoftware).
-    /// Options objects are created per-call to avoid any shared-state issues across parallel threads.
-    /// </summary>
     public class BarcodeService
     {
-        private static readonly ImageCodecInfo JpegEncoder =
-            ImageCodecInfo.GetImageEncoders().First(c => c.MimeType == "image/jpeg");
         private static readonly double[] BottomFractions = { 0.10, 0.15, 0.20, 0.28, 0.40, 0.50 };
         private static readonly double[] BottomFractionsUpsample = { 0.15, 0.25, 0.40 };
 
-        // ── Option factories (new instance per call — avoids any IronBarcode internal state issues) ──
+        private static readonly BarcodeFormat LinearFormats =
+            BarcodeFormat.CODE_128 | BarcodeFormat.CODE_39 | BarcodeFormat.ITF |
+            BarcodeFormat.EAN_13 | BarcodeFormat.EAN_8 | BarcodeFormat.UPC_A |
+            BarcodeFormat.UPC_E | BarcodeFormat.CODABAR | BarcodeFormat.CODE_93;
 
-        private static BarcodeReaderOptions MakeOptsFast() => new()
+        private static readonly BarcodeFormat AllFormats =
+            LinearFormats | BarcodeFormat.QR_CODE | BarcodeFormat.DATA_MATRIX |
+            BarcodeFormat.PDF_417 | BarcodeFormat.AZTEC;
+
+        // ── Reader factories (new instance per call — thread-safe) ──
+
+        private static BarcodeReader MakeReaderFast()
         {
-            Speed                  = ReadingSpeed.Balanced,
-            ExpectBarcodeTypes     = BarcodeEncoding.Code128 | BarcodeEncoding.Code39
-                                   | BarcodeEncoding.ITF | BarcodeEncoding.EAN13 | BarcodeEncoding.EAN8,
-            ExpectMultipleBarcodes = false,
-        };
+            var reader = new BarcodeReader();
+            reader.Options = new DecodingOptions
+            {
+                PossibleFormats = new[] {
+                    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+                    BarcodeFormat.ITF, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8
+                },
+                TryHarder = false,
+                TryInverted = false,
+            };
+            return reader;
+        }
 
-        private static BarcodeReaderOptions MakeOptsTight() => new()
+        private static BarcodeReader MakeReaderTight()
         {
-            Speed                  = ReadingSpeed.Detailed,
-            ExpectBarcodeTypes     = BarcodeEncoding.Code128 | BarcodeEncoding.Code39
-                                   | BarcodeEncoding.QRCode  | BarcodeEncoding.EAN13
-                                   | BarcodeEncoding.EAN8,
-            ExpectMultipleBarcodes = true,
-        };
+            var reader = new BarcodeReader();
+            reader.Options = new DecodingOptions
+            {
+                PossibleFormats = new[] {
+                    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+                    BarcodeFormat.QR_CODE, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8
+                },
+                TryHarder = true,
+                TryInverted = true,
+            };
+            reader.AutoRotate = true;
+            return reader;
+        }
 
-        private static BarcodeReaderOptions MakeOptsRelaxed() => new()
+        private static BarcodeReader MakeReaderRelaxed()
         {
-            Speed                  = ReadingSpeed.ExtremeDetail,
-            ExpectBarcodeTypes     = BarcodeEncoding.AllOneDimensional | BarcodeEncoding.QRCode
-                                   | BarcodeEncoding.DataMatrix | BarcodeEncoding.PDF417
-                                   | BarcodeEncoding.Aztec,
-            ExpectMultipleBarcodes = true,
-        };
+            var reader = new BarcodeReader();
+            reader.Options = new DecodingOptions
+            {
+                PossibleFormats = new[] {
+                    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF,
+                    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+                    BarcodeFormat.UPC_E, BarcodeFormat.CODABAR, BarcodeFormat.CODE_93,
+                    BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
+                    BarcodeFormat.PDF_417, BarcodeFormat.AZTEC
+                },
+                TryHarder = true,
+                TryInverted = true,
+            };
+            reader.AutoRotate = true;
+            return reader;
+        }
 
-        private static BarcodeReaderOptions MakeOptsQrOnly() => new()
+        private static BarcodeReader MakeReaderMulti()
         {
-            Speed                  = ReadingSpeed.Balanced,
-            ExpectBarcodeTypes     = BarcodeEncoding.QRCode,
-            ExpectMultipleBarcodes = true,
-        };
+            var reader = new BarcodeReader();
+            reader.Options = new DecodingOptions
+            {
+                PossibleFormats = new[] {
+                    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+                    BarcodeFormat.QR_CODE, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8
+                },
+                TryHarder = true,
+                TryInverted = true,
+            };
+            reader.AutoRotate = true;
+            return reader;
+        }
 
-        // ── Core decode helper ────────────────────────────────────────────────
+        private static BarcodeReader MakeReaderRelaxedMulti()
+        {
+            var reader = new BarcodeReader();
+            reader.Options = new DecodingOptions
+            {
+                PossibleFormats = new[] {
+                    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF,
+                    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+                    BarcodeFormat.UPC_E, BarcodeFormat.CODABAR, BarcodeFormat.CODE_93,
+                    BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX,
+                    BarcodeFormat.PDF_417, BarcodeFormat.AZTEC
+                },
+                TryHarder = true,
+                TryInverted = true,
+            };
+            reader.AutoRotate = true;
+            return reader;
+        }
 
-        /// <summary>
-        /// Encodes the bitmap as JPEG (faster than PNG) and passes to IronBarcode.
-        /// Creates a new options instance each call to avoid shared-state thread issues.
-        /// </summary>
-        private static BarcodeResults? IronRead(Bitmap bmp, BarcodeReaderOptions opts)
+        private static BarcodeReader MakeReaderQrOnly()
+        {
+            var reader = new BarcodeReader();
+            reader.Options = new DecodingOptions
+            {
+                PossibleFormats = new[] { BarcodeFormat.QR_CODE },
+                TryHarder = true,
+            };
+            reader.AutoRotate = true;
+            return reader;
+        }
+
+        // ── Core decode helpers ──
+
+        private static Result? ZxRead(Bitmap bmp, BarcodeReader reader)
         {
             try
             {
-                using var ms = new System.IO.MemoryStream();
-                // JPEG is smaller and faster to encode than PNG; cache encoder lookup for hot path.
-                using var encParams = new System.Drawing.Imaging.EncoderParameters(1);
-                encParams.Param[0] = new System.Drawing.Imaging.EncoderParameter(
-                    System.Drawing.Imaging.Encoder.Quality, 80L);
-                bmp.Save(ms, JpegEncoder, encParams);
-                ms.Position = 0;
-                return BarcodeReader.Read(ms, opts);
+                return reader.Decode(bmp);
             }
             catch
             {
@@ -80,28 +138,56 @@ namespace ScannerApp.Services
             }
         }
 
-        private static string? FirstValue(BarcodeResults? results)
+        private static Result[]? ZxReadMultiple(Bitmap bmp, BarcodeReader reader)
+        {
+            try
+            {
+                return reader.DecodeMultiple(bmp);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string? FirstValue(Result? result)
+        {
+            if (result == null || string.IsNullOrEmpty(result.Text)) return null;
+            return result.Text;
+        }
+
+        private static string? FirstValue(Result[]? results)
         {
             if (results == null) return null;
             foreach (var r in results)
-                if (!string.IsNullOrEmpty(r.Value)) return r.Value;
+                if (!string.IsNullOrEmpty(r.Text)) return r.Text;
             return null;
         }
 
-        private static string? FirstPageNumber(BarcodeResults? results)
+        private static string? FirstPageNumber(Result? result)
+        {
+            if (result == null || string.IsNullOrEmpty(result.Text)) return null;
+            if (IsLikelyPageNumberPayload(result.Text)) return result.Text.Trim();
+            return null;
+        }
+
+        private static string? FirstPageNumber(Result[]? results)
         {
             if (results == null) return null;
             foreach (var r in results)
             {
-                if (string.IsNullOrEmpty(r.Value)) continue;
-                if (IsLikelyPageNumberPayload(r.Value)) return r.Value.Trim();
+                if (string.IsNullOrEmpty(r.Text)) continue;
+                if (IsLikelyPageNumberPayload(r.Text)) return r.Text.Trim();
             }
             return null;
         }
 
-        // ── Public API ────────────────────────────────────────────────────────
+        private static bool IsQrFormat(BarcodeFormat fmt) =>
+            fmt == BarcodeFormat.QR_CODE || fmt == BarcodeFormat.DATA_MATRIX ||
+            fmt == BarcodeFormat.PDF_417 || fmt == BarcodeFormat.AZTEC;
 
-        /// <summary>Reads linear barcode and QR code from the full page.</summary>
+        // ── Public API ──
+
         public (string? LinearText, string? QrText) ReadLinearAndQrParallel(Bitmap image)
         {
             if (image == null || image.Width < 16 || image.Height < 16)
@@ -110,27 +196,26 @@ namespace ScannerApp.Services
             string? lin = null, qr = null;
             try
             {
-                var results = IronRead(image, MakeOptsTight());
+                var results = ZxReadMultiple(image, MakeReaderMulti());
                 if (results != null)
                 {
                     foreach (var r in results)
                     {
-                        if (string.IsNullOrEmpty(r.Value)) continue;
-                        if (r.BarcodeType == BarcodeEncoding.QRCode) qr ??= r.Value;
-                        else                                          lin ??= r.Value;
+                        if (string.IsNullOrEmpty(r.Text)) continue;
+                        if (IsQrFormat(r.BarcodeFormat)) qr ??= r.Text;
+                        else lin ??= r.Text;
                     }
                 }
                 if (lin == null && qr == null)
                 {
-                    // Second pass with relaxed settings
-                    results = IronRead(image, MakeOptsRelaxed());
+                    results = ZxReadMultiple(image, MakeReaderRelaxedMulti());
                     if (results != null)
                     {
                         foreach (var r in results)
                         {
-                            if (string.IsNullOrEmpty(r.Value)) continue;
-                            if (r.BarcodeType == BarcodeEncoding.QRCode) qr ??= r.Value;
-                            else                                          lin ??= r.Value;
+                            if (string.IsNullOrEmpty(r.Text)) continue;
+                            if (IsQrFormat(r.BarcodeFormat)) qr ??= r.Text;
+                            else lin ??= r.Text;
                         }
                     }
                 }
@@ -139,12 +224,11 @@ namespace ScannerApp.Services
             return (lin, qr);
         }
 
-        /// <summary>Reads the first barcode found on an image.</summary>
         public string? ReadBarcode(Bitmap image)
         {
             if (image == null || image.Width < 16 || image.Height < 16) return null;
-            return FirstValue(IronRead(image, MakeOptsTight()))
-                ?? FirstValue(IronRead(image, MakeOptsRelaxed()));
+            return FirstValue(ZxRead(image, MakeReaderTight()))
+                ?? FirstValue(ZxRead(image, MakeReaderRelaxed()));
         }
 
         public string? ReadBarcodeFromFile(string imagePath)
@@ -153,15 +237,13 @@ namespace ScannerApp.Services
             return ReadBarcode(bmp);
         }
 
-        /// <summary>Reads barcode from the bottom N% of the image.</summary>
         public string? ReadBarcodeFromBottom(Bitmap image, double bottomHeightFraction = 0.22)
         {
             if (image == null || image.Width < 16 || image.Height < 16) return null;
-            return TryDecodeBottomStrip(image, bottomHeightFraction, false, MakeOptsTight())
-                ?? TryDecodeBottomStrip(image, bottomHeightFraction, false, MakeOptsRelaxed());
+            return TryDecodeBottomStrip(image, bottomHeightFraction, false, MakeReaderTight())
+                ?? TryDecodeBottomStrip(image, bottomHeightFraction, false, MakeReaderRelaxed());
         }
 
-        /// <summary>Reads barcode from a specific rectangle on the image.</summary>
         public string? ReadBarcodeFromRectangle(Bitmap image, Rectangle rect)
         {
             if (image == null || image.Width < 8 || image.Height < 8) return null;
@@ -170,24 +252,18 @@ namespace ScannerApp.Services
             try
             {
                 using var crop = image.Clone(r, image.PixelFormat);
-                return FirstValue(IronRead(crop, MakeOptsTight()))
-                    ?? FirstValue(IronRead(crop, MakeOptsRelaxed()));
+                return FirstValue(ZxRead(crop, MakeReaderTight()))
+                    ?? FirstValue(ZxRead(crop, MakeReaderRelaxed()));
             }
             catch { return null; }
         }
 
-        /// <summary>Reads the page-serial barcode using zone or footer heuristics.</summary>
         public string? ReadPageSerialOrFooter(Bitmap image, int pageNumber1Based, int barcodeStartPage1Based, string? zonesJson)
         {
             var (result, _) = ReadPageSerialOrFooterWithDiag(image, pageNumber1Based, barcodeStartPage1Based, zonesJson);
             return result;
         }
 
-        /// <summary>
-        /// Reads the page-serial barcode with diagnostic info for dev tooltips.
-        /// Uses zone (if configured) then bottom-strip heuristics.
-        /// Never falls through to full-page decode (avoids picking up the document barcode).
-        /// </summary>
         public (string? Result, string Diag) ReadPageSerialOrFooterWithDiag(
             Bitmap image, int pageNumber1Based, int barcodeStartPage1Based, string? zonesJson)
         {
@@ -197,7 +273,6 @@ namespace ScannerApp.Services
             var diag = new System.Text.StringBuilder();
             diag.Append($"img {image.Width}x{image.Height}");
 
-            // 1. Zone-based decode (fast path — exact rectangle from template)
             var zone = PageSerialZoneHelper.FindPageSerialZone(zonesJson);
             if (zone != null && PageSerialZoneHelper.ShouldApplyPageSerialZone(zone, pageNumber1Based, barcodeStartPage1Based))
             {
@@ -235,7 +310,6 @@ namespace ScannerApp.Services
                 diag.Append(zone == null ? " | no zone" : " | zone skip");
             }
 
-            // 2. Bottom strips — multiple fractions
             foreach (var frac in BottomFractions)
             {
                 var (t, raw) = TryDecodeBottomStripWithRaw(image, frac, false);
@@ -244,7 +318,6 @@ namespace ScannerApp.Services
                 if (t != null) return (t, diag.ToString());
             }
 
-            // 3. Same fractions with 2x upsample (low-DPI rescue)
             foreach (var frac in BottomFractionsUpsample)
             {
                 var (t, raw) = TryDecodeBottomStripWithRaw(image, frac, true);
@@ -256,14 +329,12 @@ namespace ScannerApp.Services
             return (null, diag.ToString());
         }
 
-        /// <summary>Legacy helper used by MainForm barcode-for-page-number fallback.</summary>
         public string? ReadBarcodeForPageNumber(Bitmap image)
         {
             var (result, _) = ReadPageSerialOrFooterWithDiag(image, 1, 1, null);
             return result;
         }
 
-        /// <summary>Parses template JSON and reads each named zone from the appropriate scanned page.</summary>
         public Dictionary<string, string> DecodeTemplateZones(IList<Bitmap> pages, string? zonesJson)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -294,41 +365,33 @@ namespace ScannerApp.Services
         public List<string> ReadAllBarcodes(Bitmap image)
         {
             if (image == null || image.Width < 16) return new List<string>();
-            var results = IronRead(image, MakeOptsTight());
+            var results = ZxReadMultiple(image, MakeReaderMulti());
             if (results == null) return new List<string>();
-            return results.Select(r => r.Value).Where(v => !string.IsNullOrEmpty(v)).ToList()!;
+            return results.Select(r => r.Text).Where(v => !string.IsNullOrEmpty(v)).ToList()!;
         }
 
         public List<(string Format, string Text)> ReadAllBarcodesDetailed(Bitmap image)
         {
             if (image == null || image.Width < 16) return new List<(string, string)>();
-            var results = IronRead(image, MakeOptsRelaxed());
+            var results = ZxReadMultiple(image, MakeReaderRelaxedMulti());
             if (results == null) return new List<(string, string)>();
             return results
-                .Where(r => !string.IsNullOrEmpty(r.Value))
-                .Select(r => (r.BarcodeType.ToString(), r.Value!))
+                .Where(r => !string.IsNullOrEmpty(r.Text))
+                .Select(r => (r.BarcodeFormat.ToString(), r.Text!))
                 .ToList();
         }
 
-        // ── Private helpers ────────────────────────────────────────────────────
+        // ── Private helpers ──
 
-        /// <summary>
-        /// Try to read a page-serial barcode from a bitmap.
-        /// Uses Balanced then Detailed then ExtremeDetail — each with a fresh options instance.
-        /// Returns the first IsLikelyPageNumberPayload result.
-        /// </summary>
         private static string? TryReadSerial(Bitmap work)
         {
-            var r = FirstPageNumber(IronRead(work, MakeOptsFast()));
+            var r = FirstPageNumber(ZxRead(work, MakeReaderFast()));
             if (r != null) return r;
-            r = FirstPageNumber(IronRead(work, MakeOptsTight()));
+            r = FirstPageNumber(ZxRead(work, MakeReaderTight()));
             if (r != null) return r;
-            return FirstPageNumber(IronRead(work, MakeOptsRelaxed()));
+            return FirstPageNumber(ZxRead(work, MakeReaderRelaxed()));
         }
 
-        /// <summary>
-        /// Decode a bottom strip and return (filtered result, raw first value for diagnostics).
-        /// </summary>
         private static (string? Result, string? RawFirst) TryDecodeBottomStripWithRaw(Bitmap image, double frac, bool upsample)
         {
             try
@@ -341,15 +404,15 @@ namespace ScannerApp.Services
                 try
                 {
                     string? raw = null;
-                    foreach (var opts in new[] { MakeOptsFast(), MakeOptsTight(), MakeOptsRelaxed() })
+                    foreach (var reader in new[] { MakeReaderFast(), MakeReaderTight(), MakeReaderRelaxed() })
                     {
-                        var results = IronRead(work, opts);
+                        var results = ZxReadMultiple(work, reader);
                         if (results == null) continue;
                         foreach (var r in results)
                         {
-                            if (string.IsNullOrEmpty(r.Value)) continue;
-                            raw ??= r.Value;
-                            if (IsLikelyPageNumberPayload(r.Value)) return (r.Value.Trim(), r.Value);
+                            if (string.IsNullOrEmpty(r.Text)) continue;
+                            raw ??= r.Text;
+                            if (IsLikelyPageNumberPayload(r.Text)) return (r.Text.Trim(), r.Text);
                         }
                     }
                     return (null, raw);
@@ -359,7 +422,7 @@ namespace ScannerApp.Services
             catch { return (null, null); }
         }
 
-        private static string? TryDecodeBottomStrip(Bitmap image, double frac, bool upsample, BarcodeReaderOptions opts)
+        private static string? TryDecodeBottomStrip(Bitmap image, double frac, bool upsample, BarcodeReader reader)
         {
             try
             {
@@ -368,7 +431,7 @@ namespace ScannerApp.Services
                 using var strip = image.Clone(new Rectangle(0, y0, image.Width, stripH), image.PixelFormat);
                 Bitmap? upscaled = upsample ? UpsampleNearest(strip, 2) : null;
                 Bitmap work = upscaled ?? strip;
-                try { return FirstValue(IronRead(work, opts)); }
+                try { return FirstValue(ZxRead(work, reader)); }
                 finally { upscaled?.Dispose(); }
             }
             catch { return null; }
