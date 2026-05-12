@@ -9,6 +9,14 @@ namespace ScannerApp.Services
     /// </summary>
     public interface IScannerService
     {
+        /// <summary>
+        /// Optional pause gate honoured between individual page transfers.
+        /// When non-null and reset, the scan loop blocks until the gate is set again
+        /// or until the supplied <see cref="CancellationToken"/> fires. Lets the UI
+        /// pause the scanner mid-booklet without abandoning the device session.
+        /// </summary>
+        ManualResetEventSlim? PauseGate { get; set; }
+
         /// <summary>Returns the display names of all available scanners on this machine.</summary>
         IList<string> GetAvailableScanners();
 

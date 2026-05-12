@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using ScannerApp.Utils;
 
 namespace ScannerApp.Forms
 {
@@ -33,12 +34,13 @@ namespace ScannerApp.Forms
 
             BuildUI();
 
-            // Pre-populate from saved settings
+            // Pre-populate from saved settings, then fall back to the
+            // workstation-wide default declared in ScannerApp.exe.config.
             var saved = LoadSavedPath();
             if (!string.IsNullOrWhiteSpace(saved))
                 _txtPath.Text = saved;
             else
-                _txtPath.Text = Path.Combine(@"C:\ScanOutput");
+                _txtPath.Text = AppConfig.DefaultLocalStoragePath;
         }
 
         private void BuildUI()

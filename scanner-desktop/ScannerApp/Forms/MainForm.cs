@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using ScannerApp.Controls;
 using ScannerApp.Models;
 using ScannerApp.Services;
 using ScannerApp.Utils;
@@ -68,12 +69,12 @@ namespace ScannerApp.Forms
         private ProgressBar _progressBar    = null!;
         private Label      _lblStatus       = null!;
 
-        // ── Center panel controls ─────────────────────────────────────────────
-        private ListView   _lvPages         = null!;
-        private ImageList  _pageImages      = null!;
-        private PictureBox _picPreview      = null!;
+        // ── Center + right scan workspace ─────────────────────────────────────
+        private FitPreviewControl _picLiveCenter = null!;
         private Label      _lblScanPreviewMeta = null!;
         private Label      _lblBatchInfo    = null!;
+        private ListView   _lvPages         = null!;
+        private ImageList  _pageImages      = null!;
 
         // ── Bottom panel controls ─────────────────────────────────────────────
         private ListView   _lvQueue         = null!;
@@ -154,6 +155,7 @@ namespace ScannerApp.Forms
             _barcode = new BarcodeService();
             _serverBarcode = new ServerBarcodeApiService();
             _scanner = new ScannerService();   // default WIA; may swap to TWAIN after workstation load
+            _scanner.PauseGate = _pauseEvent;  // honour PAUSE / RESUME from MainForm
             InitializeComponent();
             LoadDesktopSettings();
             Load += MainForm_Load;
@@ -746,6 +748,7 @@ namespace ScannerApp.Forms
                 Padding     = new Padding(16),
                 BackColor   = ColorSurface,
             };
+            // Configuration | live / selected page (center) | scanned thumbnails (right)
             _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 24f));
             _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             _mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 26f));
@@ -753,8 +756,8 @@ namespace ScannerApp.Forms
             _mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 280f));
 
             _mainTable.Controls.Add(BuildLeftPanel(), 0, 0);
-            _mainTable.Controls.Add(BuildCenterPreviewPanel(), 1, 0);
-            _mainTable.Controls.Add(BuildRightPanel(), 2, 0);
+            _mainTable.Controls.Add(BuildCenterLivePreviewPanel(), 1, 0);
+            _mainTable.Controls.Add(BuildRightThumbnailsPanel(), 2, 0);
             var bottom = BuildBottomPanel();
             _mainTable.Controls.Add(bottom, 0, 1);
             _mainTable.SetColumnSpan(bottom, 3);
@@ -917,10 +920,13 @@ namespace ScannerApp.Forms
             _cboTemplate.SelectedIndexChanged += CboTemplate_Changed;
             er = AddCardRow(examBody, _cboTemplate, er);
 
+            // Read-only template details textbox is intentionally hidden — operators do not
+            // need this metadata in the scanning UI. Keep the field so RefreshTemplateDetailView
+            // calls still compile and run silently.
             _txtTemplateDetail = new TextBox
             {
                 Dock        = DockStyle.Top,
-                Height      = 140,
+                Height      = 0,
                 Font        = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
                 ForeColor   = ColorText,
                 BackColor   = ColorInputBg,
@@ -932,8 +938,8 @@ namespace ScannerApp.Forms
                 TabStop     = false,
                 Cursor      = Cursors.Default,
                 Text        = "Select a template above",
+                Visible     = false,
             };
-            AddCardRow(examBody, _txtTemplateDetail, er);
             stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             stack.Controls.Add(examCard, 0, row++);
 
@@ -1043,76 +1049,50 @@ namespace ScannerApp.Forms
             _chkUseServerBarcode.CheckedChanged += (_, _) =>
             {
                 _serverBarcode.Enabled = _chkUseServerBarcode.Checked;
-                _txtServerBarcodeUrl.Enabled = _chkUseServerBarcode.Checked;
                 SaveDesktopSettings();
                 SetStatus(_chkUseServerBarcode.Checked
-                    ? "Barcode mode: server API"
+                    ? $"Barcode mode: server API ({_serverBarcode.BaseUrl})"
                     : "Barcode mode: local reader", false);
             };
+            var ttChkSrv = new ToolTip();
+            ttChkSrv.SetToolTip(_chkUseServerBarcode,
+                $"When on, page barcodes are decoded by the server API configured in ScannerApp.exe.config (BarcodeApiBaseUrl = {_serverBarcode.BaseUrl}).");
             sr = AddCardRow(scanBody, _chkUseServerBarcode, sr);
 
+            // Server barcode URL is intentionally hidden — the URL is governed by
+            // ScannerApp.exe.config (BarcodeApiBaseUrl). Field is retained so existing
+            // references still compile, but it is never added to the visual tree.
             _txtServerBarcodeUrl = new TextBox
             {
                 Dock        = DockStyle.Top,
-                Height      = 32,
+                Height      = 0,
                 Font        = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point),
                 ForeColor   = ColorText,
                 BackColor   = ColorInputBg,
                 BorderStyle = BorderStyle.FixedSingle,
                 Text        = _serverBarcode.BaseUrl,
-                Enabled     = _serverBarcode.Enabled,
+                Visible     = false,
+                Enabled     = false,
             };
-            _txtServerBarcodeUrl.Leave += (_, _) =>
-            {
-                var url = (_txtServerBarcodeUrl.Text ?? "").Trim().TrimEnd('/');
-                _serverBarcode.BaseUrl = string.IsNullOrWhiteSpace(url) ? "http://localhost:8787" : url;
-                _txtServerBarcodeUrl.Text = _serverBarcode.BaseUrl;
-                SaveDesktopSettings();
-            };
-            var ttSrv = new ToolTip();
-            ttSrv.SetToolTip(_txtServerBarcodeUrl, "Example: http://localhost:8787");
-            AddCardRow(scanBody, _txtServerBarcodeUrl, sr);
 
             stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             stack.Controls.Add(scanCard, 0, row++);
 
-            // QC rescan (compact, still in left column)
-            var qcCard = new Panel
-            {
-                Dock         = DockStyle.Top,
-                Margin       = new Padding(0, 0, 0, 16),
-                BackColor    = ColorCard,
-                Padding      = new Padding(16),
-                AutoSize     = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            };
-            qcCard.Paint += PaintCardBorder;
+            // QC rescan card is intentionally hidden in the operator-facing UI.
+            // The QcRejectedForm still drives the same _txtQcRescanId value when
+            // the operator picks a rejected booklet from the list.
             _lblQcRescan = new Label
             {
-                Text      = "QC rescan — Booklet ID",
-                Font      = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point),
-                ForeColor = ColorMuted,
-                Dock      = DockStyle.Top,
-                AutoSize  = true,
+                Text     = "QC rescan — Booklet ID",
+                Visible  = false,
+                AutoSize = true,
             };
             _txtQcRescanId = new TextBox
             {
-                Dock        = DockStyle.Top,
-                Height      = 32,
-                Margin      = new Padding(0, 10, 0, 0),
-                Font        = new Font("Segoe UI", 10f, FontStyle.Regular, GraphicsUnit.Point),
-                BorderStyle = BorderStyle.FixedSingle,
-                BackColor   = ColorInputBg,
+                Height  = 0,
+                Visible = false,
+                Enabled = false,
             };
-            var ttRescan = new ToolTip();
-            ttRescan.SetToolTip(_txtQcRescanId,
-                "Optional. Enter the BookletID already stored on the server for a booklet that QC rejected. " +
-                "The next scan uses this ID as the folder name and upload key so the server replaces the same booklet (upsert). " +
-                "Use “QC rejected…” to pick one from the list.");
-            qcCard.Controls.Add(_lblQcRescan);
-            qcCard.Controls.Add(_txtQcRescanId);
-            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            stack.Controls.Add(qcCard, 0, row++);
 
             // 3. Action
             var actionCard = CreateSectionCard("ACTION", out var actBody);
@@ -1237,7 +1217,8 @@ namespace ScannerApp.Forms
             b.Cursor = Cursors.Hand;
         }
 
-        private Panel BuildCenterPreviewPanel()
+        /// <summary>Center column: live scanner view or selected page (fit entire page + optional page-serial highlight).</summary>
+        private Panel BuildCenterLivePreviewPanel()
         {
             var outer = new Panel { Dock = DockStyle.Fill, BackColor = ColorSurface, Padding = new Padding(8, 0, 8, 0) };
             var panel = new Panel { Dock = DockStyle.Fill, BackColor = ColorCard, Padding = new Padding(16) };
@@ -1254,15 +1235,15 @@ namespace ScannerApp.Forms
 
             var titleRow = new FlowLayoutPanel
             {
-                Dock         = DockStyle.Fill,
+                Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
-                AutoSize     = true,
-                Margin       = new Padding(0, 0, 0, 12),
+                WrapContents  = false,
+                AutoSize      = true,
+                Margin        = new Padding(0, 0, 0, 12),
             };
             var lblTitle = new Label
             {
-                Text      = "Scan preview",
+                Text      = "Live preview",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = ColorText,
                 AutoSize  = true,
@@ -1278,22 +1259,30 @@ namespace ScannerApp.Forms
             titleRow.Controls.Add(lblTitle);
             titleRow.Controls.Add(_lblScanPreviewMeta);
 
-            _picPreview = new PictureBox
+            _picLiveCenter = new FitPreviewControl
             {
                 Dock      = DockStyle.Fill,
-                SizeMode  = PictureBoxSizeMode.Zoom,
-                BackColor = ColorInputBg,
-                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.White,
             };
 
             layout.Controls.Add(titleRow, 0, 0);
-            layout.Controls.Add(_picPreview, 0, 1);
+            layout.Controls.Add(_picLiveCenter, 0, 1);
             panel.Controls.Add(layout);
             outer.Controls.Add(panel);
             return outer;
         }
 
-        private Panel BuildRightPanel()
+        private void ClearLivePreview()
+        {
+            try { (_picLiveCenter.PreviewImage as Bitmap)?.Dispose(); } catch { /* ignore */ }
+            _picLiveCenter.PreviewImage = null;
+            _picLiveCenter.SetBarcodeOverlay(null);
+            _picLiveCenter.TintBarcodeError = false;
+            _picLiveCenter.BackColor = Color.White;
+        }
+
+        /// <summary>Right column: scanned page thumbnails (pageserial zone tint on thumbs only).</summary>
+        private Panel BuildRightThumbnailsPanel()
         {
             var panel = new Panel { Dock = DockStyle.Fill, BackColor = ColorSurface, Padding = new Padding(8, 0, 0, 0) };
             var card = new Panel
@@ -1316,7 +1305,7 @@ namespace ScannerApp.Forms
 
             var hdr = new Label
             {
-                Text      = "Current booklet",
+                Text      = "Scanned pages",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold, GraphicsUnit.Point),
                 ForeColor = ColorText,
                 Dock      = DockStyle.Top,
@@ -1531,16 +1520,16 @@ namespace ScannerApp.Forms
             SetStatus("Loading settings…", true);
             try
             {
-                // 1. Storage path – use saved path, or silently fall back to default
+                // 1. Storage path – use saved path, fall back to the workstation
+                //    default declared in ScannerApp.exe.config (AppConfig).
                 _storagePath = StoragePathDialog.GetSavedPath() ?? "";
                 if (string.IsNullOrEmpty(_storagePath))
                 {
-                    // Auto-select default path on first run (no blocking dialog)
-                    _storagePath = Path.Combine(@"C:\ScanOutput");
+                    _storagePath = AppConfig.DefaultLocalStoragePath;
                     try { Directory.CreateDirectory(_storagePath); }
                     catch
                     {
-                        // Fallback to Desktop if C:\ is not writable
+                        // Fallback to Desktop if the configured path is not writable
                         _storagePath = Path.Combine(
                             Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                             "ScanOutput");
@@ -1693,6 +1682,7 @@ namespace ScannerApp.Forms
             {
                 _txtTemplateDetail.Text = "Select a template above";
             }
+            RefreshAllThumbnailZoneOverlays();
         }
 
         private void RefreshTemplateDetailView()
@@ -1803,6 +1793,10 @@ namespace ScannerApp.Forms
                 _scanner = new ScannerService();
                 _lblDriverMode.ForeColor = ColorAccent;
             }
+
+            // Hook the UI pause gate so the WIA / TWAIN loop honours the PAUSE button
+            // between page transfers.
+            _scanner.PauseGate = _pauseEvent;
 
             _chkTwainUi.Visible = _scanner is TwainScannerService;
             SyncTwainScannerUiFlag();
@@ -1926,7 +1920,7 @@ namespace ScannerApp.Forms
             };
             _currentPages.Add(sp);
 
-            var thumb = CreateThumbnail(rawBmp, _pageImages.ImageSize);
+            var thumb = CreatePageThumbnail(rawBmp, pageNum);
             _pageImages.Images.Add(thumb);
             var item = new ListViewItem($"P{pageNum}", _pageImages.Images.Count - 1)
             {
@@ -1937,8 +1931,10 @@ namespace ScannerApp.Forms
             };
             _lvPages.Items.Add(item);
 
-            try { _picPreview.Image?.Dispose(); } catch { }
-            _picPreview.Image = (Bitmap)rawBmp.Clone();
+            try { (_picLiveCenter.PreviewImage as Bitmap)?.Dispose(); } catch { }
+            _picLiveCenter.PreviewImage = (Bitmap)rawBmp.Clone();
+            _picLiveCenter.SetBarcodeOverlay(null);
+            _picLiveCenter.TintBarcodeError = false;
             SetStatus($"Page {pageNum} scanned (processing…)", true);
             UpdateScanWorkspaceLabels();
         }
@@ -1967,7 +1963,7 @@ namespace ScannerApp.Forms
                 if (imgIdx >= 0 && imgIdx < _pageImages.Images.Count)
                 {
                     _pageImages.Images[imgIdx]?.Dispose();
-                    _pageImages.Images[imgIdx] = CreateThumbnail(uiBmp, _pageImages.ImageSize);
+                    _pageImages.Images[imgIdx] = CreatePageThumbnail(uiBmp, pageNum);
                     _lvPages.Invalidate();
                 }
 
@@ -1976,8 +1972,10 @@ namespace ScannerApp.Forms
                 bool isLast = pageNum == _currentPages.Count;
                 if (isSelected || isLast)
                 {
-                    try { _picPreview.Image?.Dispose(); } catch { }
-                    _picPreview.Image = (Bitmap)uiBmp.Clone();
+                    try { (_picLiveCenter.PreviewImage as Bitmap)?.Dispose(); } catch { }
+                    _picLiveCenter.PreviewImage = (Bitmap)uiBmp.Clone();
+                    _picLiveCenter.SetBarcodeOverlay(sp?.PageSerialHighlight);
+                    _picLiveCenter.TintBarcodeError = false;
                 }
             }
             finally
@@ -2144,7 +2142,7 @@ namespace ScannerApp.Forms
             _currentPages.Clear();
             _lvPages.Items.Clear();
             _pageImages.Images.Clear();
-            _picPreview.Image = null;
+            ClearLivePreview();
             UpdateScanWorkspaceLabels();
 
             _scanCts = new CancellationTokenSource();
@@ -2279,11 +2277,16 @@ namespace ScannerApp.Forms
                 // serializes dozens of HTTP posts and inflates per-page wall time (scanner log: tail pages 10–40s).
                 int maxWorkers = useServerBarcode
                     ? Math.Clamp(totalPages, 12, 32)
-                    : Math.Clamp(Environment.ProcessorCount, 2, 6);
+                    : Math.Clamp(Environment.ProcessorCount + 2, 4, 10);
                 AppendActivity($"Barcode scan: starting parallel read ({maxWorkers} workers)…");
                 AppendActivity($"Barcode provider: {(useServerBarcode ? $"server ({_serverBarcode.BaseUrl})" : "local (inbuilt)")}");
 
-                await Task.Run(() =>
+                // Pause + Cancel are disabled while barcodes are read: the barcode pass
+                // mutates queue state and clears the workspace on first failure, so a
+                // mid-flight pause/cancel is not safely actionable. Buttons are restored
+                // when the phase exits (success, failure, or exception).
+                EnterBarcodePhaseUiState();
+                try { await Task.Run(() =>
                 {
                     // ZXing readers are created per-call — share the single _barcode instance
                     try
@@ -2317,6 +2320,7 @@ namespace ScannerApp.Forms
                                 string? lin = null, qr = null;
                                 string? footer = null;
                                 string diagInfo = "";
+                                Rectangle? highlightOnFinal = null;
 
                                 // Load bitmap via MemoryStream to release the file lock immediately.
                                 // new Bitmap(filePath) keeps the file locked until the bitmap is disposed.
@@ -2347,10 +2351,12 @@ namespace ScannerApp.Forms
                                     }
                                     else
                                     {
-                                        (string? r1, string d1) = useServerBarcode
+                                        (string? r1, string d1, Rectangle? b1) = useServerBarcode
                                             ? sbc.ReadPageSerialOrFooterWithDiagAsync(decBmp, pageNum, barcodeStart, zonesJson, ct).GetAwaiter().GetResult()
                                             : bc.ReadPageSerialOrFooterWithDiag(decBmp, pageNum, barcodeStart, zonesJson);
                                         footer = r1;
+                                        if (!string.IsNullOrEmpty(footer))
+                                            highlightOnFinal = b1;
                                         diagInfo = useServerBarcode
                                             ? $"[server pass1 {decW}x{decH}] {d1}"
                                             : $"[pass1 {decW}x{decH}] {d1}";
@@ -2362,32 +2368,24 @@ namespace ScannerApp.Forms
                                     AppLogger.Error($"P{pageNum}: load final JPEG for barcode failed: {ex.Message}", ex);
                                 }
 
-                                if (pageNum >= barcodeStart && string.IsNullOrEmpty(footer) && File.Exists(fpRaw))
-                                {
-                                    BeginInvoke(() => AppendActivity($"P{pageNum}: barcode retry (raw)…"));
-                                    try
-                                    {
-                                        using var rawBmp = new Bitmap(fpRaw);
-                                        (string? r2, string d2) = useServerBarcode
-                                            ? sbc.ReadPageSerialOrFooterWithDiagAsync(rawBmp, pageNum, barcodeStart, zonesJson, ct).GetAwaiter().GetResult()
-                                            : bc.ReadPageSerialOrFooterWithDiag(rawBmp, pageNum, barcodeStart, zonesJson);
-                                        footer = r2;
-                                        diagInfo += useServerBarcode
-                                            ? $"\n[server pass2-raw] {d2}"
-                                            : $"\n[pass2-raw] {d2}";
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        diagInfo += $"\n[pass2-raw] error: {ex.Message}";
-                                        AppLogger.Error($"P{pageNum}: pass2: {ex.Message}", ex);
-                                    }
-                                }
+                                // pass2-raw removed: the raw (untrimmed) image includes the scanner-bed gray
+                                // band that shifts zone % coordinates into empty space, guaranteeing failure
+                                // while burning 90–200 s. The trimmed final JPEG has the correct proportions.
 
                                 _pageBarcodesRealtime[pageNum] = footer;
                                 pageSw.Stop();
 
                                 string barcodeDisplay = pageNum >= barcodeStart ? (footer ?? "—") : (lin ?? qr ?? "—");
-                                string logLine = $"P{pageNum}: barcode={barcodeDisplay} ({pageSw.ElapsedMilliseconds} ms)";
+                                // For slow decodes (>500 ms) include the winning ROI tag from the diag
+                                // so the log makes it obvious which fallback rescued the page.
+                                string slowSuffix = "";
+                                if (pageSw.ElapsedMilliseconds > 500 && !string.IsNullOrEmpty(footer))
+                                {
+                                    var winTag = ExtractWinningRoiTag(diagInfo);
+                                    if (!string.IsNullOrEmpty(winTag))
+                                        slowSuffix = $" via {winTag}";
+                                }
+                                string logLine = $"P{pageNum}: barcode={barcodeDisplay} ({pageSw.ElapsedMilliseconds} ms){slowSuffix}";
                                 AppLogger.Info(logLine);
                                 BeginInvoke(() => AppendActivity(logLine));
 
@@ -2395,22 +2393,29 @@ namespace ScannerApp.Forms
                                 {
                                     bool ok = !string.IsNullOrEmpty(footer);
                                     string tip = ok ? $"{footer}\n---\n{diagInfo}" : $"FAILED\n---\n{diagInfo}";
-                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, ok, tip));
+                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, ok, tip, highlightOnFinal));
 
                                     if (!ok)
                                     {
                                         Interlocked.CompareExchange(ref failedAtPage, pageNum, 0);
                                         _barcodeFailureDetected = true;
+                                        var dumpDir = AppConfig.BarcodeFailureCropDir;
                                         AppLogger.Warn(
-                                            $"P{pageNum}: *** BARCODE FAILED (key={PageSerialZoneHelper.PrimaryZoneKey}) ***\n{diagInfo}");
-                                        BeginInvoke(() => AppendActivity($"P{pageNum}: *** BARCODE MISSING / UNREADABLE ***"));
+                                            $"P{pageNum}: *** BARCODE FAILED (key={PageSerialZoneHelper.PrimaryZoneKey}) ***\n" +
+                                            $"  template='{effectiveTemplate.TemplateName}' barcodeStartPage={barcodeStart}\n" +
+                                            $"  finalJpg={fpFinal}\n" +
+                                            $"  rawJpg={(File.Exists(fpRaw) ? fpRaw : "(none)")}\n" +
+                                            $"  zonesJson={(string.IsNullOrWhiteSpace(zonesJson) ? "(none)" : zonesJson)}\n" +
+                                            $"  failureCropDir={(string.IsNullOrWhiteSpace(dumpDir) ? "(disabled — set BarcodeFailureCropDir in app.config)" : dumpDir)}\n" +
+                                            $"  diag:\n{diagInfo}");
+                                        BeginInvoke(() => AppendActivity($"P{pageNum}: *** BARCODE MISSING / UNREADABLE *** (see log)"));
                                         loopState.Stop();
                                     }
                                 }
                                 else
                                 {
                                     string tip = lin ?? qr ?? "(cover page)";
-                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, true, tip));
+                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, true, tip, null));
                                 }
                             }
                             catch (Exception ex)
@@ -2422,7 +2427,7 @@ namespace ScannerApp.Forms
                                     _pageBarcodesRealtime[pageNum] = null;
                                     Interlocked.CompareExchange(ref failedAtPage, pageNum, 0);
                                     _barcodeFailureDetected = true;
-                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, false, $"exception: {ex.Message}"));
+                                    BeginInvoke(() => MarkPageBarcodeStatus(pageNum, false, $"exception: {ex.Message}", null));
                                     loopState.Stop();
                                 }
                             }
@@ -2430,7 +2435,11 @@ namespace ScannerApp.Forms
                     }
                     catch (OperationCanceledException) { }
                     finally { }
-                });
+                }); }
+                finally
+                {
+                    ExitBarcodePhaseUiState();
+                }
 
                 // Handle barcode failure or cancellation AFTER the loop exits (on UI thread)
                 if (ct.IsCancellationRequested)
@@ -2454,9 +2463,7 @@ namespace ScannerApp.Forms
                     _currentPages.Clear();
                     _lvPages.Items.Clear();
                     _pageImages.Images.Clear();
-                    try { _picPreview.Image?.Dispose(); } catch { }
-                    _picPreview.Image = null;
-                    _picPreview.BackColor = ColorInputBg;
+                    ClearLivePreview();
                     _pageBarcodesRealtime.Clear();
 
                     MessageBox.Show(
@@ -2494,8 +2501,7 @@ namespace ScannerApp.Forms
                     _currentPages.Clear();
                     _lvPages.Items.Clear();
                     _pageImages.Images.Clear();
-                    try { _picPreview.Image?.Dispose(); } catch { }
-                    _picPreview.Image = null;
+                    ClearLivePreview();
                     _pageBarcodesRealtime.Clear();
 
                     MessageBox.Show(
@@ -2716,7 +2722,7 @@ namespace ScannerApp.Forms
             _barcodeFailureDetected = false;
             _pageBarcodesRealtime.Clear();
             _pauseEvent.Set();
-            _picPreview.BackColor = ColorInputBg;
+            _picLiveCenter.BackColor = Color.White;
 
             _btnScan.Enabled     = false;
             _progressBar.Visible = true;
@@ -2729,6 +2735,8 @@ namespace ScannerApp.Forms
 
             _btnPause.Text      = "⏸ PAUSE";
             _btnPause.BackColor = Color.FromArgb(230, 160, 30);
+            _btnPause.Enabled   = true;
+            _btnCancel.Enabled  = true;
         }
 
         private void ExitScanningState()
@@ -2742,6 +2750,47 @@ namespace ScannerApp.Forms
 
             foreach (Control ctl in Controls)
                 ShowFlowRow(ctl, false);
+
+            _btnPause.Enabled  = true;
+            _btnCancel.Enabled = true;
+        }
+
+        /// <summary>
+        /// Called on the UI thread right before the parallel barcode read loop starts.
+        /// Pause + Cancel are disabled because the barcode pass mutates queue state and
+        /// clears the workspace on first failure — a mid-flight pause/cancel is not safe.
+        /// </summary>
+        private void EnterBarcodePhaseUiState()
+        {
+            void Apply()
+            {
+                if (_isPaused)
+                {
+                    _isPaused = false;
+                    _pauseEvent.Set();
+                    _btnPause.Text      = "⏸ PAUSE";
+                    _btnPause.BackColor = Color.FromArgb(230, 160, 30);
+                }
+                _btnPause.Enabled  = false;
+                _btnCancel.Enabled = false;
+                AppendActivity("Barcode read started — Pause / Cancel disabled");
+            }
+
+            if (InvokeRequired) BeginInvoke(Apply);
+            else Apply();
+        }
+
+        /// <summary>Re-enables the Pause + Cancel buttons after the barcode read loop completes.</summary>
+        private void ExitBarcodePhaseUiState()
+        {
+            void Apply()
+            {
+                _btnPause.Enabled  = _isScanning;
+                _btnCancel.Enabled = _isScanning;
+            }
+
+            if (InvokeRequired) BeginInvoke(Apply);
+            else Apply();
         }
 
         private static void ShowFlowRow(Control parent, bool visible)
@@ -2804,10 +2853,7 @@ namespace ScannerApp.Forms
             _currentPages.Clear();
             _lvPages.Items.Clear();
             _pageImages.Images.Clear();
-            try { _picPreview.Image?.Dispose(); }
-            catch { /* ignore */ }
-            _picPreview.Image = null;
-            _picPreview.BackColor = ColorInputBg;
+            ClearLivePreview();
             _pageBarcodesRealtime.Clear();
             UpdateScanWorkspaceLabels();
         }
@@ -2899,7 +2945,7 @@ namespace ScannerApp.Forms
             for (int i = 0; i < bitmaps.Count; i++)
             {
                 var bmp   = bitmaps[i];
-                var thumb = CreateThumbnail(bmp, _pageImages.ImageSize);
+                var thumb = CreatePageThumbnail(bmp, i + 1);
                 _pageImages.Images.Add(thumb);
 
                 var item = new ListViewItem($"P{i + 1}", i)
@@ -2915,7 +2961,10 @@ namespace ScannerApp.Forms
             if (_lvPages.Items.Count > 0)
             {
                 _lvPages.Items[0].Selected = true;
-                _picPreview.Image = bitmaps[0];
+                try { (_picLiveCenter.PreviewImage as Bitmap)?.Dispose(); } catch { }
+                _picLiveCenter.PreviewImage = (Bitmap)bitmaps[0].Clone();
+                _picLiveCenter.SetBarcodeOverlay(null);
+                _picLiveCenter.TintBarcodeError = false;
             }
 
             UpdateScanWorkspaceLabels();
@@ -2931,10 +2980,12 @@ namespace ScannerApp.Forms
                 {
                     var b = File.ReadAllBytes(_currentPages[idx].FilePath);
                     using var ms = new System.IO.MemoryStream(b);
-                    _picPreview.Image?.Dispose();
-                    _picPreview.Image = new Bitmap(ms);
+                    try { (_picLiveCenter.PreviewImage as Bitmap)?.Dispose(); } catch { /* ignore */ }
+                    _picLiveCenter.PreviewImage = new Bitmap(ms);
+                    _picLiveCenter.SetBarcodeOverlay(_currentPages[idx].PageSerialHighlight);
+                    _picLiveCenter.TintBarcodeError = _currentPages[idx].BarcodeOk == false;
                 }
-                catch { }
+                catch { /* keep previous image */ }
             }
 
             UpdateScanWorkspaceLabels();
@@ -3582,7 +3633,90 @@ namespace ScannerApp.Forms
             return thumb;
         }
 
+        /// <summary>Letterboxed thumbnail with optional <c>pageserialno</c> filled tint (right panel only).</summary>
+        private Bitmap CreatePageThumbnail(Bitmap src, int pageNumber1Based)
+        {
+            var thumb = CreateThumbnail(src, _pageImages.ImageSize);
+            var tpl = _selectedTemplate ?? _cboTemplate?.SelectedItem as ScanTemplate;
+            if (tpl != null && !string.IsNullOrWhiteSpace(tpl.BarcodeZonesJson))
+                StampPageSerialZoneOnThumbnail(thumb, src.Width, src.Height, tpl.BarcodeZonesJson, pageNumber1Based, tpl.BarcodeStartPage);
+            return thumb;
+        }
+
+        private static void StampPageSerialZoneOnThumbnail(
+            Bitmap thumb, int srcW, int srcH, string? zonesJson, int pageNumber1Based, int barcodeStartPage)
+        {
+            if (thumb == null || srcW < 16 || srcH < 16) return;
+            if (!PageSerialZoneHelper.TryGetPageSerialPixelRectangle(srcW, srcH, zonesJson, pageNumber1Based, barcodeStartPage, out var ir))
+                return;
+
+            var sz = thumb.Size;
+            float sc = Math.Min((float)sz.Width / srcW, (float)sz.Height / srcH);
+            int iw = (int)(srcW * sc), ih = (int)(srcH * sc);
+            int ox = (sz.Width - iw) / 2, oy = (sz.Height - ih) / 2;
+            int l = ox + (int)Math.Round(ir.X * sc);
+            int t = oy + (int)Math.Round(ir.Y * sc);
+            int r = ox + (int)Math.Round((ir.X + ir.Width) * sc);
+            int b = oy + (int)Math.Round((ir.Y + ir.Height) * sc);
+            var tr = new Rectangle(l, t, Math.Max(1, r - l), Math.Max(1, b - t));
+            tr.Intersect(new Rectangle(0, 0, sz.Width, sz.Height));
+            if (tr.Width < 2 || tr.Height < 2) return;
+
+            using var g = Graphics.FromImage(thumb);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var fill = new SolidBrush(Color.FromArgb(85, 255, 200, 40)))
+                g.FillRectangle(fill, tr);
+            using var pen = new Pen(Color.FromArgb(235, 0, 110, 55), Math.Max(1.2f, sz.Width / 36f));
+            g.DrawRectangle(pen, tr.X, tr.Y, tr.Width - 1, tr.Height - 1);
+        }
+
+        /// <summary>Re-tint thumbnails after template change (preserves barcode OK/✗ badge when known).</summary>
+        private void RefreshAllThumbnailZoneOverlays()
+        {
+            if (_pageImages == null || _lvPages == null) return;
+            for (int i = 0; i < _currentPages.Count && i < _pageImages.Images.Count; i++)
+            {
+                var path = _currentPages[i].FilePath;
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) continue;
+                try
+                {
+                    var bytes = File.ReadAllBytes(path);
+                    using var ms = new MemoryStream(bytes);
+                    using var bmp = new Bitmap(ms);
+                    _pageImages.Images[i]?.Dispose();
+                    var thumb = CreatePageThumbnail(bmp, i + 1);
+                    if (_currentPages[i].BarcodeOk is bool ok)
+                        StampBarcodeStatus(thumb, ok);
+                    _pageImages.Images[i] = thumb;
+                }
+                catch
+                {
+                    // skip
+                }
+            }
+
+            _lvPages.Invalidate();
+        }
+
         /// <summary>Draws a green tick or red cross badge on the bottom-right of an existing thumbnail.</summary>
+        /// <summary>
+        /// Pulls the winning ROI tag out of a BarcodeService diag string. The diag ends with
+        /// <c>... =&gt; &lt;tag&gt;-Nx "value" | totalMs=...</c> on a hit, where <c>tag</c> identifies which
+        /// crop (e.g. <c>zone-r45</c>, <c>br40</c>, <c>rot180-zone</c>) actually decoded.
+        /// Returns an empty string when no tag can be extracted.
+        /// </summary>
+        private static string ExtractWinningRoiTag(string? diag)
+        {
+            if (string.IsNullOrEmpty(diag)) return string.Empty;
+            int arrow = diag.LastIndexOf("=>", StringComparison.Ordinal);
+            if (arrow < 0) return string.Empty;
+            int start = arrow + 2;
+            while (start < diag.Length && diag[start] == ' ') start++;
+            int end = start;
+            while (end < diag.Length && diag[end] != ' ' && diag[end] != '"') end++;
+            return start < end ? diag.Substring(start, end - start) : string.Empty;
+        }
+
         private static void StampBarcodeStatus(Bitmap thumb, bool ok)
         {
             using var g = Graphics.FromImage(thumb);
@@ -3620,13 +3754,17 @@ namespace ScannerApp.Forms
         /// Updates the thumbnail badge, list item text, and tooltip for a page after barcode decode.
         /// Must be called on the UI thread.
         /// </summary>
-        private void MarkPageBarcodeStatus(int pageNum, bool ok, string? tooltipText = null)
+        private void MarkPageBarcodeStatus(int pageNum, bool ok, string? tooltipText = null, Rectangle? pageSerialHighlightOnFinal = null)
         {
             var sp = _currentPages.FirstOrDefault(p => p.PageNumber == pageNum);
             if (sp != null)
             {
                 sp.BarcodeOk   = ok;
                 sp.BarcodeData = tooltipText;
+                if (ok)
+                    sp.PageSerialHighlight = pageSerialHighlightOnFinal;
+                else
+                    sp.PageSerialHighlight = null;
             }
 
             int imgIdx = pageNum - 1;
@@ -3651,13 +3789,21 @@ namespace ScannerApp.Forms
                     : $"Page {pageNum} — BARCODE FAILED: {tooltipText}";
             }
 
-            if (!ok)
+            bool isSelected = _lvPages.SelectedItems.Count > 0
+                && _lvPages.SelectedItems[0].Tag is int selIdx && selIdx == imgIdx;
+            bool isLast = pageNum == _currentPages.Count;
+            if (isSelected || isLast)
             {
-                bool isSelected = _lvPages.SelectedItems.Count > 0
-                    && _lvPages.SelectedItems[0].Tag is int selIdx && selIdx == imgIdx;
-                bool isLast = pageNum == _currentPages.Count;
-                if (isSelected || isLast)
-                    _picPreview.BackColor = Color.FromArgb(254, 226, 226);
+                if (ok)
+                {
+                    _picLiveCenter.TintBarcodeError = false;
+                    _picLiveCenter.SetBarcodeOverlay(sp?.PageSerialHighlight);
+                }
+                else
+                {
+                    _picLiveCenter.TintBarcodeError = true;
+                    _picLiveCenter.SetBarcodeOverlay(null);
+                }
             }
         }
 
@@ -3856,5 +4002,7 @@ namespace ScannerApp.Forms
         public bool   IsPage1    { get; set; } = false;
         /// <summary>null = not yet decoded, true = barcode OK, false = missing/unreadable.</summary>
         public bool?  BarcodeOk  { get; set; }
+        /// <summary>Decoded page-serial barcode region in final page JPEG pixels (local ZXing path only).</summary>
+        public Rectangle? PageSerialHighlight { get; set; }
     }
 }

@@ -110,7 +110,8 @@ namespace ScannerApp.Utils
         public static Bitmap TrimBottomWhiteMargin(Bitmap src)
         {
             const int PadBottomPx = 14;
-            const double MaxTrimRatio = 0.12; // never remove more than 12% of the height
+            // Overscan past A4 often adds a tall gray scanner-bed band; allow stripping a larger tail.
+            const double MaxTrimRatio = 0.22;
 
             bool ownRgb = false;
             Bitmap rgb = src;
@@ -304,9 +305,11 @@ namespace ScannerApp.Utils
                 bottom = Math.Min(h - 1, bottom + MarginPx);
                 right  = Math.Min(w - 1, right  + MarginPx);
 
-                // Never crop more than 8% from top or bottom -- protects sparse handwriting
+                // Never crop more than 8% from top — protects sparse handwriting headers.
+                // Bottom allows up to 22% removal: scanners often deliver a tall gray
+                // scanner-bed band below the physical A4 page (200–300 px at 300 DPI).
                 int maxTopCrop    = (int)(h * 0.08);
-                int maxBottomCrop = (int)(h * 0.08);
+                int maxBottomCrop = (int)(h * 0.22);
                 if (top > maxTopCrop)    top    = maxTopCrop;
                 if (bottom < h - 1 - maxBottomCrop) bottom = h - 1 - maxBottomCrop;
 
@@ -332,7 +335,8 @@ namespace ScannerApp.Utils
         {
             long sumLum = 0;
             int dark = 0;
-            int leftIgnore = Math.Max(6, width / 16); // skip edge rails/shadows
+            int minLum = 255, maxLum = 0;
+            int leftIgnore = Math.Max(6, width / 16);
             int rightIgnore = width - leftIgnore;
             int span = Math.Max(1, rightIgnore - leftIgnore);
             for (int x = leftIgnore; x < rightIgnore; x++)
@@ -342,12 +346,24 @@ namespace ScannerApp.Utils
                 byte r = rowPtr[x * 3 + 2];
                 int lum = (r + g + b) / 3;
                 sumLum += lum;
+                if (lum < minLum) minLum = lum;
+                if (lum > maxLum) maxLum = lum;
                 if (r < threshold || g < threshold || b < threshold)
                     dark++;
             }
             double meanLum = (double)sumLum / span;
             int maxDarkNoise = Math.Max(12, span / 95);
-            return meanLum >= 244.0 && dark <= maxDarkNoise;
+
+            // Near-white row (original check).
+            if (meanLum >= 244.0 && dark <= maxDarkNoise)
+                return true;
+
+            // Uniform flat gray scanner-bed row: no text/ink contrast, just a homogeneous band.
+            int lumSpan = maxLum - minLum;
+            if (meanLum is >= 120.0 and <= 238.0 && lumSpan <= 50 && dark <= Math.Max(16, span / 60))
+                return true;
+
+            return false;
         }
 
         private static unsafe bool IsWhiteCol(byte* basePtr, int col, int height, int stride, int threshold)
@@ -370,14 +386,17 @@ namespace ScannerApp.Utils
         }
 
         /// <summary>
-        /// Scanner bed / appended white below the footer: very high mean brightness with only noise-level dark pixels.
-        /// Per-pixel "near white" counts fail on JPEG (many channels 245–247); mean + ink count is robust.
+        /// Scanner bed below the physical page: near-white padding, or uniform mid-gray (plastic bed /
+        /// roller) that TWAIN still delivers after "A4" — those rows must not count as page content or
+        /// <see cref="TrimBottomWhiteMargin"/> never advances past them (failure crops show gray under the barcode).
         /// </summary>
         private static unsafe bool IsEmptyScannerBedRow(byte* rowPtr, int xStart, int xEnd)
         {
             long sumLum = 0;
             int dark = 0;
             int veryDark = 0;
+            int minLum = 255;
+            int maxLum = 0;
             int span = Math.Max(1, xEnd - xStart);
             for (int x = xStart; x < xEnd; x++)
             {
@@ -386,6 +405,8 @@ namespace ScannerApp.Utils
                 byte r = rowPtr[x * 3 + 2];
                 int lum = (r + g + b) / 3;
                 sumLum += lum;
+                if (lum < minLum) minLum = lum;
+                if (lum > maxLum) maxLum = lum;
                 if (lum < 210) dark++;
                 if (lum < 175) veryDark++;
             }
@@ -393,9 +414,20 @@ namespace ScannerApp.Utils
             double meanLum = (double)sumLum / span;
             double darkDensity = dark / (double)span;
             double veryDarkDensity = veryDark / (double)span;
+            int lumSpan = maxLum - minLum;
 
-            // Tighter thresholds: only consider truly blank scanner-bed rows as empty.
-            // Sparse handwriting (light ink, few strokes) must survive this check.
+            // Near-white / JPEG-white padding below the sheet.
+            if (meanLum >= 243.0 && darkDensity <= Math.Max(0.006, 12.0 / span) && veryDarkDensity <= 0.0025)
+                return true;
+
+            // Uniform flat gray scanner bed (overscan past paper). Not barcode/text: low contrast across row.
+            if (meanLum is >= 118.0 and <= 236.0
+                && lumSpan <= 52
+                && darkDensity <= 0.014
+                && veryDarkDensity <= 0.004)
+                return true;
+
+            // Legacy near-blank row (very high mean, almost no ink).
             bool hasRealContent = meanLum < 246.0 || darkDensity > 0.005 || veryDarkDensity > 0.002;
             return !hasRealContent;
         }

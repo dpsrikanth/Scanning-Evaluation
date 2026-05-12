@@ -31,6 +31,9 @@ namespace ScannerApp.Services
         /// <summary>When true, the scanner driver's own UI is shown (useful for hardware troubleshooting).</summary>
         public bool UseScannerUi { get; set; }
 
+        /// <inheritdoc />
+        public ManualResetEventSlim? PauseGate { get; set; }
+
         public TwainScannerService(PrinterProfile? profile = null)
         {
             _profile = profile;
@@ -140,6 +143,14 @@ namespace ScannerApp.Services
                 var deadline = DateTime.UtcNow.AddMinutes(5);
                 while (DateTime.UtcNow < deadline && !cancellationToken.IsCancellationRequested)
                 {
+                    // Honour the UI pause gate between message-pump iterations so a
+                    // long booklet feed can be parked without abandoning the TWAIN session.
+                    if (PauseGate is { IsSet: false } gate)
+                    {
+                        try { gate.Wait(cancellationToken); }
+                        catch (OperationCanceledException) { break; }
+                    }
+
                     System.Windows.Forms.Application.DoEvents();
                     Thread.Sleep(50);
 

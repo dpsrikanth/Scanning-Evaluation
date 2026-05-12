@@ -6,8 +6,10 @@ using ScannerApp.Utils;
 namespace ScannerApp.Forms
 {
     /// <summary>
-    /// Professional login screen with a collapsible Settings panel.
-    /// Settings are persisted to %AppData%\ScannerApp\settings.json.
+    /// Professional login screen. The API server URL and default local storage
+    /// path are read from <c>ScannerApp.exe.config</c> (see <see cref="AppConfig"/>),
+    /// so the only thing the operator is asked for here is the credentials.
+    /// "Remember username" is persisted to %AppData%\ScannerApp\settings.json.
     /// </summary>
     public class LoginForm : Form
     {
@@ -20,19 +22,11 @@ namespace ScannerApp.Forms
         private Button  _btnLogin     = null!;
         private Button  _btnClose     = null!;
         private Label   _lblStatus    = null!;
-        private Button  _btnSettings  = null!;
         private Panel   _pnlConnStatus = null!;
         private Label   _lblServerValue = null!;
         private Label   _lblScannerValue = null!;
         private Label   _lblScannerDetail = null!;
-
-        // ── Settings panel controls ───────────────────────────────────────────
-        private Panel   _settingsPanel   = null!;
-        private TextBox _txtServerUrl    = null!;
-        private TextBox _txtStoragePath  = null!;
-        private Button  _btnBrowsePath   = null!;
         private CheckBox _chkRememberUser = null!;
-        private bool    _settingsVisible  = false;
 
         private System.Windows.Forms.Timer? _connPollTimer;
         private System.Windows.Forms.Timer? _scannerHotplugTimer;
@@ -41,8 +35,8 @@ namespace ScannerApp.Forms
         private float _loginDpiScale = 1f;
 
         // ── Layout constants ──────────────────────────────────────────────────
-        private const int FormWidthCollapsed  = 440;
-        private const int FormHeightCollapsed = 560;
+        private const int FormWidth  = 440;
+        private const int FormHeight = 540;
 
         // ── Colors (match main app design system) ─────────────────────────────
         private static readonly Color C_PrimaryDark = Color.FromArgb(0x30, 0x3F, 0x9F);
@@ -55,12 +49,13 @@ namespace ScannerApp.Forms
         private static readonly Color C_Success     = Color.FromArgb(0x10, 0xB9, 0x81);
         private static readonly Color C_Danger      = Color.FromArgb(0xEF, 0x44, 0x44);
         private static readonly Color C_Border      = Color.FromArgb(0xE5, 0xE7, 0xEB);
-        private static readonly Color C_SettingsBg  = Color.FromArgb(0xF3, 0xF4, 0xF6);
-        private static readonly Color C_SettingsBorder = C_Border;
 
         public LoginForm(ApiService api)
         {
             _api = api;
+            // ApiService already reads its default BaseUrl from AppConfig; keep it
+            // authoritative so any code path that touches _api during login agrees.
+            _api.BaseUrl = AppConfig.ApiBaseUrl;
             BuildForm();
             LoadPersistedSettings();
         }
@@ -75,8 +70,8 @@ namespace ScannerApp.Forms
             float dpiScale = Math.Max(1f, g.DpiX / 96f);
             _loginDpiScale = dpiScale;
 
-            int w = (int)(FormWidthCollapsed * dpiScale);
-            int h = (int)(FormHeightCollapsed * dpiScale);
+            int w = (int)(FormWidth * dpiScale);
+            int h = (int)(FormHeight * dpiScale);
 
             Text            = $"Scanning Station — Login — {AppVersion.GetTitleSuffix()}";
             Size            = new Size(w, h);
@@ -141,19 +136,16 @@ namespace ScannerApp.Forms
             {
                 Dock        = DockStyle.Fill,
                 ColumnCount = 3,
-                RowCount    = 6,
+                RowCount    = 3,
                 BackColor   = C_Surface,
                 Padding     = new Padding((int)(16 * dpiScale), (int)(16 * dpiScale), (int)(16 * dpiScale), (int)(12 * dpiScale)),
             };
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             body.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            body.RowStyles.Add(new RowStyle(SizeType.Percent, 38f));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
             body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, (int)(24 * dpiScale)));
-            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            body.RowStyles.Add(new RowStyle(SizeType.Percent, 62f));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
             int cardW = (int)(360 * dpiScale);
             int innerW = cardW - (int)(40 * dpiScale);
@@ -352,86 +344,7 @@ namespace ScannerApp.Forms
 
             card.Controls.Add(cardStack);
 
-            _btnSettings = new Button
-            {
-                Text      = "Settings",
-                Width     = cardW,
-                Height    = (int)(38 * dpiScale),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = C_SettingsBg,
-                ForeColor = C_Muted,
-                Font      = new Font("Segoe UI", 9.5f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
-                Cursor    = Cursors.Hand,
-                TextAlign = ContentAlignment.MiddleCenter,
-            };
-            _btnSettings.FlatAppearance.BorderColor = C_SettingsBorder;
-            _btnSettings.FlatAppearance.BorderSize  = 1;
-            _btnSettings.Margin = new Padding(0, (int)(8 * dpiScale), 0, (int)(6 * dpiScale));
-            _btnSettings.Click += BtnSettings_Click;
-
-            _settingsPanel = new Panel
-            {
-                Width     = cardW,
-                BackColor = C_SettingsBg,
-                Visible   = false,
-                Padding   = new Padding((int)(12 * dpiScale), (int)(10 * dpiScale), (int)(12 * dpiScale), (int)(10 * dpiScale)),
-            };
-            _settingsPanel.Paint += (s, e) =>
-            {
-                ControlPaint.DrawBorder(e.Graphics,
-                    new Rectangle(0, 0, _settingsPanel.Width, _settingsPanel.Height),
-                    C_SettingsBorder, ButtonBorderStyle.Solid);
-            };
-
-            int sy = (int)(8 * dpiScale);
-            var lblUrl = MakeFieldLabel("API Server URL", dpiScale);
-            lblUrl.Location = new Point(_settingsPanel.Padding.Left, sy);
-            lblUrl.AutoSize = true;
-            sy += (int)(22 * dpiScale);
-            int settingsInnerW = cardW - _settingsPanel.Padding.Horizontal;
-            _txtServerUrl = MakeSettingsTextBox(settingsInnerW, dpiScale);
-            _txtServerUrl.Location = new Point(_settingsPanel.Padding.Left, sy);
-            _txtServerUrl.Text = "http://localhost:4000";
-            _txtServerUrl.Leave += async (_, _) => await CheckConnectivityAsync();
-            sy += (int)(40 * dpiScale);
-
-            var lblPath = MakeFieldLabel("Local Storage Path", dpiScale);
-            lblPath.Location = new Point(_settingsPanel.Padding.Left, sy);
-            lblPath.AutoSize = true;
-            sy += (int)(22 * dpiScale);
-            int pathFieldW = Math.Max(120, settingsInnerW - (int)(46 * dpiScale));
-            _txtStoragePath = MakeSettingsTextBox(pathFieldW, dpiScale);
-            _txtStoragePath.Location = new Point(_settingsPanel.Padding.Left, sy);
-            _btnBrowsePath = new Button
-            {
-                Text      = "…",
-                Location  = new Point(_settingsPanel.Padding.Left + pathFieldW + 4, sy - 1),
-                Size      = new Size((int)(38 * dpiScale), (int)(32 * dpiScale)),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = C_InputBg,
-                ForeColor = C_Text,
-            };
-            _btnBrowsePath.FlatAppearance.BorderColor = C_Border;
-            _btnBrowsePath.Click += BtnBrowsePath_Click;
-            sy += (int)(44 * dpiScale);
-
-            _settingsPanel.Height = sy + (int)(12 * dpiScale);
-            _settingsPanel.Controls.AddRange(new Control[]
-            {
-                lblUrl, _txtServerUrl,
-                lblPath, _txtStoragePath, _btnBrowsePath,
-            });
-
-            var spacerBelowCard = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-            };
-
             body.Controls.Add(card, 1, 1);
-            body.Controls.Add(spacerBelowCard, 1, 2);
-            body.Controls.Add(_btnSettings, 1, 3);
-            body.Controls.Add(_settingsPanel, 1, 4);
 
             root.Controls.Add(header, 0, 0);
             root.Controls.Add(body, 0, 1);
@@ -467,29 +380,8 @@ namespace ScannerApp.Forms
             };
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  Settings toggle
-        // ─────────────────────────────────────────────────────────────────────
-
-        private void BtnSettings_Click(object? sender, EventArgs e)
-        {
-            _settingsVisible = !_settingsVisible;
-
-            int baseH = (int)(FormHeightCollapsed * _loginDpiScale);
-            if (_settingsVisible)
-            {
-                _settingsPanel.Visible = true;
-                Height              = baseH + _settingsPanel.Height + (int)(16 * _loginDpiScale);
-                _btnSettings.Text   = "Settings  ▲";
-                _ = CheckConnectivityAsync();
-            }
-            else
-            {
-                _settingsPanel.Visible = false;
-                Height            = baseH;
-                _btnSettings.Text = "Settings";
-            }
-        }
+        // suppress unused-warning for the unused dpi scale field if needed
+        private void TouchDpi() { _ = _loginDpiScale; }
 
         private readonly record struct ScannerUiSnapshot(bool Ok, ScannerDevice? Primary, bool NetworkSourcesOnly);
 
@@ -551,7 +443,7 @@ namespace ScannerApp.Forms
             int gen = Interlocked.Increment(ref _connectivityGeneration);
             Interlocked.Increment(ref _scannerUiGeneration);
 
-            var url = _txtServerUrl?.Text?.Trim().TrimEnd('/') ?? "";
+            var url = AppConfig.ApiBaseUrl;
 
             _lblServerValue.Text = "Checking…";
             _lblServerValue.ForeColor = C_Muted;
@@ -576,14 +468,14 @@ namespace ScannerApp.Forms
                     _api.BaseUrl = saved;
                     if (gen != Volatile.Read(ref _connectivityGeneration)) return;
                     if (IsDisposed) return;
-                    _lblServerValue.Text = ok ? "Online" : "Offline";
+                    _lblServerValue.Text = ok ? $"Online · {url}" : $"Offline · {url}";
                     _lblServerValue.ForeColor = ok ? C_Success : C_Danger;
                 }
                 catch
                 {
                     if (gen != Volatile.Read(ref _connectivityGeneration)) return;
                     if (IsDisposed) return;
-                    _lblServerValue.Text = "Offline";
+                    _lblServerValue.Text = $"Offline · {url}";
                     _lblServerValue.ForeColor = C_Danger;
                 }
             }
@@ -604,20 +496,6 @@ namespace ScannerApp.Forms
             ApplyScannerLabels(snap);
         }
 
-        private void BtnBrowsePath_Click(object? sender, EventArgs e)
-        {
-            using var dlg = new FolderBrowserDialog
-            {
-                Description         = "Select local folder for scanned booklets",
-                UseDescriptionForTitle = true,
-            };
-            if (!string.IsNullOrWhiteSpace(_txtStoragePath.Text) && Directory.Exists(_txtStoragePath.Text))
-                dlg.InitialDirectory = _txtStoragePath.Text;
-
-            if (dlg.ShowDialog() == DialogResult.OK)
-                _txtStoragePath.Text = dlg.SelectedPath;
-        }
-
         // ─────────────────────────────────────────────────────────────────────
         //  Login logic
         // ─────────────────────────────────────────────────────────────────────
@@ -628,26 +506,13 @@ namespace ScannerApp.Forms
             _btnClose.Enabled = false;
             SetStatus("Signing in…", C_Muted);
 
-            // Apply settings before login
-            var url = _txtServerUrl.Text.Trim().TrimEnd('/');
-            if (!string.IsNullOrWhiteSpace(url))
-                _api.BaseUrl = url;
+            // BaseUrl is fixed by AppConfig; do not let stale state drift.
+            _api.BaseUrl = AppConfig.ApiBaseUrl;
 
             try
             {
                 await _api.LoginAsync(_txtUsername.Text.Trim(), _txtPassword.Text);
-
-                // Persist settings
                 SaveSettings();
-
-                // Apply storage path override if set
-                var storagePath = _txtStoragePath.Text.Trim();
-                if (!string.IsNullOrWhiteSpace(storagePath))
-                {
-                    try { Directory.CreateDirectory(storagePath); }
-                    catch { }
-                    StoragePathDialog.SaveDefaultPath(storagePath);
-                }
 
                 SetStatus($"Welcome, {_api.CurrentUser?.FullName}", C_Success);
                 await Task.Delay(400);
@@ -670,7 +535,7 @@ namespace ScannerApp.Forms
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        //  Settings persistence
+        //  Settings persistence — only username (URL/path live in app.config)
         // ─────────────────────────────────────────────────────────────────────
 
         private static readonly string SettingsDir  =
@@ -687,11 +552,7 @@ namespace ScannerApp.Forms
                 var obj  = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
                 if (obj == null) return;
 
-                if (obj.TryGetValue("apiUrl",      out var url)  && !string.IsNullOrWhiteSpace(url))
-                    _txtServerUrl.Text  = url;
-                if (obj.TryGetValue("storagePath", out var path) && !string.IsNullOrWhiteSpace(path))
-                    _txtStoragePath.Text = path;
-                if (obj.TryGetValue("username",    out var user) && !string.IsNullOrWhiteSpace(user))
+                if (obj.TryGetValue("username", out var user) && !string.IsNullOrWhiteSpace(user))
                 {
                     _txtUsername.Text    = user;
                     _chkRememberUser.Checked = true;
@@ -716,8 +577,6 @@ namespace ScannerApp.Forms
                     catch { }
                 }
 
-                existing["apiUrl"]      = _api.BaseUrl;
-                existing["storagePath"] = _txtStoragePath.Text.Trim();
                 if (_chkRememberUser.Checked)
                     existing["username"] = _txtUsername.Text.Trim();
                 else
@@ -750,16 +609,6 @@ namespace ScannerApp.Forms
             BackColor    = C_InputBg,
             ForeColor    = C_Text,
             PasswordChar = password ? '●' : '\0',
-        };
-
-        private static TextBox MakeSettingsTextBox(int width, float dpiScale) => new TextBox
-        {
-            Height      = (int)(32 * dpiScale),
-            Width       = width,
-            Font        = new Font("Segoe UI", 10f * dpiScale, FontStyle.Regular, GraphicsUnit.Point),
-            BorderStyle = BorderStyle.FixedSingle,
-            BackColor   = C_InputBg,
-            ForeColor   = C_Text,
         };
 
         private static void PaintRoundedBorder(object? sender, PaintEventArgs e)

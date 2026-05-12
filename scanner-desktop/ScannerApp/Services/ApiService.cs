@@ -22,7 +22,7 @@ namespace ScannerApp.Services
             NullValueHandling = NullValueHandling.Ignore
         };
 
-        public string BaseUrl { get; set; } = "http://localhost:4000";
+        public string BaseUrl { get; set; } = AppConfig.ApiBaseUrl;
         public bool IsAuthenticated => !string.IsNullOrEmpty(_token);
         public UserInfo? CurrentUser { get; private set; }
 
@@ -30,7 +30,7 @@ namespace ScannerApp.Services
         {
             _client = new HttpClient();
             _client.Timeout = TimeSpan.FromSeconds(120);
-            AppLogger.Info($"ApiService initialised — BaseUrl={BaseUrl} Timeout=120s");
+            AppLogger.Info($"ApiService initialised — BaseUrl={BaseUrl} Timeout=120s (default from app.config)");
         }
 
         public void SetToken(string token)

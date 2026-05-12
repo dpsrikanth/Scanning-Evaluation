@@ -162,7 +162,7 @@ namespace ScannerApp.Models
         /// <summary>1-based page index to start footer page-number barcode checks (default 3).</summary>
         public int BarcodeStartPage { get; set; } = 3;
         /// <summary>JSON array of barcode/QR zones (see <see cref="TemplateBarcodeZone"/>).
-        /// Reserved name <c>pageserialno</c> (alias <c>pagevalno</c>): per-page page-index barcode region — see <c>PageSerialZoneHelper</c> in desktop utils.</summary>
+        /// Reserved name <c>pageserialno</c> (alias <c>pagevalno</c>): must be present for template validation; the scanner reads the page-index barcode from this zone when it applies to the page, with bottom-right corner fallbacks if decode fails.</summary>
         public string? BarcodeZonesJson { get; set; }
         /// <summary>immediate | every_4h | every_8h | every_12h | end_of_day | custom</summary>
         public string UploadScheduleMode { get; set; } = "immediate";

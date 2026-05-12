@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.Net.Http;
 using System.Text;
 using Newtonsoft.Json;
+using ScannerApp.Utils;
 
 namespace ScannerApp.Services
 {
@@ -25,8 +26,8 @@ namespace ScannerApp.Services
             Timeout = TimeSpan.FromSeconds(120),
         };
 
-        public bool Enabled { get; set; }
-        public string BaseUrl { get; set; } = "http://localhost:8787";
+        public bool Enabled { get; set; } = AppConfig.UseServerBarcode;
+        public string BaseUrl { get; set; } = AppConfig.BarcodeApiBaseUrl;
 
         public async Task<(string? LinearText, string? QrText, string Diag)> ReadLinearAndQrParallelAsync(
             Bitmap image, CancellationToken ct)
@@ -40,7 +41,7 @@ namespace ScannerApp.Services
             return (resp.LinearText, resp.QrText, resp.Diag ?? "");
         }
 
-        public async Task<(string? Result, string Diag)> ReadPageSerialOrFooterWithDiagAsync(
+        public async Task<(string? Result, string Diag, Rectangle? BoundsOnImage)> ReadPageSerialOrFooterWithDiagAsync(
             Bitmap image,
             int pageNumber1Based,
             int barcodeStartPage1Based,
@@ -57,7 +58,7 @@ namespace ScannerApp.Services
             };
 
             var resp = await DecodeAsync(req, ct).ConfigureAwait(false);
-            return (resp.BarcodeValue, resp.Diag ?? "");
+            return (resp.BarcodeValue, resp.Diag ?? "", null);
         }
 
         private async Task<DecodeResponse> DecodeAsync(DecodeRequest req, CancellationToken ct)

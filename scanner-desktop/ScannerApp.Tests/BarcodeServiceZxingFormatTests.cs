@@ -26,7 +26,7 @@ public class BarcodeServiceZxingFormatTests
     }
 
     [Fact]
-    public void ReadPageSerialOrFooter_UsesZoneWhenPresent()
+    public void ReadPageSerialOrFooter_WithZoneJson_DoesNotThrow_ZoneUsedWhenPresent()
     {
         const string zonesJson =
             """[{"zoneName":"pageserialno","pageScope":"fromPage","pageNumber":1,"xPct":0,"yPct":0,"wPct":100,"hPct":100,"hint":"ANY"}]""";

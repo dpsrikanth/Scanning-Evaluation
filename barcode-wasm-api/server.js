@@ -11,11 +11,13 @@ const PORT = Number(process.env.PORT || 8787);
 const PAGE_SERIAL_KEY = "pageserialno";
 const LOG_LEVEL = String(process.env.LOG_LEVEL || "info").toLowerCase();
 const JPEG_QUALITY = 78;
-/** Max width/height passed to ZXing (inside fit); lowers WASM CPU time on large strips. */
+/** Max width/height passed to ZXing (inside fit); lowers WASM CPU time on large crops. */
 const DECODE_MAX_EDGE = Math.max(512, Math.min(2048, Number(process.env.BARCODE_DECODE_MAX_EDGE || 1200)));
-
-const BOTTOM_FRACTIONS = [0.1, 0.15, 0.2, 0.28, 0.4, 0.5];
-const BOTTOM_FRACTIONS_UPSAMPLE = [0.15, 0.25, 0.4];
+/** Page-serial corner crops: allow larger "inside" cap so tall scans are not over-shrunk before ZXing. */
+const PAGE_SERIAL_MAX_EDGE = Math.max(
+  512,
+  Math.min(4096, Number(process.env.BARCODE_PAGE_SERIAL_MAX_EDGE || Math.max(DECODE_MAX_EDGE, 3200)))
+);
 
 /** @type {"readBarcodes"|"readBarcode"|null} */
 let zxingReaderKind = null;
@@ -74,6 +76,25 @@ function cleanBase64(input) {
   return b64.trim();
 }
 
+function isProbablyQrFormat(format) {
+  const f = String(format || "").toUpperCase();
+  return (
+    f.includes("QR") ||
+    f.includes("DATA_MATRIX") ||
+    f.includes("PDF_417") ||
+    f.includes("AZTEC")
+  );
+}
+
+/** Match desktop BarcodeService.LooksLikeSerialToken (linear barcodes near page serial). */
+function looksLikeSerialToken(text) {
+  if (!text) return false;
+  const t = String(text).trim();
+  if (t.length < 1 || t.length > 48) return false;
+  if (!/\d/.test(t)) return false;
+  return /^[\w.-]+$/.test(t);
+}
+
 /** Match desktop BarcodeService.IsLikelyPageNumberPayload */
 function isLikelyPageNumberPayload(text) {
   if (!text) return false;
@@ -112,93 +133,6 @@ async function decodeAll(imageBuffer) {
   throw new Error("zxing-wasm reader API not found");
 }
 
-function pickField(obj, ...keys) {
-  for (const k of keys) {
-    if (obj != null && obj[k] != null && obj[k] !== "") return obj[k];
-  }
-  return undefined;
-}
-
-/**
- * @param {unknown} raw
- * @returns {{ zoneName: string; pageScope: string; pageNumber: number; xPct: number; yPct: number; wPct: number; hPct: number } | null}
- */
-function normalizeTemplateZone(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const z = raw;
-  const zoneName = String(pickField(z, "ZoneName", "zoneName") ?? "").trim();
-  if (!zoneName) return null;
-  return {
-    zoneName,
-    pageScope: String(pickField(z, "PageScope", "pageScope") ?? "first").trim() || "first",
-    pageNumber: Number(pickField(z, "PageNumber", "pageNumber") ?? 1) || 1,
-    xPct: Number(pickField(z, "XPct", "xPct") ?? 0),
-    yPct: Number(pickField(z, "YPct", "yPct") ?? 0),
-    wPct: Number(pickField(z, "WPct", "wPct") ?? 0),
-    hPct: Number(pickField(z, "HPct", "hPct") ?? 0),
-  };
-}
-
-function isReservedPageSerialName(name) {
-  if (!name || typeof name !== "string") return false;
-  const n = name.trim();
-  return n.toLowerCase() === PAGE_SERIAL_KEY || n.toLowerCase() === "pagevalno";
-}
-
-/** @param {string | null | undefined} zonesJson */
-function parseZonesArray(zonesJson) {
-  if (!zonesJson || typeof zonesJson !== "string" || !zonesJson.trim()) return null;
-  try {
-    const parsed = JSON.parse(zonesJson);
-    if (!Array.isArray(parsed)) return null;
-    return parsed.map(normalizeTemplateZone).filter(Boolean);
-  } catch {
-    return null;
-  }
-}
-
-/** @param {ReturnType<parseZonesArray>} zones */
-function findPageSerialZone(zones) {
-  if (!zones) return null;
-  for (const z of zones) {
-    if (isReservedPageSerialName(z.zoneName)) return z;
-  }
-  return null;
-}
-
-/**
- * @param {NonNullable<ReturnType<findPageSerialZone>>} z
- * @param {number} pageNumber1Based
- * @param {number} barcodeStartPage1Based
- */
-function shouldApplyPageSerialZone(z, pageNumber1Based, barcodeStartPage1Based) {
-  if (!isReservedPageSerialName(z.zoneName)) return false;
-  const start = Math.max(1, barcodeStartPage1Based);
-  if (pageNumber1Based < start) return false;
-
-  if (z.pageScope.toLowerCase() === "first") {
-    if (isReservedPageSerialName(z.zoneName)) return pageNumber1Based >= start;
-    return pageNumber1Based === 1;
-  }
-
-  const fromPg = z.pageNumber > 0 ? z.pageNumber : 1;
-  const effectiveFrom = Math.max(start, fromPg);
-  return pageNumber1Based >= effectiveFrom;
-}
-
-/**
- * @param {number} imgW
- * @param {number} imgH
- * @param {NonNullable<ReturnType<normalizeTemplateZone>>} z
- */
-function zoneToRectangle(imgW, imgH, z) {
-  const px = Math.round((imgW * z.xPct) / 100);
-  const py = Math.round((imgH * z.yPct) / 100);
-  const pw = Math.max(8, Math.round((imgW * z.wPct) / 100));
-  const ph = Math.max(8, Math.round((imgH * z.hPct) / 100));
-  return { left: px, top: py, width: pw, height: ph };
-}
-
 /**
  * @param {{ left: number; top: number; width: number; height: number }} rect
  * @param {number} iw
@@ -212,23 +146,147 @@ function intersectRect(rect, iw, ih) {
   return { left, top, width, height };
 }
 
+/** Bottom-right corner from (frac×W, frac×H) to corner; 50% / 45% / 40% (matches desktop). */
+function bottomRightCornerRegions(imgW, imgH) {
+  const specs = [
+    [0.5, "50"],
+    [0.45, "45"],
+    [0.4, "40"],
+  ];
+  return specs.map(([frac, tag]) => {
+    let left = Math.floor(imgW * frac);
+    let top = Math.floor(imgH * frac);
+    left = Math.max(0, Math.min(left, imgW - 8));
+    top = Math.max(0, Math.min(top, imgH - 8));
+    return {
+      left,
+      top,
+      width: Math.max(8, imgW - left),
+      height: Math.max(8, imgH - top),
+      tag,
+    };
+  });
+}
+
+function parseZonesArray(zonesJson) {
+  if (!zonesJson || typeof zonesJson !== "string") return null;
+  try {
+    const arr = JSON.parse(zonesJson);
+    return Array.isArray(arr) ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+function isReservedPageSerialName(name) {
+  if (!name || typeof name !== "string") return false;
+  const n = name.trim().toLowerCase();
+  return n === "pageserialno" || n === "pagevalno";
+}
+
+function findPageSerialZoneFromJson(zonesJson) {
+  const zones = parseZonesArray(zonesJson);
+  if (!zones) return null;
+  for (const z of zones) {
+    if (z && typeof z === "object" && isReservedPageSerialName(z.zoneName)) return z;
+  }
+  return null;
+}
+
+/** Match desktop PageSerialZoneHelper.ShouldApplyPageSerialZone */
+function shouldApplyPageSerialZoneJs(z, pageNumber1Based, barcodeStartPage1Based) {
+  if (!z || !isReservedPageSerialName(z.zoneName)) return false;
+  const start = Math.max(1, Math.floor(Number(barcodeStartPage1Based)) || 0);
+  if (pageNumber1Based < start) return false;
+  const scope = String(z.pageScope || "first").toLowerCase();
+  if (scope === "first") return pageNumber1Based >= start;
+  const fromPg = z.pageNumber > 0 ? z.pageNumber : 1;
+  const effectiveFrom = Math.max(start, fromPg);
+  return pageNumber1Based >= effectiveFrom;
+}
+
+/** Match desktop PageSerialZoneHelper.ZoneToRectanglePixels */
+function zoneToRectPixelsJs(iw, ih, z) {
+  const px = Math.round((Number(z.xPct) || 0) * iw / 100);
+  const py = Math.round((Number(z.yPct) || 0) * ih / 100);
+  const pw = Math.max(8, Math.round((Number(z.wPct) || 0) * iw / 100));
+  const ph = Math.max(8, Math.round((Number(z.hPct) || 0) * ih / 100));
+  return { left: px, top: py, width: pw, height: ph };
+}
+
+/** Match desktop InflateRectangleWithin: pad each side, clamp to image. */
+function inflateRectWithin(left, top, width, height, padX, padY, iw, ih) {
+  const nl = left - padX;
+  const nt = top - padY;
+  const nr = left + width + padX;
+  const nb = top + height + padY;
+  const cl = Math.max(0, nl);
+  const ct = Math.max(0, nt);
+  const cr = Math.min(iw, nr);
+  const cb = Math.min(ih, nb);
+  return { left: cl, top: ct, width: Math.max(0, cr - cl), height: Math.max(0, cb - ct) };
+}
+
+/** Sub-ROIs inside a large pageserial template box (matches desktop EnumerateTemplateZoneRefinements). */
+function templateZoneRefinementRegions(left, top, width, height) {
+  const out = [{ left, top, width, height, tag: "zone" }];
+  for (const frac of [0.55, 0.38, 0.22]) {
+    const bh = Math.max(32, Math.floor(height * frac));
+    const y0 = Math.max(top, top + height - bh);
+    const hStrip = top + height - y0;
+    if (width >= 4 && hStrip >= 4) {
+      const tag = frac === 0.55 ? "zone-b55" : frac === 0.38 ? "zone-b38" : "zone-b22";
+      out.push({ left, top: y0, width, height: hStrip, tag });
+    }
+  }
+  const rw = Math.max(32, Math.floor(width * 0.45));
+  const x0 = Math.max(left, left + width - rw);
+  out.push({ left: x0, top, width: left + width - x0, height, tag: "zone-r45" });
+  const qx = left + Math.floor(width / 2);
+  const qy = top + Math.floor(height / 2);
+  out.push({
+    left: qx,
+    top: qy,
+    width: Math.max(8, left + width - qx),
+    height: Math.max(8, top + height - qy),
+    tag: "zone-br",
+  });
+  return out.filter((r) => r.width >= 4 && r.height >= 4);
+}
+
+function collectPageSerialCropRegions(iw, ih, pageNumber1Based, barcodeStartPage1Based, zonesJson) {
+  const list = [];
+  const z = findPageSerialZoneFromJson(zonesJson);
+  if (z && shouldApplyPageSerialZoneJs(z, pageNumber1Based, barcodeStartPage1Based)) {
+    const r = zoneToRectPixelsJs(iw, ih, z);
+    if (r.width >= 4 && r.height >= 4) {
+      for (const rr of templateZoneRefinementRegions(r.left, r.top, r.width, r.height)) {
+        list.push(rr);
+      }
+      const padX = Math.min(48, Math.max(6, Math.floor(r.width / 12)));
+      const padY = Math.min(72, Math.max(6, Math.floor(r.height / 12)));
+      const rp = inflateRectWithin(r.left, r.top, r.width, r.height, padX, padY, iw, ih);
+      if (rp.width > r.width || rp.height > r.height) {
+        for (const rr of templateZoneRefinementRegions(rp.left, rp.top, rp.width, rp.height)) {
+          list.push({ ...rr, tag: rr.tag.replace(/^zone/, "zonePad") });
+        }
+      }
+    }
+  }
+  for (const reg of bottomRightCornerRegions(iw, ih)) {
+    list.push({ left: reg.left, top: reg.top, width: reg.width, height: reg.height, tag: `br${reg.tag}` });
+  }
+  return list;
+}
+
 /** @param {ReturnType<normalizeResults>} decoded */
 function pickPageSerialFromDecoded(decoded) {
-  const hit = decoded.find((d) => isLikelyPageNumberPayload(d.text));
-  return hit?.text ?? null;
-}
-
-/** Bottom strip: stripH = max(32, floor(h * frac)), y0 = h - stripH */
-function bottomStripRegion(imgW, imgH, frac) {
-  const stripH = Math.max(32, Math.floor(imgH * frac));
-  const y0 = Math.max(0, imgH - stripH);
-  return { left: 0, top: y0, width: imgW, height: stripH };
-}
-
-function bottomStripRectText(imgW, imgH, frac) {
-  const stripH = Math.max(32, Math.floor(imgH * frac));
-  const y0 = Math.max(0, imgH - stripH);
-  return `x=0 y=${y0} w=${imgW} h=${stripH}`;
+  const strict = decoded.find((d) => isLikelyPageNumberPayload(d.text));
+  if (strict) return strict.text;
+  const loose = decoded.find(
+    (d) => d.text && looksLikeSerialToken(d.text) && !isProbablyQrFormat(d.format)
+  );
+  return loose?.text ?? null;
 }
 
 /**
@@ -257,11 +315,13 @@ function cropRgba(src, srcW, srcH, left, top, cw, ch) {
   return out;
 }
 
-/** Match desktop UpsampleNearest: dst = min(dim*2,8000), nearest-neighbor stretch. */
-function upscaleNearest2x(rgba) {
+/** Match desktop UpsampleNearest: dst = min(dim*n,8000), nearest-neighbor stretch. */
+function upscaleNearestNx(rgba, n) {
+  const scale = Math.max(1, Math.min(3, Math.floor(n)));
+  if (scale <= 1) return rgba;
   const { data, width, height } = rgba;
-  const nw = Math.min(width * 2, 8000);
-  const nh = Math.min(height * 2, 8000);
+  const nw = Math.min(width * scale, 8000);
+  const nh = Math.min(height * scale, 8000);
   const out = new Uint8Array(nw * nh * 4);
   for (let y = 0; y < nh; y++) {
     const sy = Math.min(Math.floor((y * height) / nh), height - 1);
@@ -297,16 +357,16 @@ function rgbaToJpegBuffer(rgba) {
 /**
  * @param {{ width: number; height: number; data: Uint8Array }} fullRgba
  * @param {{ left: number; top: number; width: number; height: number }} region
- * @param {boolean} scale2x
+ * @param {number} scaleN 1..3
  */
-function regionToJpegBufferFromRgba(fullRgba, region, scale2x) {
+function regionToJpegBufferFromRgba(fullRgba, region, scaleN) {
   const iw = fullRgba.width;
   const ih = fullRgba.height;
   const r = intersectRect(region, iw, ih);
   if (r.width < 4 || r.height < 4) return null;
   const cropped = cropRgba(fullRgba.data, iw, ih, r.left, r.top, r.width, r.height);
   let rgba = { width: r.width, height: r.height, data: cropped };
-  if (scale2x) rgba = upscaleNearest2x(rgba);
+  rgba = upscaleNearestNx(rgba, scaleN);
   return rgbaToJpegBuffer(rgba);
 }
 
@@ -316,9 +376,10 @@ function regionToJpegBufferFromRgba(fullRgba, region, scale2x) {
  * @param {{ left: number; top: number; width: number; height: number }} rect logical (may extend outside; intersected)
  * @param {number} iw
  * @param {number} ih
- * @param {boolean} scale2x
+ * @param {number} scaleN 1..3 (nearest upscale before optional downscale)
+ * @param {number} [maxInsideEdge] cap for final "inside" resize (page serial uses larger cap)
  */
-async function regionToJpegBufferSharp(Sh, imageBuffer, rect, iw, ih, scale2x) {
+async function regionToJpegBufferSharp(Sh, imageBuffer, rect, iw, ih, scaleN, maxInsideEdge) {
   const r = intersectRect(rect, iw, ih);
   if (r.width < 4 || r.height < 4) return null;
   let pipe = Sh(imageBuffer, { failOn: "none" }).extract({
@@ -327,14 +388,16 @@ async function regionToJpegBufferSharp(Sh, imageBuffer, rect, iw, ih, scale2x) {
     width: r.width,
     height: r.height,
   });
-  if (scale2x) {
-    const nw = Math.min(r.width * 2, 8000);
-    const nh = Math.min(r.height * 2, 8000);
+  const sn = Math.max(1, Math.min(3, Math.floor(scaleN || 1)));
+  if (sn > 1) {
+    const nw = Math.min(r.width * sn, 8000);
+    const nh = Math.min(r.height * sn, 8000);
     pipe = pipe.resize(nw, nh, { kernel: Sh.kernel.nearest, fit: "fill" });
   }
+  const cap = maxInsideEdge ?? DECODE_MAX_EDGE;
   pipe = pipe.resize({
-    width: DECODE_MAX_EDGE,
-    height: DECODE_MAX_EDGE,
+    width: cap,
+    height: cap,
     fit: "inside",
     withoutEnlargement: true,
     kernel: Sh.kernel.nearest,
@@ -378,59 +441,37 @@ async function decodePageSerialSharp(Sh, imageBuffer, pageNumber1Based, barcodeS
     };
   }
 
-  const zones = parseZonesArray(zonesJson);
-  const zone = findPageSerialZone(zones);
-  let all = /** @type {ReturnType<normalizeResults>} */ ([]);
-
-  if (zone && shouldApplyPageSerialZone(zone, pageNumber1Based, barcodeStartPage1Based)) {
-    const rect = zoneToRectangle(iw, ih, zone);
-    const zr = intersectRect(rect, iw, ih);
-    const rectStr = `x=${zr.left} y=${zr.top} w=${zr.width} h=${zr.height}`;
-    const zonePct = `x=${zone.xPct} y=${zone.yPct} w=${zone.wPct} h=${zone.hPct}`;
-
-    let hit = await tryOneDecode(
-      await regionToJpegBufferSharp(Sh, imageBuffer, rect, iw, ih, false),
-      "zone",
-      rectStr,
-      ctx
-    );
-    if (hit) return { ...hit, winnerRect: `${hit.winnerRect} | zone% ${zonePct}` };
-    hit = await tryOneDecode(
-      await regionToJpegBufferSharp(Sh, imageBuffer, rect, iw, ih, true),
-      "zone-2x",
-      rectStr,
-      ctx
-    );
-    if (hit) return { ...hit, winnerRect: `${hit.winnerRect} | zone% ${zonePct}` };
+  const start = Math.max(1, barcodeStartPage1Based);
+  if (pageNumber1Based < start) {
+    return {
+      barcodeValue: null,
+      all: [],
+      winnerLabel: null,
+      winnerRect: `skip page<${start}`,
+      decodedCount: 0,
+    };
   }
 
-  for (const frac of BOTTOM_FRACTIONS) {
-    const region = bottomStripRegion(iw, ih, frac);
-    const rectStr = bottomStripRectText(iw, ih, frac);
-    const hit = await tryOneDecode(
-      await regionToJpegBufferSharp(Sh, imageBuffer, region, iw, ih, false),
-      `bot-${frac}`,
-      rectStr,
-      ctx
-    );
-    if (hit) return hit;
-  }
+  const regions = collectPageSerialCropRegions(iw, ih, pageNumber1Based, start, zonesJson);
 
-  for (const frac of BOTTOM_FRACTIONS_UPSAMPLE) {
-    const region = bottomStripRegion(iw, ih, frac);
-    const rectStr = bottomStripRectText(iw, ih, frac);
-    const hit = await tryOneDecode(
-      await regionToJpegBufferSharp(Sh, imageBuffer, region, iw, ih, true),
-      `bot-${frac}-2x`,
-      rectStr,
-      ctx
-    );
-    if (hit) return hit;
+  for (const reg of regions) {
+    const { tag, left, top, width, height } = reg;
+    const region = { left, top, width, height };
+    const rectStr = `x=${left} y=${top} w=${width} h=${height}`;
+    for (const scaleN of [1, 2, 3]) {
+      const hit = await tryOneDecode(
+        await regionToJpegBufferSharp(Sh, imageBuffer, region, iw, ih, scaleN, PAGE_SERIAL_MAX_EDGE),
+        `${tag}-${scaleN}x`,
+        rectStr,
+        ctx
+      );
+      if (hit) return hit;
+    }
   }
 
   return {
     barcodeValue: null,
-    all,
+    all: [],
     winnerLabel: null,
     winnerRect: "none",
     decodedCount: 0,
@@ -454,36 +495,35 @@ async function decodePageSerialJpegJs(fullRgba, pageNumber1Based, barcodeStartPa
     };
   }
 
-  const zones = parseZonesArray(zonesJson);
-  const zone = findPageSerialZone(zones);
-  let all = /** @type {ReturnType<normalizeResults>} */ ([]);
-
-  if (zone && shouldApplyPageSerialZone(zone, pageNumber1Based, barcodeStartPage1Based)) {
-    const rect = zoneToRectangle(iw, ih, zone);
-    const zr = intersectRect(rect, iw, ih);
-    const rectStr = `x=${zr.left} y=${zr.top} w=${zr.width} h=${zr.height}`;
-    const zonePct = `x=${zone.xPct} y=${zone.yPct} w=${zone.wPct} h=${zone.hPct}`;
-    let hit = await tryOneDecode(regionToJpegBufferFromRgba(fullRgba, rect, false), "zone", rectStr, ctx);
-    if (hit) return { ...hit, winnerRect: `${hit.winnerRect} | zone% ${zonePct}` };
-    hit = await tryOneDecode(regionToJpegBufferFromRgba(fullRgba, rect, true), "zone-2x", rectStr, ctx);
-    if (hit) return { ...hit, winnerRect: `${hit.winnerRect} | zone% ${zonePct}` };
+  const start = Math.max(1, barcodeStartPage1Based);
+  if (pageNumber1Based < start) {
+    return {
+      barcodeValue: null,
+      all: [],
+      winnerLabel: null,
+      winnerRect: `skip page<${start}`,
+      decodedCount: 0,
+    };
   }
 
-  for (const frac of BOTTOM_FRACTIONS) {
-    const region = bottomStripRegion(iw, ih, frac);
-    const rectStr = bottomStripRectText(iw, ih, frac);
-    const hit = await tryOneDecode(regionToJpegBufferFromRgba(fullRgba, region, false), `bot-${frac}`, rectStr, ctx);
-    if (hit) return hit;
+  const regions = collectPageSerialCropRegions(iw, ih, pageNumber1Based, start, zonesJson);
+
+  for (const reg of regions) {
+    const { tag, left, top, width, height } = reg;
+    const region = { left, top, width, height };
+    const rectStr = `x=${left} y=${top} w=${width} h=${height}`;
+    for (const scaleN of [1, 2, 3]) {
+      const hit = await tryOneDecode(
+        regionToJpegBufferFromRgba(fullRgba, region, scaleN),
+        `${tag}-${scaleN}x`,
+        rectStr,
+        ctx
+      );
+      if (hit) return hit;
+    }
   }
 
-  for (const frac of BOTTOM_FRACTIONS_UPSAMPLE) {
-    const region = bottomStripRegion(iw, ih, frac);
-    const rectStr = bottomStripRectText(iw, ih, frac);
-    const hit = await tryOneDecode(regionToJpegBufferFromRgba(fullRgba, region, true), `bot-${frac}-2x`, rectStr, ctx);
-    if (hit) return hit;
-  }
-
-  return { barcodeValue: null, all, winnerLabel: null, winnerRect: "none", decodedCount: 0 };
+  return { barcodeValue: null, all: [], winnerLabel: null, winnerRect: "none", decodedCount: 0 };
 }
 
 app.get("/health", (_req, res) => {
@@ -607,6 +647,7 @@ app.post("/api/barcode/decode", async (req, res) => {
       `attempts=${attempts.length}`,
       `pipeline=${Sh ? "sharp" : "jpeg-js"}`,
       `maxEdge=${DECODE_MAX_EDGE}`,
+      `pageSerialMaxEdge=${PAGE_SERIAL_MAX_EDGE}`,
       `elapsedMs=${elapsedMs}`,
     ].join(" | ");
 
@@ -637,6 +678,8 @@ app.post("/api/barcode/decode", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  logInfo(`barcode-wasm-api listening on http://localhost:${PORT} LOG_LEVEL=${LOG_LEVEL} BARCODE_DECODE_MAX_EDGE=${DECODE_MAX_EDGE}`);
+  logInfo(
+    `barcode-wasm-api listening on http://localhost:${PORT} LOG_LEVEL=${LOG_LEVEL} BARCODE_DECODE_MAX_EDGE=${DECODE_MAX_EDGE} BARCODE_PAGE_SERIAL_MAX_EDGE=${PAGE_SERIAL_MAX_EDGE}`
+  );
   loadZxingModule().catch(() => {});
 });

@@ -21,6 +21,9 @@ namespace ScannerApp.Services
     /// </summary>
     public class ScannerService : IScannerService
     {
+        /// <inheritdoc />
+        public ManualResetEventSlim? PauseGate { get; set; }
+
         // WIA Device type constant (1 = Scanner)
         private const int WIA_SCANNER_DEVICE_TYPE = 1;
 
@@ -168,6 +171,13 @@ namespace ScannerApp.Services
                 for (int i = 0; i < template.PageCount; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // Allow the UI to pause the scan loop between page transfers.
+                    // PauseGate is set (signaled) by default; resetting it parks the
+                    // scanner without abandoning the device session.
+                    try { PauseGate?.Wait(ct); }
+                    catch (OperationCanceledException) { throw; }
+                    ct.ThrowIfCancellationRequested();
+
                     bool pageScanned = false;
                     int retryCount = 0;
                     const int maxRetries = 3;
@@ -235,6 +245,10 @@ namespace ScannerApp.Services
             for (int i = 0; i < template.PageCount; i++)
             {
                 ct.ThrowIfCancellationRequested();
+                try { PauseGate?.Wait(ct); }
+                catch (OperationCanceledException) { throw; }
+                ct.ThrowIfCancellationRequested();
+
                 try
                 {
                     var bmp = ScanPage(dev.DeviceId, template.DPI,

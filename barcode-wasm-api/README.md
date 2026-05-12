@@ -1,6 +1,6 @@
 # Barcode WASM API
 
-Separate barcode decode application using `zxing-wasm` plus a **fast crop pipeline** so `pageSerial` matches the desktop scanner: template zone (when applicable), then bottom-strip passes with optional 2× upscale—never a full-page serial decode.
+Separate barcode decode application using `zxing-wasm` plus a **fast crop pipeline** so `pageSerial` matches the desktop scanner: **only the bottom-right quarter** of the page (split in half horizontally and vertically) is decoded, with optional 2× upscale—template `zonesJson` and legacy bottom-strip passes are **ignored** for page serial (same as `BarcodeService.ReadPageSerialOrFooterWithDiag` in scanner-desktop).
 
 **Performance (default):** [sharp](https://sharp.pixelplumbing.com/) extracts JPEG regions without decoding the full page to RGB in JavaScript; each crop is optionally upscaled, then **downscaled to fit inside `BARCODE_DECODE_MAX_EDGE`** (default `1200`) before ZXing, which keeps WASM CPU time low. Crops are tried **in order with early exit** on first good page-serial payload (no redundant decodes). If `sharp` fails to load, the server falls back to `jpeg-js` (slower).
 
@@ -73,5 +73,5 @@ Response JSON:
 - `pageSerial` -> returns `barcodeValue` (expects **JPEG** input so the server can decode and crop; the desktop client sends JPEG.)
 - `linearQr` -> returns `linearText` + `qrText` (full image; JPEG or formats `zxing-wasm` accepts)
 
-The `diag` field includes `winner=…` when a crop succeeds (`zone`, `zone-2x`, `bot-0.15`, etc.), `imagePos=…` for that crop, `attempts=N` (ZXing passes actually run), `pipeline=sharp|jpeg-js`, `maxEdge=…`, and `elapsedMs`.
+The `diag` field includes `winner=…` when a crop succeeds (`br-q`, `br-q-2x`), `imagePos=…` for that crop, `attempts=N` (ZXing passes actually run), `pipeline=sharp|jpeg-js`, `maxEdge=…`, and `elapsedMs`. `zonesJson` may still be sent by the client but is not used for `pageSerial` cropping.
 

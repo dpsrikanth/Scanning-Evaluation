@@ -47,6 +47,34 @@ public class PageSerialZoneHelperTests
     }
 
     [Fact]
+    public void ZoneToRectanglePixels_MatchesPercentRounding()
+    {
+        var z = new TemplateBarcodeZone
+        {
+            ZoneName = PageSerialZoneHelper.PrimaryZoneKey,
+            XPct = 1,
+            YPct = 90,
+            WPct = 30,
+            HPct = 8,
+        };
+        var r = PageSerialZoneHelper.ZoneToRectanglePixels(1000, 2000, z);
+        Assert.Equal(10, r.X);
+        Assert.Equal(1800, r.Y);
+        Assert.Equal(300, r.Width);
+        Assert.Equal(160, r.Height);
+    }
+
+    [Fact]
+    public void TryGetPageSerialPixelRectangle_RespectsBarcodeStart()
+    {
+        const string json =
+            """[{"zoneName":"pageserialno","pageScope":"fromPage","pageNumber":3,"xPct":0,"yPct":0,"wPct":10,"hPct":10,"hint":"ANY"}]""";
+        Assert.False(PageSerialZoneHelper.TryGetPageSerialPixelRectangle(100, 100, json, 2, 3, out _));
+        Assert.True(PageSerialZoneHelper.TryGetPageSerialPixelRectangle(100, 100, json, 3, 3, out var r));
+        Assert.True(r.Width >= 4 && r.Height >= 4);
+    }
+
+    [Fact]
     public void ShouldApplyPageSerialZone_FirstScope_RepeatsFooterBoxOnEveryContentPage()
     {
         var z = new TemplateBarcodeZone

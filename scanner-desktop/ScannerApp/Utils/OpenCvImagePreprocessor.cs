@@ -40,7 +40,7 @@ namespace ScannerApp.Utils
                 CvInvoke.Threshold(blur, bin, 0, 255, ThresholdType.Binary | ThresholdType.Otsu);
 
                 double skewDeg = EstimateSkewDegFromBinary(bin);
-                if (Math.Abs(skewDeg) > 0.1 && Math.Abs(skewDeg) < 10)
+                if (Math.Abs(skewDeg) > 0.1 && Math.Abs(skewDeg) < 12)
                 {
                     PointF center = new PointF(bgr.Cols / 2f, bgr.Rows / 2f);
                     mRot = new Mat();
@@ -163,7 +163,7 @@ namespace ScannerApp.Utils
                 while (deg > 90) deg -= 180;
                 // Only near-horizontal lines are relevant for document skew.
                 // Registration marks produce diagonal ~45° segments — exclude them.
-                if (Math.Abs(deg) <= 5.0)
+                if (Math.Abs(deg) <= 7.0)
                     angles.Add(deg);
             }
 

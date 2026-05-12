@@ -31,7 +31,7 @@ namespace ScannerApp.Utils
             sb.AppendLine($"Upload: {FormatSchedule(t.UploadScheduleMode, t.UploadScheduleParam)}");
             sb.AppendLine();
             sb.AppendLine("Barcode / QR zones (% of page):");
-            sb.AppendLine("Reserved: \"pageserialno\" / \"pagevalno\" — scope \"First page\" = same % footer box on every page ≥ footer start; \"From page #\" = from max(template start, N) onward.");
+            sb.AppendLine("Reserved: \"pageserialno\" / \"pagevalno\" — required in template JSON for validation; the scan preview highlights this zone when it applies. Page-index decode uses this zone first, then bottom-right corner fallbacks.");
             AppendZones(sb, t.BarcodeZonesJson);
             return sb.ToString().TrimEnd();
         }

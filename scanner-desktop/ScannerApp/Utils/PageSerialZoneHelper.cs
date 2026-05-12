@@ -1,12 +1,15 @@
+using System.Drawing;
 using Newtonsoft.Json;
 using ScannerApp.Models;
 
 namespace ScannerApp.Utils;
 
 /// <summary>
-/// Reserved zone names that define where to read per-page serial / page-index barcodes.
-/// <c>fromPage</c> + page N means the same % rectangle is used on every page N, N+1, … (not only page N).
-/// Eligibility is gated by <see cref="ScanTemplate.BarcodeStartPage"/> and the zone's page scope.
+/// Reserved zone names for template validation, preview overlay, and decode ROI.
+/// Page-index barcodes are read from the configured <c>pageserialno</c> rectangle when it applies to the page;
+/// <see cref="BarcodeService.ReadPageSerialOrFooterWithDiag"/> falls back to bottom-right corner crops if that fails.
+/// <c>fromPage</c> + page N in JSON is kept for backward compatibility with stored templates.
+/// Eligibility is gated by <see cref="ScanTemplate.BarcodeStartPage"/> (pages below start skip serial read).
 /// </summary>
 public static class PageSerialZoneHelper
 {
@@ -67,5 +70,35 @@ public static class PageSerialZoneHelper
         var fromPg = z.PageNumber > 0 ? z.PageNumber : 1;
         var effectiveFrom = Math.Max(start, fromPg);
         return pageNumber1Based >= effectiveFrom;
+    }
+
+    /// <summary>Pixel rectangle for a zone as a fraction of width/height (matches <see cref="BarcodeService"/>).</summary>
+    public static Rectangle ZoneToRectanglePixels(int imageWidth, int imageHeight, TemplateBarcodeZone z)
+    {
+        int px = (int)Math.Round(imageWidth * z.XPct / 100.0);
+        int py = (int)Math.Round(imageHeight * z.YPct / 100.0);
+        int pw = Math.Max(8, (int)Math.Round(imageWidth * z.WPct / 100.0));
+        int ph = Math.Max(8, (int)Math.Round(imageHeight * z.HPct / 100.0));
+        return new Rectangle(px, py, pw, ph);
+    }
+
+    /// <summary>
+    /// When the template defines an applicable <c>pageserialno</c> zone, returns its pixel rectangle for overlays / ROI.
+    /// </summary>
+    public static bool TryGetPageSerialPixelRectangle(
+        int imageWidth,
+        int imageHeight,
+        string? zonesJson,
+        int pageNumber1Based,
+        int barcodeStartPage1Based,
+        out Rectangle rect)
+    {
+        rect = default;
+        if (imageWidth < 16 || imageHeight < 16) return false;
+        var z = FindPageSerialZone(zonesJson);
+        if (z == null) return false;
+        if (!ShouldApplyPageSerialZone(z, pageNumber1Based, barcodeStartPage1Based)) return false;
+        rect = ZoneToRectanglePixels(imageWidth, imageHeight, z);
+        return rect.Width >= 4 && rect.Height >= 4;
     }
 }

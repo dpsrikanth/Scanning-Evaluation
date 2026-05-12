@@ -10,8 +10,8 @@
     <!-- New build every compile: file version uses month/day + hour/minute; informational adds second-level stamp. -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.$([System.DateTime]::UtcNow.ToString(&quot;MMdd&quot;)).$([System.DateTime]::UtcNow.ToString(&quot;HHmm&quot;))</FileVersion>
-    <InformationalVersion>1.0.0+$([System.DateTime]::UtcNow.ToString(&quot;yyyyMMddHHmmss&quot;))</InformationalVersion>
+    <FileVersion>1.0.$([System.DateTime]::UtcNow.ToString("MMdd")).$([System.DateTime]::UtcNow.ToString("HHmm"))</FileVersion>
+    <InformationalVersion>1.0.0+$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +24,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="NTwain" Version="3.7.5" />
     <PackageReference Include="PDFsharp-GDI" Version="6.2.3" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
   </ItemGroup>
-
 
 </Project>
