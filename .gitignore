@@ -41,3 +41,7 @@ scan files/
 .venv/
 **/venv/
 venv/
+.specstory/
+.cursorindexingignore
+_agent_build/
+.claude/
